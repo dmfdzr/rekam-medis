@@ -1,7 +1,5 @@
 import "server-only"
 
-import { UserRole } from "@prisma/client"
-
 import { prisma } from "@/lib/prisma"
 
 const dateFormatter = new Intl.DateTimeFormat("id-ID", {
@@ -158,7 +156,7 @@ export async function getVisitFormOptions() {
     prisma.user.findMany({
       where: {
         role: {
-          key: UserRole.DOCTOR,
+          key: "DOCTOR",
         },
         status: "ACTIVE",
       },

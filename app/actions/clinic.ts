@@ -1,12 +1,71 @@
 "use server"
 
 import { revalidatePath } from "next/cache"
-import { DiagnosisType, DocumentType, Gender, MedicalRecordStatus, MedicineStatus, PrescriptionStatus, Prisma, UserRole, VisitStatus } from "@prisma/client"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 import { writeAuditLog } from "@/lib/auth/audit-log"
 import { getCurrentUser } from "@/lib/auth/current-user"
 import { prisma } from "@/lib/prisma"
+
+const UserRole = {
+  SUPER_ADMIN: "SUPER_ADMIN",
+  ADMIN: "ADMIN",
+  REGISTRATION: "REGISTRATION",
+  DOCTOR: "DOCTOR",
+  NURSE: "NURSE",
+  PHARMACIST: "PHARMACIST",
+} as const
+
+type UserRole = (typeof UserRole)[keyof typeof UserRole]
+
+const Gender = {
+  MALE: "MALE",
+  FEMALE: "FEMALE",
+  OTHER: "OTHER",
+} as const
+
+const VisitStatus = {
+  WAITING: "WAITING",
+  VITAL_SIGN: "VITAL_SIGN",
+  EXAMINATION: "EXAMINATION",
+  PHARMACY: "PHARMACY",
+  COMPLETED: "COMPLETED",
+  CANCELLED: "CANCELLED",
+} as const
+
+const MedicalRecordStatus = {
+  DRAFT: "DRAFT",
+  FINAL: "FINAL",
+} as const
+
+const DiagnosisType = {
+  PRIMARY: "PRIMARY",
+  SECONDARY: "SECONDARY",
+} as const
+
+const PrescriptionStatus = {
+  PENDING: "PENDING",
+  VALIDATING_STOCK: "VALIDATING_STOCK",
+  PROCESSED: "PROCESSED",
+  CANCELLED: "CANCELLED",
+} as const
+
+const MedicineStatus = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+  LOW_STOCK: "LOW_STOCK",
+  EXPIRED: "EXPIRED",
+} as const
+
+const DocumentType = {
+  LAB_RESULT: "LAB_RESULT",
+  REFERRAL_LETTER: "REFERRAL_LETTER",
+  CONTROL_LETTER: "CONTROL_LETTER",
+  EXAMINATION_PHOTO: "EXAMINATION_PHOTO",
+  SUPPORTING_DOCUMENT: "SUPPORTING_DOCUMENT",
+  OTHER: "OTHER",
+} as const
 
 export type ClinicFormState = {
   ok?: boolean
