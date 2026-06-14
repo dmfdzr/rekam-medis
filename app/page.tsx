@@ -1,19 +1,68 @@
-import { Button } from "@/components/ui/button"
+import { redirect } from "next/navigation"
 
-export default function Page() {
+import { MedRecordApp } from "@/app/medrecord-app"
+import { getCurrentUser } from "@/lib/auth/current-user"
+import {
+  getClinicalWorklist,
+  getAuditLogList,
+  getDocumentFormOptions,
+  getMedicineList,
+  getMedicalDocumentList,
+  getPatientList,
+  getPrescriptionFormOptions,
+  getPrescriptionList,
+  getReportSummary,
+  getVisitFormOptions,
+  getVisitList,
+} from "@/lib/data/clinic"
+
+export default async function Page() {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    redirect("/login")
+  }
+
+  const [
+    patients,
+    visits,
+    visitOptions,
+    clinicalWorklist,
+    prescriptions,
+    medicines,
+    prescriptionOptions,
+    documents,
+    documentOptions,
+    reportSummary,
+    auditLogs,
+  ] = await Promise.all([
+    getPatientList(),
+    getVisitList(),
+    getVisitFormOptions(),
+    getClinicalWorklist(),
+    getPrescriptionList(),
+    getMedicineList(),
+    getPrescriptionFormOptions(),
+    getMedicalDocumentList(),
+    getDocumentFormOptions(),
+    getReportSummary(),
+    getAuditLogList(),
+  ])
+
   return (
-    <div className="flex min-h-svh p-6">
-      <div className="flex max-w-md min-w-0 flex-col gap-4 text-sm leading-loose">
-        <div>
-          <h1 className="font-medium">Project ready!</h1>
-          <p>You may now add components and start building.</p>
-          <p>We&apos;ve already added the button component for you.</p>
-          <Button className="mt-2">Button</Button>
-        </div>
-        <div className="font-mono text-xs text-muted-foreground">
-          (Press <kbd>d</kbd> to toggle dark mode)
-        </div>
-      </div>
-    </div>
+    <MedRecordApp
+      user={user}
+      patients={patients}
+      visits={visits}
+      visitOptions={visitOptions}
+      clinicalWorklist={clinicalWorklist}
+      prescriptions={prescriptions}
+      medicines={medicines}
+      prescriptionOptions={prescriptionOptions}
+      documents={documents}
+      documentOptions={documentOptions}
+      reportSummary={reportSummary}
+      auditLogs={auditLogs}
+    />
   )
 }

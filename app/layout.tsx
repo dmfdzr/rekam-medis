@@ -1,4 +1,5 @@
-import { Geist, Geist_Mono, Outfit } from "next/font/google"
+import type { Metadata } from "next"
+import { Geist_Mono, Outfit } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
@@ -10,6 +11,11 @@ const fontMono = Geist_Mono({
   subsets: ["latin"],
   variable: "--font-mono",
 })
+
+export const metadata: Metadata = {
+  title: "MedRecord App",
+  description: "Aplikasi rekam medis elektronik standalone untuk operasional klinik.",
+}
 
 export default function RootLayout({
   children,

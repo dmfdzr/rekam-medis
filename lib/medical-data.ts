@@ -1,0 +1,343 @@
+import type { LucideIcon } from "lucide-react"
+import {
+  Activity,
+  BarChart3,
+  CalendarDays,
+  ClipboardCheck,
+  ClipboardList,
+  FileText,
+  HeartPulse,
+  LayoutDashboard,
+  Pill,
+  ShieldCheck,
+  Stethoscope,
+  Upload,
+  UserRound,
+  Users,
+} from "lucide-react"
+
+export type RoleKey = "admin" | "registration" | "doctor" | "nurse" | "pharmacist"
+
+export type NavigationItem = {
+  id: SectionKey
+  label: string
+  icon: LucideIcon
+}
+
+export type SectionKey =
+  | "dashboard"
+  | "patients"
+  | "visits"
+  | "vitals"
+  | "records"
+  | "prescriptions"
+  | "medicines"
+  | "documents"
+  | "reports"
+  | "users"
+  | "audit"
+
+export const roles: Record<
+  RoleKey,
+  {
+    label: string
+    user: string
+    description: string
+    accent: string
+  }
+> = {
+  admin: {
+    label: "Admin Klinik",
+    user: "Nadia Prameswari",
+    description: "Operasional, user, data master, dan laporan",
+    accent: "bg-sky-600",
+  },
+  registration: {
+    label: "Petugas Pendaftaran",
+    user: "Ardi Santoso",
+    description: "Pasien, pencarian, dan pembuatan kunjungan",
+    accent: "bg-cyan-600",
+  },
+  doctor: {
+    label: "Dokter",
+    user: "dr. Raka Mahendra",
+    description: "Pemeriksaan, diagnosa, tindakan, dan resep",
+    accent: "bg-teal-600",
+  },
+  nurse: {
+    label: "Perawat",
+    user: "Maya Lestari",
+    description: "Tanda vital dan catatan pemeriksaan awal",
+    accent: "bg-emerald-600",
+  },
+  pharmacist: {
+    label: "Apoteker",
+    user: "Dewi Kurnia",
+    description: "Resep, stok obat, dan penggunaan obat",
+    accent: "bg-violet-600",
+  },
+}
+
+const navigation: NavigationItem[] = [
+  { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { id: "patients", label: "Pasien", icon: UserRound },
+  { id: "visits", label: "Kunjungan", icon: CalendarDays },
+  { id: "vitals", label: "Tanda Vital", icon: Activity },
+  { id: "records", label: "Rekam Medis", icon: Stethoscope },
+  { id: "prescriptions", label: "Resep", icon: ClipboardList },
+  { id: "medicines", label: "Obat", icon: Pill },
+  { id: "documents", label: "Dokumen Medis", icon: Upload },
+  { id: "reports", label: "Laporan", icon: BarChart3 },
+  { id: "users", label: "Manajemen User", icon: Users },
+  { id: "audit", label: "Audit Log", icon: ShieldCheck },
+]
+
+const roleAccess: Record<RoleKey, SectionKey[]> = {
+  admin: [
+    "dashboard",
+    "patients",
+    "visits",
+    "vitals",
+    "records",
+    "prescriptions",
+    "medicines",
+    "documents",
+    "reports",
+    "users",
+    "audit",
+  ],
+  registration: ["dashboard", "patients", "visits"],
+  doctor: ["dashboard", "patients", "visits", "vitals", "records", "prescriptions", "medicines", "documents", "reports"],
+  nurse: ["dashboard", "patients", "visits", "vitals", "documents"],
+  pharmacist: ["dashboard", "prescriptions", "medicines", "reports"],
+}
+
+export function getNavigationForRole(role: RoleKey) {
+  const allowedSections = new Set(roleAccess[role])
+
+  return navigation.filter((item) => allowedSections.has(item.id))
+}
+
+export function canAccessSection(role: RoleKey, section: SectionKey) {
+  return roleAccess[role].includes(section)
+}
+
+export const dashboardMetrics = [
+  {
+    label: "Kunjungan hari ini",
+    value: "42",
+    change: "+12%",
+    tone: "text-sky-700 dark:text-sky-300",
+    detail: "8 pasien menunggu tanda vital",
+  },
+  {
+    label: "Rekam medis final",
+    value: "31",
+    change: "74%",
+    tone: "text-teal-700 dark:text-teal-300",
+    detail: "11 pemeriksaan masih draft",
+  },
+  {
+    label: "Resep pending",
+    value: "9",
+    change: "-3",
+    tone: "text-amber-700 dark:text-amber-300",
+    detail: "4 menunggu validasi stok",
+  },
+  {
+    label: "Obat stok rendah",
+    value: "6",
+    change: "Perlu restock",
+    tone: "text-red-700 dark:text-red-300",
+    detail: "2 item kedaluwarsa < 30 hari",
+  },
+]
+
+export const queueSummary = [
+  { status: "Menunggu", count: 8, className: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200" },
+  { status: "Tanda vital", count: 12, className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-400/15 dark:text-cyan-200" },
+  { status: "Pemeriksaan", count: 13, className: "bg-teal-100 text-teal-800 dark:bg-teal-400/15 dark:text-teal-200" },
+  { status: "Selesai", count: 31, className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200" },
+]
+
+export const patients = [
+  {
+    id: "RM-2026-00041",
+    name: "Siti Aminah",
+    nik: "3273********0001",
+    gender: "Perempuan",
+    age: "34 th",
+    phone: "0812-4432-1180",
+    allergy: "Amoxicillin",
+    status: "Aktif",
+    lastVisit: "14 Jun 2026",
+  },
+  {
+    id: "RM-2026-00042",
+    name: "Bima Pratama",
+    nik: "3273********0032",
+    gender: "Laki-laki",
+    age: "9 th",
+    phone: "0821-7789-1044",
+    allergy: "Tidak ada",
+    status: "Aktif",
+    lastVisit: "14 Jun 2026",
+  },
+  {
+    id: "RM-2026-00043",
+    name: "Hendra Wijaya",
+    nik: "3174********0088",
+    gender: "Laki-laki",
+    age: "51 th",
+    phone: "0857-2218-9031",
+    allergy: "Sulfa",
+    status: "Observasi",
+    lastVisit: "13 Jun 2026",
+  },
+  {
+    id: "RM-2026-00044",
+    name: "Ratna Laksmi",
+    nik: "3276********0020",
+    gender: "Perempuan",
+    age: "45 th",
+    phone: "0813-9033-2401",
+    allergy: "Tidak ada",
+    status: "Aktif",
+    lastVisit: "12 Jun 2026",
+  },
+]
+
+export const visits = [
+  {
+    id: "VIS-1442",
+    patient: "Siti Aminah",
+    service: "Poli Umum",
+    doctor: "dr. Raka Mahendra",
+    complaint: "Demam, nyeri tenggorokan, batuk kering",
+    status: "Pemeriksaan",
+    time: "09:15",
+  },
+  {
+    id: "VIS-1443",
+    patient: "Bima Pratama",
+    service: "Poli Anak",
+    doctor: "dr. Raka Mahendra",
+    complaint: "Mual dan diare sejak malam",
+    status: "Tanda vital",
+    time: "09:40",
+  },
+  {
+    id: "VIS-1444",
+    patient: "Hendra Wijaya",
+    service: "Kontrol Hipertensi",
+    doctor: "dr. Raka Mahendra",
+    complaint: "Kontrol tekanan darah",
+    status: "Menunggu",
+    time: "10:05",
+  },
+  {
+    id: "VIS-1445",
+    patient: "Ratna Laksmi",
+    service: "Poli Umum",
+    doctor: "dr. Raka Mahendra",
+    complaint: "Nyeri kepala berulang",
+    status: "Selesai",
+    time: "10:30",
+  },
+]
+
+export const vitalSigns = [
+  { label: "Tekanan darah", value: "128/82", unit: "mmHg" },
+  { label: "Suhu", value: "37.8", unit: "C" },
+  { label: "Nadi", value: "92", unit: "x/menit" },
+  { label: "Respirasi", value: "20", unit: "x/menit" },
+  { label: "SpO2", value: "98", unit: "%" },
+  { label: "BMI", value: "23.6", unit: "normal" },
+]
+
+export const medicalTimeline = [
+  {
+    date: "14 Jun 2026",
+    title: "ISPA akut",
+    doctor: "dr. Raka Mahendra",
+    soap: "S: demam 2 hari. O: faring hiperemis. A: ISPA akut. P: terapi simptomatik dan kontrol bila memburuk.",
+    status: "Draft",
+  },
+  {
+    date: "29 Mei 2026",
+    title: "Kontrol alergi",
+    doctor: "dr. Raka Mahendra",
+    soap: "Keluhan membaik, edukasi pencetus alergi, resep antihistamin bila perlu.",
+    status: "Final",
+  },
+  {
+    date: "14 Apr 2026",
+    title: "Pemeriksaan umum",
+    doctor: "dr. Anita Puspita",
+    soap: "Tidak ada keluhan berat, tanda vital stabil, edukasi pola tidur.",
+    status: "Final",
+  },
+]
+
+export const prescriptions = [
+  {
+    id: "RX-821",
+    patient: "Siti Aminah",
+    doctor: "dr. Raka Mahendra",
+    items: "Paracetamol 500mg, Cetirizine 10mg",
+    status: "Pending",
+    stock: "Cukup",
+  },
+  {
+    id: "RX-822",
+    patient: "Bima Pratama",
+    doctor: "dr. Raka Mahendra",
+    items: "Oralit, Zinc syrup",
+    status: "Validasi stok",
+    stock: "Zinc rendah",
+  },
+  {
+    id: "RX-823",
+    patient: "Ratna Laksmi",
+    doctor: "dr. Anita Puspita",
+    items: "Ibuprofen 200mg",
+    status: "Diproses",
+    stock: "Cukup",
+  },
+]
+
+export const medicines = [
+  { code: "MED-001", name: "Paracetamol 500mg", category: "Analgesik", stock: 240, min: 80, expires: "2027-02-12", status: "Aman" },
+  { code: "MED-014", name: "Cetirizine 10mg", category: "Antihistamin", stock: 74, min: 60, expires: "2026-12-18", status: "Aman" },
+  { code: "MED-021", name: "Zinc syrup", category: "Suplemen", stock: 18, min: 30, expires: "2026-09-04", status: "Stok rendah" },
+  { code: "MED-033", name: "Amoxicillin 500mg", category: "Antibiotik", stock: 21, min: 50, expires: "2026-07-02", status: "Kritis" },
+]
+
+export const reports = [
+  { label: "Laporan kunjungan", period: "Minggu berjalan", value: "286", trend: "+8.5%" },
+  { label: "Pasien baru", period: "Bulan Juni", value: "73", trend: "+14" },
+  { label: "Diagnosa terbanyak", period: "30 hari", value: "ISPA", trend: "21%" },
+  { label: "Penggunaan obat", period: "30 hari", value: "Paracetamol", trend: "410 tablet" },
+]
+
+export const users = [
+  { name: "Nadia Prameswari", role: "Admin Klinik", status: "Aktif", lastLogin: "14 Jun 2026 08:00" },
+  { name: "dr. Raka Mahendra", role: "Dokter", status: "Aktif", lastLogin: "14 Jun 2026 08:32" },
+  { name: "Maya Lestari", role: "Perawat", status: "Aktif", lastLogin: "14 Jun 2026 08:21" },
+  { name: "Dewi Kurnia", role: "Apoteker", status: "Aktif", lastLogin: "14 Jun 2026 09:04" },
+]
+
+export const auditLogs = [
+  { actor: "Ardi Santoso", action: "Membuat kunjungan", entity: "VIS-1444", time: "10:05", risk: "Normal" },
+  { actor: "Maya Lestari", action: "Mengisi tanda vital", entity: "VIS-1443", time: "09:48", risk: "Normal" },
+  { actor: "dr. Raka Mahendra", action: "Menyimpan draft rekam medis", entity: "RM-2026-00041", time: "09:44", risk: "Sensitif" },
+  { actor: "Dewi Kurnia", action: "Memproses resep", entity: "RX-823", time: "09:32", risk: "Normal" },
+]
+
+export const workflowSteps = [
+  { title: "Daftar pasien", detail: "Cari NIK/RM, validasi duplikasi, buat nomor RM otomatis.", icon: UserRound },
+  { title: "Buat kunjungan", detail: "Pilih layanan, dokter, keluhan utama, dan status awal.", icon: CalendarDays },
+  { title: "Tanda vital", detail: "Perawat mengisi pemeriksaan awal sebelum dokter.", icon: HeartPulse },
+  { title: "Pemeriksaan dokter", detail: "SOAP, diagnosa, tindakan, resep, lalu finalisasi.", icon: ClipboardCheck },
+  { title: "Resep & laporan", detail: "Apotek proses resep, sistem siap hitung stok dan laporan.", icon: FileText },
+]

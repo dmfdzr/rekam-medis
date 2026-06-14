@@ -1,0 +1,363 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+}
+
+enum UserRole {
+  SUPER_ADMIN
+  ADMIN
+  REGISTRATION
+  DOCTOR
+  NURSE
+  PHARMACIST
+}
+
+enum UserStatus {
+  ACTIVE
+  INACTIVE
+  SUSPENDED
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum PatientStatus {
+  ACTIVE
+  INACTIVE
+  DECEASED
+}
+
+enum VisitStatus {
+  WAITING
+  VITAL_SIGN
+  EXAMINATION
+  PHARMACY
+  COMPLETED
+  CANCELLED
+}
+
+enum MedicalRecordStatus {
+  DRAFT
+  FINAL
+}
+
+enum DiagnosisType {
+  PRIMARY
+  SECONDARY
+}
+
+enum PrescriptionStatus {
+  PENDING
+  VALIDATING_STOCK
+  PROCESSED
+  CANCELLED
+}
+
+enum MedicineStatus {
+  ACTIVE
+  INACTIVE
+  LOW_STOCK
+  EXPIRED
+}
+
+enum DocumentType {
+  LAB_RESULT
+  REFERRAL_LETTER
+  CONTROL_LETTER
+  EXAMINATION_PHOTO
+  SUPPORTING_DOCUMENT
+  OTHER
+}
+
+model Role {
+  id          String   @id @default(cuid())
+  key         UserRole @unique
+  name        String
+  description String
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+  users       User[]
+
+  @@map("roles")
+}
+
+model User {
+  id           String     @id @default(cuid())
+  name         String
+  email        String     @unique
+  username     String     @unique
+  passwordHash String
+  roleId       String
+  role         Role       @relation(fields: [roleId], references: [id], onDelete: Restrict)
+  status       UserStatus @default(ACTIVE)
+  lastLoginAt  DateTime?
+  createdAt    DateTime   @default(now())
+  updatedAt    DateTime   @updatedAt
+  sessions     Session[]
+  auditLogs    AuditLog[]
+  createdVisits Visit[]    @relation("VisitCreatedBy")
+  doctorVisits  Visit[]    @relation("VisitDoctor")
+  createdMedicalRecords MedicalRecord[] @relation("MedicalRecordDoctor")
+  performedTreatments   Treatment[]     @relation("TreatmentPerformer")
+  createdPrescriptions  Prescription[]  @relation("PrescriptionDoctor")
+  processedPrescriptions Prescription[] @relation("PrescriptionPharmacist")
+  uploadedDocuments     MedicalDocument[] @relation("DocumentUploader")
+
+  @@index([roleId])
+  @@index([status])
+  @@map("users")
+}
+
+model Session {
+  id        String    @id @default(cuid())
+  userId    String
+  user      User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  tokenHash String    @unique
+  expiresAt DateTime
+  revokedAt DateTime?
+  ipAddress String?
+  userAgent String?
+  createdAt DateTime  @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@index([revokedAt])
+  @@map("sessions")
+}
+
+model AuditLog {
+  id           String   @id @default(cuid())
+  userId       String?
+  user         User?    @relation(fields: [userId], references: [id], onDelete: SetNull)
+  action       String
+  entityName   String
+  entityId     String?
+  beforeData   Json?
+  afterData    Json?
+  ipAddress    String?
+  userAgent    String?
+  createdAt    DateTime @default(now())
+
+  @@index([userId])
+  @@index([entityName, entityId])
+  @@index([createdAt])
+  @@map("audit_logs")
+}
+
+model Patient {
+  id                  String        @id @default(cuid())
+  medicalRecordNumber String        @unique
+  nik                 String?       @unique
+  fullName            String
+  birthDate           DateTime
+  gender              Gender
+  address             String?
+  phone               String?
+  bloodType           String?
+  allergies           String?
+  emergencyContact    String?
+  status              PatientStatus @default(ACTIVE)
+  createdAt           DateTime      @default(now())
+  updatedAt           DateTime      @updatedAt
+  visits              Visit[]
+  documents           MedicalDocument[]
+
+  @@index([fullName])
+  @@index([birthDate])
+  @@index([status])
+  @@map("patients")
+}
+
+model Visit {
+  id              String      @id @default(cuid())
+  patientId       String
+  patient         Patient     @relation(fields: [patientId], references: [id], onDelete: Restrict)
+  doctorId        String?
+  doctor          User?       @relation("VisitDoctor", fields: [doctorId], references: [id], onDelete: SetNull)
+  visitDate       DateTime    @default(now())
+  service         String
+  chiefComplaint  String
+  status          VisitStatus @default(WAITING)
+  createdById     String?
+  createdBy       User?       @relation("VisitCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
+  createdAt       DateTime    @default(now())
+  updatedAt       DateTime    @updatedAt
+  vitalSign       VitalSign?
+  medicalRecord   MedicalRecord?
+  documents       MedicalDocument[]
+
+  @@index([patientId])
+  @@index([doctorId])
+  @@index([visitDate])
+  @@index([status])
+  @@map("visits")
+}
+
+model VitalSign {
+  id              String   @id @default(cuid())
+  visitId         String   @unique
+  visit           Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  bloodPressure   String?
+  temperature     Decimal? @db.Decimal(4, 1)
+  weight          Decimal? @db.Decimal(5, 2)
+  height          Decimal? @db.Decimal(5, 2)
+  pulse           Int?
+  respiration     Int?
+  oxygenSaturation Int?
+  nurseNote       String?
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@map("vital_signs")
+}
+
+model MedicalRecord {
+  id                 String              @id @default(cuid())
+  visitId            String              @unique
+  visit              Visit               @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  subjective         String?
+  objective          String?
+  assessment         String?
+  plan               String?
+  physicalExam       String?
+  doctorNote         String?
+  followUpDate       DateTime?
+  status             MedicalRecordStatus @default(DRAFT)
+  finalizedAt        DateTime?
+  doctorId           String?
+  doctor             User?               @relation("MedicalRecordDoctor", fields: [doctorId], references: [id], onDelete: SetNull)
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+  diagnoses          Diagnosis[]
+  treatments         Treatment[]
+  prescription       Prescription?
+
+  @@index([doctorId])
+  @@index([status])
+  @@index([followUpDate])
+  @@map("medical_records")
+}
+
+model Diagnosis {
+  id              String        @id @default(cuid())
+  medicalRecordId String
+  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+  code            String?
+  name            String
+  type            DiagnosisType @default(SECONDARY)
+  note            String?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([medicalRecordId])
+  @@index([code])
+  @@index([name])
+  @@map("diagnoses")
+}
+
+model Treatment {
+  id              String        @id @default(cuid())
+  medicalRecordId String
+  medicalRecord   MedicalRecord @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+  code            String?
+  name            String
+  cost            Decimal?      @db.Decimal(12, 2)
+  note            String?
+  performerId     String?
+  performer       User?         @relation("TreatmentPerformer", fields: [performerId], references: [id], onDelete: SetNull)
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  @@index([medicalRecordId])
+  @@index([performerId])
+  @@index([code])
+  @@map("treatments")
+}
+
+model Medicine {
+  id                String             @id @default(cuid())
+  code              String             @unique
+  name              String
+  category          String
+  unit              String
+  stock             Int                @default(0)
+  minimumStock      Int                @default(0)
+  price             Decimal?           @db.Decimal(12, 2)
+  expirationDate    DateTime?
+  status            MedicineStatus     @default(ACTIVE)
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  prescriptionItems PrescriptionItem[]
+
+  @@index([name])
+  @@index([category])
+  @@index([stock])
+  @@index([expirationDate])
+  @@index([status])
+  @@map("medicines")
+}
+
+model Prescription {
+  id                String             @id @default(cuid())
+  medicalRecordId   String             @unique
+  medicalRecord     MedicalRecord      @relation(fields: [medicalRecordId], references: [id], onDelete: Cascade)
+  status            PrescriptionStatus @default(PENDING)
+  doctorId          String?
+  doctor            User?              @relation("PrescriptionDoctor", fields: [doctorId], references: [id], onDelete: SetNull)
+  pharmacistId      String?
+  pharmacist        User?              @relation("PrescriptionPharmacist", fields: [pharmacistId], references: [id], onDelete: SetNull)
+  processedAt       DateTime?
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+  items             PrescriptionItem[]
+
+  @@index([status])
+  @@index([doctorId])
+  @@index([pharmacistId])
+  @@index([createdAt])
+  @@map("prescriptions")
+}
+
+model PrescriptionItem {
+  id             String       @id @default(cuid())
+  prescriptionId String
+  prescription   Prescription @relation(fields: [prescriptionId], references: [id], onDelete: Cascade)
+  medicineId     String
+  medicine       Medicine     @relation(fields: [medicineId], references: [id], onDelete: Restrict)
+  dosage         String
+  usageRule      String
+  quantity       Int
+  note           String?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  @@index([prescriptionId])
+  @@index([medicineId])
+  @@map("prescription_items")
+}
+
+model MedicalDocument {
+  id           String       @id @default(cuid())
+  patientId    String
+  patient      Patient      @relation(fields: [patientId], references: [id], onDelete: Cascade)
+  visitId      String?
+  visit        Visit?       @relation(fields: [visitId], references: [id], onDelete: SetNull)
+  type         DocumentType
+  fileName     String
+  fileUrl      String
+  uploadedById String?
+  uploadedBy   User?        @relation("DocumentUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
+  uploadedAt   DateTime     @default(now())
+
+  @@index([patientId])
+  @@index([visitId])
+  @@index([type])
+  @@index([uploadedAt])
+  @@map("medical_documents")
+}
