@@ -7,11 +7,14 @@ import {
   getAuditLogList,
   getDocumentFormOptions,
   getMedicineList,
+  getMedicalRecordHistory,
   getMedicalDocumentList,
   getPatientList,
   getPrescriptionFormOptions,
   getPrescriptionList,
   getReportSummary,
+  getRoleOptions,
+  getUserList,
   getVisitFormOptions,
   getVisitList,
 } from "@/lib/data/clinic"
@@ -28,6 +31,7 @@ export default async function Page() {
     visits,
     visitOptions,
     clinicalWorklist,
+    medicalRecordHistory,
     prescriptions,
     medicines,
     prescriptionOptions,
@@ -35,11 +39,14 @@ export default async function Page() {
     documentOptions,
     reportSummary,
     auditLogs,
+    userList,
+    roleOptions,
   ] = await Promise.all([
     getPatientList(),
     getVisitList(),
     getVisitFormOptions(),
     getClinicalWorklist(),
+    getMedicalRecordHistory(),
     getPrescriptionList(),
     getMedicineList(),
     getPrescriptionFormOptions(),
@@ -47,6 +54,8 @@ export default async function Page() {
     getDocumentFormOptions(),
     getReportSummary(),
     getAuditLogList(),
+    getUserList(),
+    getRoleOptions(),
   ])
 
   return (
@@ -56,6 +65,7 @@ export default async function Page() {
       visits={visits}
       visitOptions={visitOptions}
       clinicalWorklist={clinicalWorklist}
+      medicalRecordHistory={medicalRecordHistory}
       prescriptions={prescriptions}
       medicines={medicines}
       prescriptionOptions={prescriptionOptions}
@@ -63,6 +73,8 @@ export default async function Page() {
       documentOptions={documentOptions}
       reportSummary={reportSummary}
       auditLogs={auditLogs}
+      userList={userList}
+      roleOptions={roleOptions}
     />
   )
 }

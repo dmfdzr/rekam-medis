@@ -1,9 +1,9 @@
 "use client"
 
 import * as React from "react"
+import { Dialog } from "radix-ui"
 import {
   AlertTriangle,
-  Bell,
   CheckCircle2,
   ChevronRight,
   Clock3,
@@ -23,10 +23,15 @@ import {
   createMedicalDocumentAction,
   createMedicineAction,
   createPatientAction,
+  createUserAction,
   createVisitAction,
   processPrescriptionAction,
   saveMedicalRecordAction,
   type ClinicFormState,
+  updateMedicineAction,
+  updatePatientAction,
+  updateUserAction,
+  updateVisitStatusAction,
   upsertVitalSignAction,
 } from "@/app/actions/clinic"
 import { Button } from "@/components/ui/button"
@@ -36,10 +41,13 @@ import type {
   DocumentFormOptions,
   MedicineListItem,
   MedicalDocumentListItem,
+  MedicalRecordHistoryItem,
   PatientListItem,
   PrescriptionFormOptions,
   PrescriptionListItem,
+  RoleOptionItem,
   ReportSummaryItem,
+  UserListItem,
   VisitFormOptions,
   VisitListItem,
 } from "@/lib/data/clinic"
@@ -51,7 +59,6 @@ import {
   roles,
   type RoleKey,
   type SectionKey,
-  users,
   workflowSteps,
 } from "@/lib/medical-data"
 
@@ -66,6 +73,8 @@ type AppUser = {
 
 const initialClinicFormState: ClinicFormState = {}
 const defaultPageSize = 8
+const filterableSections = new Set<SectionKey>(["patients", "visits", "prescriptions", "medicines", "documents", "reports", "users", "audit"])
+const composerSections = new Set<SectionKey>(["patients", "visits", "vitals", "records", "prescriptions", "medicines", "documents", "users"])
 
 function normalizeSearchValue(value: unknown) {
   return String(value ?? "").toLowerCase()
@@ -202,6 +211,7 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
 const statusTone: Record<string, string> = {
   Aktif: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
   Nonaktif: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200",
+  Ditangguhkan: "bg-red-100 text-red-800 dark:bg-red-400/15 dark:text-red-200",
   Meninggal: "bg-slate-100 text-slate-700 dark:bg-white/10 dark:text-slate-200",
   Observasi: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
   Menunggu: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
@@ -235,6 +245,7 @@ export function MedRecordApp({
   visits,
   visitOptions,
   clinicalWorklist,
+  medicalRecordHistory,
   prescriptions,
   medicines,
   prescriptionOptions,
@@ -242,12 +253,15 @@ export function MedRecordApp({
   documentOptions,
   reportSummary,
   auditLogs,
+  userList,
+  roleOptions,
 }: {
   user: AppUser
   patients: PatientListItem[]
   visits: VisitListItem[]
   visitOptions: VisitFormOptions
   clinicalWorklist: ClinicalWorklistItem[]
+  medicalRecordHistory: MedicalRecordHistoryItem[]
   prescriptions: PrescriptionListItem[]
   medicines: MedicineListItem[]
   prescriptionOptions: PrescriptionFormOptions
@@ -255,29 +269,42 @@ export function MedRecordApp({
   documentOptions: DocumentFormOptions
   reportSummary: ReportSummaryItem[]
   auditLogs: AuditLogListItem[]
+  userList: UserListItem[]
+  roleOptions: RoleOptionItem[]
 }) {
   const activeRole = mapUserRoleToAppRole(user.role)
   const [activeSection, setActiveSection] = React.useState<SectionKey>("dashboard")
   const [mobileOpen, setMobileOpen] = React.useState(false)
+  const [sidebarCollapsed, setSidebarCollapsed] = React.useState(false)
+  const [filtersOpen, setFiltersOpen] = React.useState(false)
+  const [composerOpen, setComposerOpen] = React.useState(false)
   const navigation = getNavigationForRole(activeRole)
   const currentRole = roles[activeRole]
   const meta = sectionMeta[activeSection]
+  const canShowFilterButton = filterableSections.has(activeSection)
+  const canShowComposerButton = Boolean(meta.action) && composerSections.has(activeSection)
 
   function navigate(section: SectionKey) {
     setActiveSection(section)
     setMobileOpen(false)
+    setFiltersOpen(false)
+    setComposerOpen(false)
   }
 
   return (
     <div className="min-h-dvh bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.10),transparent_28rem),linear-gradient(180deg,var(--background),color-mix(in_oklch,var(--muted),var(--background)_60%))] text-foreground">
       <div className="flex min-h-dvh">
-        <aside className="hidden w-72 shrink-0 border-r border-border/80 bg-sidebar/90 p-4 text-sidebar-foreground backdrop-blur lg:block">
+        <aside
+          className={cn(
+            "hidden shrink-0 border-r border-border/80 bg-sidebar/90 p-4 text-sidebar-foreground backdrop-blur transition-[width] duration-200 lg:block",
+            sidebarCollapsed ? "w-20" : "w-72",
+          )}
+        >
           <SidebarContent
-            activeRole={activeRole}
             activeSection={activeSection}
+            collapsed={sidebarCollapsed}
             navigation={navigation}
             onNavigate={navigate}
-            user={user}
           />
         </aside>
 
@@ -291,11 +318,10 @@ export function MedRecordApp({
             />
             <aside className="relative h-full w-[min(22rem,88vw)] border-r border-border bg-sidebar p-4 shadow-2xl">
               <SidebarContent
-                activeRole={activeRole}
                 activeSection={activeSection}
+                collapsed={false}
                 navigation={navigation}
                 onNavigate={navigate}
-                user={user}
                 onClose={() => setMobileOpen(false)}
               />
             </aside>
@@ -313,6 +339,16 @@ export function MedRecordApp({
                 aria-label="Buka menu"
                 onClick={() => setMobileOpen(true)}
               >
+                {sidebarCollapsed ? <Menu /> : <X />}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                size="icon-lg"
+                className="hidden lg:inline-flex"
+                aria-label={sidebarCollapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
+                onClick={() => setSidebarCollapsed((current) => !current)}
+              >
                 <Menu />
               </Button>
 
@@ -325,34 +361,55 @@ export function MedRecordApp({
                 <h1 className="mt-1 truncate text-xl font-semibold tracking-normal md:text-2xl">{meta.title}</h1>
               </div>
 
-              <div className="hidden min-w-64 items-center rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground md:flex">
-                <Search className="mr-2 size-4" aria-hidden="true" />
-                Cari pasien, RM, resep, atau obat
+              <div className="hidden min-w-0 items-center gap-3 rounded-md border border-border bg-card px-3 py-2 md:flex">
+                <div className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+                  <ShieldCheck className="size-4" aria-hidden="true" />
+                </div>
+                <div className="min-w-0 text-right">
+                  <p className="truncate text-sm font-medium">{user.name}</p>
+                  <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>
+                </div>
+                <form action={logoutAction}>
+                  <Button type="submit" variant="outline" size="sm">
+                    <LogOut className="size-3" aria-hidden="true" />
+                    Logout
+                  </Button>
+                </form>
               </div>
-
-              <Button type="button" variant="outline" size="icon-lg" aria-label="Notifikasi">
-                <Bell />
-              </Button>
             </div>
           </header>
 
           <div className="px-4 py-5 md:px-6 lg:px-8">
-            <PageHeader meta={meta} />
+            <PageHeader
+              meta={meta}
+              filtersOpen={filtersOpen}
+              canShowFilterButton={canShowFilterButton}
+              canShowComposerButton={canShowComposerButton}
+              onOpenFilters={() => setFiltersOpen(true)}
+              onOpenComposer={() => setComposerOpen(true)}
+            />
             <SectionRenderer
               section={activeSection}
               role={activeRole}
+              filtersOpen={filtersOpen}
+              composerOpen={composerOpen}
+              onFiltersOpenChange={setFiltersOpen}
+              onComposerOpenChange={setComposerOpen}
               patients={patients}
               visits={visits}
               visitOptions={visitOptions}
               clinicalWorklist={clinicalWorklist}
+              medicalRecordHistory={medicalRecordHistory}
               prescriptions={prescriptions}
               medicines={medicines}
               prescriptionOptions={prescriptionOptions}
               documents={documents}
-              documentOptions={documentOptions}
-              reportSummary={reportSummary}
-              auditLogs={auditLogs}
-            />
+            documentOptions={documentOptions}
+            reportSummary={reportSummary}
+            auditLogs={auditLogs}
+            userList={userList}
+            roleOptions={roleOptions}
+          />
           </div>
         </main>
       </div>
@@ -361,30 +418,26 @@ export function MedRecordApp({
 }
 
 function SidebarContent({
-  activeRole,
   activeSection,
+  collapsed,
   navigation,
   onNavigate,
-  user,
   onClose,
 }: {
-  activeRole: RoleKey
   activeSection: SectionKey
+  collapsed: boolean
   navigation: ReturnType<typeof getNavigationForRole>
   onNavigate: (section: SectionKey) => void
-  user: AppUser
   onClose?: () => void
 }) {
-  const currentRole = roles[activeRole]
-
   return (
-    <div className="flex h-full flex-col gap-5">
-      <div className="flex items-start justify-between gap-3">
+    <div className={cn("flex h-full flex-col", collapsed ? "items-center gap-4" : "gap-5")}>
+      <div className={cn("flex w-full items-start justify-between gap-3", collapsed ? "justify-center" : "")}>
         <div className="flex min-w-0 items-center gap-3">
           <div className="grid size-10 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
             <ShieldCheck className="size-5" aria-hidden="true" />
           </div>
-          <div className="min-w-0">
+          <div className={cn("min-w-0", collapsed ? "sr-only" : "")}>
             <p className="truncate text-sm font-semibold">MedRecord</p>
             <p className="truncate text-xs text-muted-foreground">Standalone EHR</p>
           </div>
@@ -396,18 +449,7 @@ function SidebarContent({
         ) : null}
       </div>
 
-      <div className="rounded-md border border-sidebar-border bg-background/70 p-3">
-        <p className="text-xs font-medium text-muted-foreground">Role aktif</p>
-        <div className="mt-3 flex items-start gap-2 rounded-md border border-primary/20 bg-primary/8 p-3">
-          <span className={cn("mt-1 size-2 rounded-full", currentRole.accent)} />
-          <div className="min-w-0">
-            <p className="truncate text-sm font-medium">{user.roleName}</p>
-            <p className="mt-1 text-xs leading-5 text-muted-foreground">{currentRole.description}</p>
-          </div>
-        </div>
-      </div>
-
-      <nav aria-label="Navigasi utama" className="grid gap-1">
+      <nav aria-label="Navigasi utama" className={cn("grid w-full gap-1", collapsed ? "justify-items-center" : "")}>
         {navigation.map((item) => {
           const Icon = item.icon
           const selected = activeSection === item.id
@@ -416,48 +458,57 @@ function SidebarContent({
             <button
               key={item.id}
               type="button"
+              title={collapsed ? item.label : undefined}
               onClick={() => onNavigate(item.id)}
               className={cn(
-                "flex min-h-11 items-center gap-3 rounded-md px-3 py-2 text-left text-sm transition",
+                "flex min-h-11 items-center rounded-md text-left text-sm transition",
+                collapsed ? "w-11 justify-center px-0" : "w-full gap-3 px-3 py-2",
                 selected
                   ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               )}
             >
               <Icon className="size-4" aria-hidden="true" />
-              <span className="truncate">{item.label}</span>
+              <span className={cn("truncate", collapsed ? "sr-only" : "")}>{item.label}</span>
             </button>
           )
         })}
       </nav>
 
-      <div className="mt-auto rounded-md border border-sidebar-border bg-background/70 p-3">
-        <p className="truncate text-sm font-medium">{user.name}</p>
-        <p className="mt-1 truncate text-xs text-muted-foreground">{user.email}</p>
-        <form action={logoutAction}>
-          <Button type="submit" variant="outline" size="lg" className="mt-3 w-full justify-start">
-            <LogOut className="size-4" aria-hidden="true" />
-            Logout
-          </Button>
-        </form>
-      </div>
+      <div className="mt-auto" />
     </div>
   )
 }
 
-function PageHeader({ meta }: { meta: { title: string; description: string; action?: string } }) {
+function PageHeader({
+  meta,
+  filtersOpen,
+  canShowFilterButton,
+  canShowComposerButton,
+  onOpenFilters,
+  onOpenComposer,
+}: {
+  meta: { title: string; description: string; action?: string }
+  filtersOpen: boolean
+  canShowFilterButton: boolean
+  canShowComposerButton: boolean
+  onOpenFilters: () => void
+  onOpenComposer: () => void
+}) {
   return (
     <section className="mb-5 flex flex-col gap-3 border-b border-border/70 pb-5 md:flex-row md:items-end md:justify-between">
       <div className="max-w-3xl">
         <p className="text-sm leading-6 text-muted-foreground">{meta.description}</p>
       </div>
       <div className="flex flex-wrap gap-2">
-        <Button type="button" variant="outline" size="lg">
-          <Filter className="size-4" aria-hidden="true" />
-          Filter
-        </Button>
-        {meta.action ? (
-          <Button type="button" size="lg">
+        {canShowFilterButton ? (
+          <Button type="button" variant={filtersOpen ? "secondary" : "outline"} size="lg" onClick={onOpenFilters}>
+            <Filter className="size-4" aria-hidden="true" />
+            Filter
+          </Button>
+        ) : null}
+        {canShowComposerButton && meta.action ? (
+          <Button type="button" size="lg" onClick={onOpenComposer}>
             {meta.action.includes("Export") ? <Download className="size-4" aria-hidden="true" /> : <Plus className="size-4" aria-hidden="true" />}
             {meta.action}
           </Button>
@@ -470,10 +521,15 @@ function PageHeader({ meta }: { meta: { title: string; description: string; acti
 function SectionRenderer({
   section,
   role,
+  filtersOpen,
+  composerOpen,
+  onFiltersOpenChange,
+  onComposerOpenChange,
   patients,
   visits,
   visitOptions,
   clinicalWorklist,
+  medicalRecordHistory,
   prescriptions,
   medicines,
   prescriptionOptions,
@@ -481,13 +537,20 @@ function SectionRenderer({
   documentOptions,
   reportSummary,
   auditLogs,
+  userList,
+  roleOptions,
 }: {
   section: SectionKey
   role: RoleKey
+  filtersOpen: boolean
+  composerOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+  onComposerOpenChange: (open: boolean) => void
   patients: PatientListItem[]
   visits: VisitListItem[]
   visitOptions: VisitFormOptions
   clinicalWorklist: ClinicalWorklistItem[]
+  medicalRecordHistory: MedicalRecordHistoryItem[]
   prescriptions: PrescriptionListItem[]
   medicines: MedicineListItem[]
   prescriptionOptions: PrescriptionFormOptions
@@ -495,30 +558,32 @@ function SectionRenderer({
   documentOptions: DocumentFormOptions
   reportSummary: ReportSummaryItem[]
   auditLogs: AuditLogListItem[]
+  userList: UserListItem[]
+  roleOptions: RoleOptionItem[]
 }) {
   switch (section) {
     case "dashboard":
       return <DashboardSection role={role} visits={visits} />
     case "patients":
-      return <PatientsSection patients={patients} role={role} />
+      return <PatientsSection patients={patients} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "visits":
-      return <VisitsSection visits={visits} visitOptions={visitOptions} role={role} />
+      return <VisitsSection visits={visits} visitOptions={visitOptions} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "vitals":
-      return <VitalsSection role={role} clinicalWorklist={clinicalWorklist} />
+      return <VitalsSection role={role} clinicalWorklist={clinicalWorklist} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "records":
-      return <MedicalRecordsSection role={role} clinicalWorklist={clinicalWorklist} />
+      return <MedicalRecordsSection role={role} clinicalWorklist={clinicalWorklist} medicalRecordHistory={medicalRecordHistory} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "prescriptions":
-      return <PrescriptionsSection role={role} prescriptions={prescriptions} prescriptionOptions={prescriptionOptions} />
+      return <PrescriptionsSection role={role} prescriptions={prescriptions} prescriptionOptions={prescriptionOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "medicines":
-      return <MedicinesSection role={role} medicines={medicines} />
+      return <MedicinesSection role={role} medicines={medicines} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "documents":
-      return <DocumentsSection role={role} documents={documents} documentOptions={documentOptions} />
+      return <DocumentsSection role={role} documents={documents} documentOptions={documentOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "reports":
-      return <ReportsSection reportSummary={reportSummary} />
+      return <ReportsSection reportSummary={reportSummary} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
     case "users":
-      return <UsersSection />
+      return <UsersSection role={role} userList={userList} roleOptions={roleOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "audit":
-      return <AuditSection auditLogs={auditLogs} />
+      return <AuditSection auditLogs={auditLogs} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
   }
 }
 
@@ -572,7 +637,21 @@ function DashboardSection({ role, visits }: { role: RoleKey; visits: VisitListIt
   )
 }
 
-function PatientsSection({ patients, role }: { patients: PatientListItem[]; role: RoleKey }) {
+function PatientsSection({
+  patients,
+  role,
+  filtersOpen,
+  composerOpen,
+  onFiltersOpenChange,
+  onComposerOpenChange,
+}: {
+  patients: PatientListItem[]
+  role: RoleKey
+  filtersOpen: boolean
+  composerOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+  onComposerOpenChange: (open: boolean) => void
+}) {
   const canCreate = role === "admin" || role === "registration"
   const patientStatuses = React.useMemo(() => getUniqueOptions(patients, (patient) => patient.status), [patients])
   const searchSelector = React.useCallback(
@@ -587,15 +666,12 @@ function PatientsSection({ patients, role }: { patients: PatientListItem[]; role
   })
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.35fr_0.75fr]">
+    <div className="grid gap-5">
       <Panel title="Daftar pasien" description="Pencarian cepat berdasarkan nama, NIK tersamarkan, atau nomor rekam medis.">
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}
           searchPlaceholder="Cari nama, NIK, nomor RM, telepon, alergi"
-          filterValue={controls.filterValue}
-          onFilterChange={controls.setFilterValue}
-          filterOptions={patientStatuses}
           resultCount={controls.filteredItems.length}
           totalCount={patients.length}
         />
@@ -640,25 +716,63 @@ function PatientsSection({ patients, role }: { patients: PatientListItem[]; role
           </>
         )}
       </Panel>
-
-      <Panel title="Form pasien baru" description="Field prioritas untuk mengurangi waktu input pendaftaran.">
-        {canCreate ? <CreatePatientForm /> : <PermissionNotice message="Role ini hanya dapat melihat data pasien. Pembuatan pasien dibatasi untuk admin dan petugas pendaftaran." />}
-      </Panel>
+      <FilterModal
+        open={filtersOpen}
+        onOpenChange={onFiltersOpenChange}
+        title="Filter pasien"
+        description="Batasi daftar pasien berdasarkan status akun pasien."
+        filterValue={controls.filterValue}
+        onFilterChange={controls.setFilterValue}
+        filterOptions={patientStatuses}
+      />
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola pasien" description="Tambah pasien baru atau ubah data dasar pasien yang sudah terdaftar.">
+        <div className="grid gap-5">
+          <Panel title="Tambah pasien" description="Field prioritas untuk mengurangi waktu input pendaftaran.">
+            {canCreate ? <CreatePatientForm /> : <PermissionNotice message="Role ini hanya dapat melihat data pasien. Pembuatan pasien dibatasi untuk admin dan petugas pendaftaran." />}
+          </Panel>
+          <Panel title="Update data dasar" description="Perbarui data kontak, alergi, status, dan informasi dasar pasien.">
+            {canCreate ? <UpdatePatientForm patients={patients} /> : <PermissionNotice message="Perubahan data pasien dibatasi untuk admin dan petugas pendaftaran." />}
+          </Panel>
+        </div>
+      </ModalDialog>
     </div>
   )
 }
 
-function VisitsSection({ visits, visitOptions, role }: { visits: VisitListItem[]; visitOptions: VisitFormOptions; role: RoleKey }) {
+function VisitsSection({
+  visits,
+  visitOptions,
+  role,
+  filtersOpen,
+  composerOpen,
+  onFiltersOpenChange,
+  onComposerOpenChange,
+}: {
+  visits: VisitListItem[]
+  visitOptions: VisitFormOptions
+  role: RoleKey
+  filtersOpen: boolean
+  composerOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+  onComposerOpenChange: (open: boolean) => void
+}) {
   const canCreate = role === "admin" || role === "registration"
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.2fr_0.8fr]">
+    <div className="grid gap-5">
       <Panel title="Daftar kunjungan" description="Status kunjungan dibuat eksplisit agar handoff antar role tidak ambigu.">
-        <ResponsiveVisitsTable visits={visits} />
+        <ResponsiveVisitsTable visits={visits} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
       </Panel>
-      <Panel title="Buat kunjungan" description="Payload kunjungan dibuat ramping: pasien, layanan, dokter, keluhan, dan status awal.">
-        {canCreate ? <CreateVisitForm visitOptions={visitOptions} /> : <PermissionNotice message="Role ini hanya dapat melihat kunjungan. Pembuatan kunjungan dibatasi untuk admin dan petugas pendaftaran." />}
-      </Panel>
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola kunjungan" description="Buat kunjungan baru atau ubah status kunjungan sesuai alur operasional.">
+        <div className="grid gap-5">
+          <Panel title="Buat kunjungan" description="Payload kunjungan dibuat ramping: pasien, layanan, dokter, keluhan, dan status awal.">
+            {canCreate ? <CreateVisitForm visitOptions={visitOptions} /> : <PermissionNotice message="Role ini hanya dapat melihat kunjungan. Pembuatan kunjungan dibatasi untuk admin dan petugas pendaftaran." />}
+          </Panel>
+          <Panel title="Update status kunjungan" description="Gunakan untuk membatalkan, menyelesaikan, atau mengoreksi status handoff layanan.">
+            {canCreate ? <UpdateVisitStatusForm visits={visits} /> : <PermissionNotice message="Perubahan status kunjungan dibatasi untuk admin dan petugas pendaftaran." />}
+          </Panel>
+        </div>
+      </ModalDialog>
     </div>
   )
 }
@@ -695,6 +809,63 @@ function CreatePatientForm() {
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
         {pending ? "Menyimpan..." : "Simpan pasien"}
+      </Button>
+    </form>
+  )
+}
+
+function UpdatePatientForm({ patients }: { patients: PatientListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(updatePatientAction, initialClinicFormState)
+
+  if (patients.length === 0) {
+    return <EmptyState title="Belum ada pasien" detail="Tambahkan pasien terlebih dahulu sebelum mengubah data dasar." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <div className="grid gap-3">
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Pasien</span>
+          <select
+            name="patientId"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.patientId)}
+          >
+            <option value="">Pilih pasien</option>
+            {patients.map((patient) => (
+              <option key={patient.id} value={patient.id}>
+                {patient.medicalRecordNumber} - {patient.name}
+              </option>
+            ))}
+          </select>
+          <FieldError message={state.errors?.patientId?.[0]} />
+        </label>
+        <div className="grid gap-3 md:grid-cols-2">
+          <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} />
+          <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="tel" />
+          <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} />
+          <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} />
+        </div>
+        <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
+        <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} />
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Status pasien</span>
+          <select
+            name="status"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.status)}
+          >
+            <option value="">Tidak diubah</option>
+            <option value="ACTIVE">Aktif</option>
+            <option value="INACTIVE">Nonaktif</option>
+            <option value="DECEASED">Meninggal</option>
+          </select>
+          <FieldError message={state.errors?.status?.[0]} />
+        </label>
+      </div>
+      <FormMessage state={state} />
+      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
+        {pending ? "Memperbarui..." : "Update pasien"}
       </Button>
     </form>
   )
@@ -749,12 +920,74 @@ function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptions }) {
   )
 }
 
-function VitalsSection({ role, clinicalWorklist }: { role: RoleKey; clinicalWorklist: ClinicalWorklistItem[] }) {
+function UpdateVisitStatusForm({ visits }: { visits: VisitListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(updateVisitStatusAction, initialClinicFormState)
+
+  if (visits.length === 0) {
+    return <EmptyState title="Belum ada kunjungan" detail="Status kunjungan dapat diubah setelah ada kunjungan pasien." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <div className="grid gap-3">
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Kunjungan</span>
+          <select
+            name="visitId"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.visitId)}
+          >
+            <option value="">Pilih kunjungan</option>
+            {visits.map((visit) => (
+              <option key={visit.id} value={visit.id}>
+                {visit.medicalRecordNumber} - {visit.patient} - {visit.service} - {visit.status}
+              </option>
+            ))}
+          </select>
+          <FieldError message={state.errors?.visitId?.[0]} />
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Status baru</span>
+          <select
+            name="status"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.status)}
+          >
+            <option value="">Pilih status</option>
+            <option value="WAITING">Menunggu</option>
+            <option value="VITAL_SIGN">Tanda vital</option>
+            <option value="EXAMINATION">Pemeriksaan</option>
+            <option value="PHARMACY">Farmasi</option>
+            <option value="COMPLETED">Selesai</option>
+            <option value="CANCELLED">Dibatalkan</option>
+          </select>
+          <FieldError message={state.errors?.status?.[0]} />
+        </label>
+      </div>
+      <FormMessage state={state} />
+      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
+        {pending ? "Memperbarui..." : "Update status"}
+      </Button>
+    </form>
+  )
+}
+
+function VitalsSection({
+  role,
+  clinicalWorklist,
+  composerOpen,
+  onComposerOpenChange,
+}: {
+  role: RoleKey
+  clinicalWorklist: ClinicalWorklistItem[]
+  composerOpen: boolean
+  onComposerOpenChange: (open: boolean) => void
+}) {
   const activeVisit = clinicalWorklist[0]
   const canInput = role === "admin" || role === "nurse"
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+    <div className="grid gap-5">
       <Panel title="Pasien aktif" description="Ringkasan pasien sebelum input tanda vital.">
         {activeVisit ? (
           <>
@@ -765,26 +998,36 @@ function VitalsSection({ role, clinicalWorklist }: { role: RoleKey; clinicalWork
           <EmptyState title="Tidak ada kunjungan aktif" detail="Kunjungan dengan status menunggu, tanda vital, atau pemeriksaan akan muncul di sini." />
         )}
       </Panel>
-
-      <Panel title="Input tanda vital" description="Form dibuat satu kolom di mobile dan dua kolom di desktop untuk entry cepat.">
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Input tanda vital" description="Form dibuat satu kolom di mobile dan dua kolom di desktop untuk entry cepat.">
         {canInput ? <VitalSignForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini hanya dapat melihat tanda vital. Input tanda vital dibatasi untuk admin dan perawat." />}
-      </Panel>
+      </ModalDialog>
     </div>
   )
 }
 
-function MedicalRecordsSection({ role, clinicalWorklist }: { role: RoleKey; clinicalWorklist: ClinicalWorklistItem[] }) {
+function MedicalRecordsSection({
+  role,
+  clinicalWorklist,
+  medicalRecordHistory,
+  composerOpen,
+  onComposerOpenChange,
+}: {
+  role: RoleKey
+  clinicalWorklist: ClinicalWorklistItem[]
+  medicalRecordHistory: MedicalRecordHistoryItem[]
+  composerOpen: boolean
+  onComposerOpenChange: (open: boolean) => void
+}) {
   const canInput = role === "admin" || role === "doctor"
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1fr_0.95fr]">
-      <Panel title="Pemeriksaan dokter" description="Struktur SOAP menjaga catatan tetap konsisten dan mudah diaudit.">
+    <div className="grid gap-5">
+      <Panel title="Riwayat rekam medis pasien" description="Timeline membantu dokter membaca konteks tanpa membuka banyak halaman.">
+        <MedicalRecordTimeline medicalRecordHistory={medicalRecordHistory} />
+      </Panel>
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Pemeriksaan dokter" description="Struktur SOAP menjaga catatan tetap konsisten dan mudah diaudit.">
         {canInput ? <MedicalRecordForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi rekam medis dokter." />}
-      </Panel>
-
-      <Panel title="Riwayat pasien" description="Timeline membantu dokter membaca konteks tanpa membuka banyak halaman.">
-        <MedicalRecordTimeline clinicalWorklist={clinicalWorklist} />
-      </Panel>
+      </ModalDialog>
     </div>
   )
 }
@@ -944,37 +1187,98 @@ function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWor
   )
 }
 
-function MedicalRecordTimeline({ clinicalWorklist }: { clinicalWorklist: ClinicalWorklistItem[] }) {
-  const records = clinicalWorklist.filter((visit) => visit.medicalRecord)
+function MedicalRecordTimeline({ medicalRecordHistory }: { medicalRecordHistory: MedicalRecordHistoryItem[] }) {
+  const searchSelector = React.useCallback(
+    (record: MedicalRecordHistoryItem) => [
+      record.patient,
+      record.medicalRecordNumber,
+      record.service,
+      record.doctor,
+      record.status,
+      record.chiefComplaint,
+      record.diagnosis,
+      record.treatments,
+      record.prescriptions,
+      record.documents,
+    ],
+    [],
+  )
+  const controls = useListControls({
+    items: medicalRecordHistory,
+    pageSize: 6,
+    search: searchSelector,
+  })
 
-  if (records.length === 0) {
+  if (medicalRecordHistory.length === 0) {
     return <EmptyState title="Belum ada rekam medis" detail="Draft dan finalisasi rekam medis dari dokter akan tampil sebagai timeline di sini." />
   }
 
   return (
-    <div className="relative grid gap-4">
-      {records.map((visit, index) => (
-        <div key={visit.id} className="grid grid-cols-[1.5rem_1fr] gap-3">
-          <div className="relative flex justify-center">
-            <span className="mt-1 grid size-5 place-items-center rounded-full border border-primary/40 bg-background text-primary">
-              {visit.medicalRecord?.status === "Final" ? <CheckCircle2 className="size-3" aria-hidden="true" /> : <Clock3 className="size-3" aria-hidden="true" />}
-            </span>
-            {index < records.length - 1 ? <span className="absolute top-7 h-[calc(100%+0.5rem)] w-px bg-border" /> : null}
-          </div>
-          <article className="rounded-md border border-border bg-card p-4">
-            <div className="flex flex-wrap items-center gap-2">
-              <p className="font-medium">{visit.patientName}</p>
-              <StatusBadge label={visit.medicalRecord?.status ?? "Draft"} />
+    <div className="grid gap-4">
+      <ListToolbar
+        query={controls.query}
+        onQueryChange={controls.setQuery}
+        searchPlaceholder="Cari pasien, nomor RM, dokter, diagnosa, tindakan, resep"
+        resultCount={controls.filteredItems.length}
+        totalCount={medicalRecordHistory.length}
+      />
+      {controls.paginatedItems.length === 0 ? (
+        <EmptyState title="Riwayat tidak ditemukan" detail="Ubah kata kunci pencarian untuk melihat riwayat rekam medis lain." />
+      ) : (
+        <div className="relative grid gap-4">
+          {controls.paginatedItems.map((record, index) => (
+            <div key={record.id} className="grid grid-cols-[1.5rem_1fr] gap-3">
+              <div className="relative flex justify-center">
+                <span className="mt-1 grid size-5 place-items-center rounded-full border border-primary/40 bg-background text-primary">
+                  {record.status === "Final" ? <CheckCircle2 className="size-3" aria-hidden="true" /> : <Clock3 className="size-3" aria-hidden="true" />}
+                </span>
+                {index < controls.paginatedItems.length - 1 ? <span className="absolute top-7 h-[calc(100%+0.5rem)] w-px bg-border" /> : null}
+              </div>
+              <article className="rounded-md border border-border bg-card p-4">
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className="font-medium">{record.patient}</p>
+                  <StatusBadge label={record.status} />
+                </div>
+                <p className="mt-1 text-xs text-muted-foreground">
+                  {record.medicalRecordNumber} - {record.patientMeta} - {record.visitDate} - {record.service}
+                </p>
+                <div className="mt-4 grid gap-3 text-sm leading-6 md:grid-cols-2">
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Keluhan</p>
+                    <p>{record.chiefComplaint}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Dokter</p>
+                    <p>{record.doctor}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Assessment / diagnosa</p>
+                    <p>{record.assessment}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Tanda vital</p>
+                    <p>{record.vitalSign}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Tindakan</p>
+                    <p>{record.treatments}</p>
+                  </div>
+                  <div>
+                    <p className="text-xs font-medium text-muted-foreground">Resep</p>
+                    <p>{record.prescriptions}</p>
+                  </div>
+                </div>
+                <div className="mt-4 rounded-md bg-muted p-3 text-sm leading-6 text-muted-foreground">
+                  <p>Plan: {record.plan}</p>
+                  <p className="mt-1">Dokumen: {record.documents}</p>
+                  <p className="mt-1">Alergi: {record.allergies}</p>
+                </div>
+              </article>
             </div>
-            <p className="mt-1 text-xs text-muted-foreground">
-              {visit.medicalRecordNumber} - {visit.service} - {visit.doctor}
-            </p>
-            <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              {visit.medicalRecord?.assessment || visit.medicalRecord?.subjective || "Draft rekam medis belum lengkap."}
-            </p>
-          </article>
+          ))}
         </div>
-      ))}
+      )}
+      <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
     </div>
   )
 }
@@ -983,10 +1287,18 @@ function PrescriptionsSection({
   role,
   prescriptions,
   prescriptionOptions,
+  filtersOpen,
+  composerOpen,
+  onFiltersOpenChange,
+  onComposerOpenChange,
 }: {
   role: RoleKey
   prescriptions: PrescriptionListItem[]
   prescriptionOptions: PrescriptionFormOptions
+  filtersOpen: boolean
+  composerOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+  onComposerOpenChange: (open: boolean) => void
 }) {
   const canCreate = role === "admin" || role === "doctor"
   const canProcess = role === "admin" || role === "pharmacist"
@@ -1011,15 +1323,12 @@ function PrescriptionsSection({
   })
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.25fr_0.85fr]">
+    <div className="grid gap-5">
       <Panel title="Daftar resep" description="Apoteker melihat status proses dan sinyal stok sebelum menyerahkan obat.">
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}
           searchPlaceholder="Cari pasien, RM, dokter, obat, status stok"
-          filterValue={controls.filterValue}
-          onFilterChange={controls.setFilterValue}
-          filterOptions={prescriptionStatuses}
           resultCount={controls.filteredItems.length}
           totalCount={prescriptions.length}
         />
@@ -1048,20 +1357,44 @@ function PrescriptionsSection({
         </div>
         <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
       </Panel>
-
-      <div className="grid gap-5">
-        <Panel title="Buat resep" description="Dokter menambahkan obat dari rekam medis pasien.">
-          {canCreate ? <PrescriptionItemForm prescriptionOptions={prescriptionOptions} /> : <PermissionNotice message="Pembuatan resep dibatasi untuk admin dan dokter." />}
-        </Panel>
-        <Panel title="Proses resep" description="Apoteker memvalidasi stok dan memproses resep.">
-          {canProcess ? <ProcessPrescriptionForm prescriptions={prescriptions} /> : <PermissionNotice message="Pemrosesan resep dibatasi untuk admin dan apoteker." />}
-        </Panel>
-      </div>
+      <FilterModal
+        open={filtersOpen}
+        onOpenChange={onFiltersOpenChange}
+        title="Filter resep"
+        description="Batasi daftar resep berdasarkan status proses."
+        filterValue={controls.filterValue}
+        onFilterChange={controls.setFilterValue}
+        filterOptions={prescriptionStatuses}
+      />
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Aksi resep" description="Buat item resep sebagai dokter atau proses resep sebagai apoteker sesuai role.">
+        <div className="grid gap-5">
+          <Panel title="Buat resep" description="Dokter menambahkan obat dari rekam medis pasien.">
+            {canCreate ? <PrescriptionItemForm prescriptionOptions={prescriptionOptions} /> : <PermissionNotice message="Pembuatan resep dibatasi untuk admin dan dokter." />}
+          </Panel>
+          <Panel title="Proses resep" description="Apoteker memvalidasi stok dan memproses resep.">
+            {canProcess ? <ProcessPrescriptionForm prescriptions={prescriptions} /> : <PermissionNotice message="Pemrosesan resep dibatasi untuk admin dan apoteker." />}
+          </Panel>
+        </div>
+      </ModalDialog>
     </div>
   )
 }
 
-function MedicinesSection({ role, medicines }: { role: RoleKey; medicines: MedicineListItem[] }) {
+function MedicinesSection({
+  role,
+  medicines,
+  filtersOpen,
+  composerOpen,
+  onFiltersOpenChange,
+  onComposerOpenChange,
+}: {
+  role: RoleKey
+  medicines: MedicineListItem[]
+  filtersOpen: boolean
+  composerOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+  onComposerOpenChange: (open: boolean) => void
+}) {
   const canCreate = role === "admin" || role === "pharmacist"
   const medicineStatuses = React.useMemo(() => getUniqueOptions(medicines, (medicine) => medicine.status), [medicines])
   const searchSelector = React.useCallback(
@@ -1076,15 +1409,12 @@ function MedicinesSection({ role, medicines }: { role: RoleKey; medicines: Medic
   })
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[1.25fr_0.85fr]">
+    <div className="grid gap-5">
       <Panel title="Inventori obat" description="Stok minimum dan kedaluwarsa ditampilkan di tabel utama karena berdampak langsung ke resep.">
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}
           searchPlaceholder="Cari kode, nama obat, kategori, satuan"
-          filterValue={controls.filterValue}
-          onFilterChange={controls.setFilterValue}
-          filterOptions={medicineStatuses}
           resultCount={controls.filteredItems.length}
           totalCount={medicines.length}
         />
@@ -1126,10 +1456,25 @@ function MedicinesSection({ role, medicines }: { role: RoleKey; medicines: Medic
           </>
         )}
       </Panel>
-
-      <Panel title="Tambah obat" description="Master obat dipakai saat dokter membuat resep dan apoteker memproses stok.">
-        {canCreate ? <CreateMedicineForm /> : <PermissionNotice message="Penambahan obat dibatasi untuk admin dan apoteker." />}
-      </Panel>
+      <FilterModal
+        open={filtersOpen}
+        onOpenChange={onFiltersOpenChange}
+        title="Filter obat"
+        description="Batasi inventori berdasarkan status stok atau status obat."
+        filterValue={controls.filterValue}
+        onFilterChange={controls.setFilterValue}
+        filterOptions={medicineStatuses}
+      />
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola obat" description="Tambah master obat atau perbarui stok, status, dan data inventori.">
+        <div className="grid gap-5">
+          <Panel title="Tambah obat" description="Master obat dipakai saat dokter membuat resep dan apoteker memproses stok.">
+            {canCreate ? <CreateMedicineForm /> : <PermissionNotice message="Penambahan obat dibatasi untuk admin dan apoteker." />}
+          </Panel>
+          <Panel title="Update inventori" description="Perbarui stok, batas minimum, status, harga, atau tanggal kedaluwarsa obat.">
+            {canCreate ? <UpdateMedicineForm medicines={medicines} /> : <PermissionNotice message="Perubahan obat dibatasi untuk admin dan apoteker." />}
+          </Panel>
+        </div>
+      </ModalDialog>
     </div>
   )
 }
@@ -1226,6 +1571,65 @@ function CreateMedicineForm() {
   )
 }
 
+function UpdateMedicineForm({ medicines }: { medicines: MedicineListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(updateMedicineAction, initialClinicFormState)
+
+  if (medicines.length === 0) {
+    return <EmptyState title="Belum ada obat" detail="Tambahkan master obat terlebih dahulu sebelum memperbarui inventori." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <div className="grid gap-3">
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Obat</span>
+          <select
+            name="medicineId"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.medicineId)}
+          >
+            <option value="">Pilih obat</option>
+            {medicines.map((medicine) => (
+              <option key={medicine.id} value={medicine.id}>
+                {medicine.code} - {medicine.name} - stok {medicine.stock}
+              </option>
+            ))}
+          </select>
+          <FieldError message={state.errors?.medicineId?.[0]} />
+        </label>
+        <div className="grid gap-3 md:grid-cols-2">
+          <TextField name="name" label="Nama obat" error={state.errors?.name?.[0]} />
+          <TextField name="category" label="Kategori" error={state.errors?.category?.[0]} />
+          <TextField name="unit" label="Satuan" error={state.errors?.unit?.[0]} placeholder="tablet" />
+          <TextField name="stock" label="Stok" inputMode="numeric" error={state.errors?.stock?.[0]} />
+          <TextField name="minimumStock" label="Stok minimum" inputMode="numeric" error={state.errors?.minimumStock?.[0]} />
+          <TextField name="price" label="Harga" inputMode="decimal" error={state.errors?.price?.[0]} />
+          <TextField name="expirationDate" label="Tanggal kedaluwarsa" type="date" error={state.errors?.expirationDate?.[0]} />
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium">Status obat</span>
+            <select
+              name="status"
+              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+              aria-invalid={Boolean(state.errors?.status)}
+            >
+              <option value="">Otomatis dari stok</option>
+              <option value="ACTIVE">Aktif</option>
+              <option value="INACTIVE">Nonaktif</option>
+              <option value="LOW_STOCK">Stok rendah</option>
+              <option value="EXPIRED">Kedaluwarsa</option>
+            </select>
+            <FieldError message={state.errors?.status?.[0]} />
+          </label>
+        </div>
+      </div>
+      <FormMessage state={state} />
+      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
+        {pending ? "Memperbarui..." : "Update obat"}
+      </Button>
+    </form>
+  )
+}
+
 function MedicalDocumentForm({ documentOptions }: { documentOptions: DocumentFormOptions }) {
   const [state, formAction, pending] = React.useActionState(createMedicalDocumentAction, initialClinicFormState)
 
@@ -1281,10 +1685,18 @@ function DocumentsSection({
   role,
   documents,
   documentOptions,
+  filtersOpen,
+  composerOpen,
+  onFiltersOpenChange,
+  onComposerOpenChange,
 }: {
   role: RoleKey
   documents: MedicalDocumentListItem[]
   documentOptions: DocumentFormOptions
+  filtersOpen: boolean
+  composerOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+  onComposerOpenChange: (open: boolean) => void
 }) {
   const canCreate = role === "admin" || role === "doctor" || role === "nurse"
   const documentTypes = React.useMemo(() => getUniqueOptions(documents, (document) => document.type), [documents])
@@ -1309,19 +1721,12 @@ function DocumentsSection({
   })
 
   return (
-    <div className="grid gap-5 xl:grid-cols-[0.9fr_1.1fr]">
-      <Panel title="Upload dokumen" description="Metadata dokumen disimpan sekarang; binary file bisa diarahkan ke Supabase Storage saat env storage tersedia.">
-        {canCreate ? <MedicalDocumentForm documentOptions={documentOptions} /> : <PermissionNotice message="Upload dokumen dibatasi untuk admin, dokter, dan perawat." />}
-      </Panel>
+    <div className="grid gap-5">
       <Panel title="Dokumen terbaru" description="Akses dokumen mengikuti permission pasien dan kunjungan.">
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}
           searchPlaceholder="Cari pasien, RM, nama file, tipe, uploader"
-          filterValue={controls.filterValue}
-          onFilterChange={controls.setFilterValue}
-          filterLabel="Tipe"
-          filterOptions={documentTypes}
           resultCount={controls.filteredItems.length}
           totalCount={documents.length}
         />
@@ -1356,53 +1761,321 @@ function DocumentsSection({
           </>
         )}
       </Panel>
+      <FilterModal
+        open={filtersOpen}
+        onOpenChange={onFiltersOpenChange}
+        title="Filter dokumen"
+        description="Batasi dokumen medis berdasarkan tipe dokumen."
+        filterLabel="Tipe"
+        filterValue={controls.filterValue}
+        onFilterChange={controls.setFilterValue}
+        filterOptions={documentTypes}
+      />
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Upload dokumen" description="Metadata dokumen disimpan sekarang; binary file bisa diarahkan ke Supabase Storage saat env storage tersedia.">
+        {canCreate ? <MedicalDocumentForm documentOptions={documentOptions} /> : <PermissionNotice message="Upload dokumen dibatasi untuk admin, dokter, dan perawat." />}
+      </ModalDialog>
     </div>
   )
 }
 
-function ReportsSection({ reportSummary }: { reportSummary: ReportSummaryItem[] }) {
+function ReportsSection({
+  reportSummary,
+  filtersOpen,
+  onFiltersOpenChange,
+}: {
+  reportSummary: ReportSummaryItem[]
+  filtersOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+}) {
+  const [reports, setReports] = React.useState(reportSummary)
+  const [startDate, setStartDate] = React.useState("")
+  const [endDate, setEndDate] = React.useState("")
+  const [isLoading, setIsLoading] = React.useState(false)
+  const [error, setError] = React.useState("")
+  const exportQuery = new URLSearchParams()
+
+  if (startDate) {
+    exportQuery.set("startDate", startDate)
+  }
+
+  if (endDate) {
+    exportQuery.set("endDate", endDate)
+  }
+
+  const exportHref = `/reports/summary.csv${exportQuery.size > 0 ? `?${exportQuery.toString()}` : ""}`
+
+  async function applyReportFilter() {
+    setIsLoading(true)
+    setError("")
+
+    try {
+      const response = await fetch(`/reports/summary.json${exportQuery.size > 0 ? `?${exportQuery.toString()}` : ""}`)
+
+      if (!response.ok) {
+        setError("Laporan gagal dimuat. Periksa akses atau coba ulangi.")
+        return
+      }
+
+      const payload = (await response.json()) as { reports: ReportSummaryItem[] }
+      setReports(payload.reports)
+      onFiltersOpenChange(false)
+    } catch {
+      setError("Laporan gagal dimuat karena koneksi bermasalah.")
+    } finally {
+      setIsLoading(false)
+    }
+  }
+
+  function resetReportFilter() {
+    setStartDate("")
+    setEndDate("")
+    setReports(reportSummary)
+    setError("")
+  }
+
   return (
     <div className="grid gap-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {reportSummary.map((report) => (
+        {reports.map((report) => (
           <MetricCard key={report.label} label={report.label} value={report.value} change={report.trend} detail={report.period} tone="text-primary" />
         ))}
       </div>
       <Panel title="Export laporan" description="Filter tanggal wajib untuk menjaga query laporan tetap cepat saat database membesar.">
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <a href="/reports/summary.csv">
+            <a href={exportHref}>
               <Download className="size-4" aria-hidden="true" />
               Export CSV ringkasan
             </a>
           </Button>
           <div className="rounded-md border border-cyan-200 bg-cyan-50 p-3 text-sm leading-6 text-cyan-950 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-100">
-            Export detail per tanggal akan ditambahkan setelah filter laporan granular dibuat.
+            {startDate || endDate ? `Filter aktif: ${startDate || "awal"} sampai ${endDate || "hari ini"}.` : "Gunakan tombol Filter untuk membatasi laporan berdasarkan tanggal."}
           </div>
         </div>
       </Panel>
+      <ModalDialog open={filtersOpen} onOpenChange={onFiltersOpenChange} title="Filter laporan" description="Batasi laporan berdasarkan rentang tanggal agar query tetap ringan.">
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TextField name="startDate" label="Tanggal mulai" type="date" value={startDate} onValueChange={setStartDate} />
+          <TextField name="endDate" label="Tanggal akhir" type="date" value={endDate} onValueChange={setEndDate} />
+        </div>
+        {error ? (
+          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
+            {error}
+          </div>
+        ) : null}
+        <div className="flex justify-end gap-2 border-t border-border pt-4">
+          <Button type="button" variant="outline" size="lg" onClick={resetReportFilter}>
+            Reset
+          </Button>
+          <Button type="button" size="lg" onClick={applyReportFilter} disabled={isLoading}>
+            {isLoading ? "Memuat..." : "Terapkan"}
+          </Button>
+        </div>
+      </ModalDialog>
     </div>
   )
 }
 
-function UsersSection() {
+function UsersSection({
+  role,
+  userList,
+  roleOptions,
+  filtersOpen,
+  composerOpen,
+  onFiltersOpenChange,
+  onComposerOpenChange,
+}: {
+  role: RoleKey
+  userList: UserListItem[]
+  roleOptions: RoleOptionItem[]
+  filtersOpen: boolean
+  composerOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+  onComposerOpenChange: (open: boolean) => void
+}) {
+  const canCreate = role === "admin"
+  const userStatuses = React.useMemo(() => getUniqueOptions(userList, (user) => user.status), [userList])
+  const searchSelector = React.useCallback(
+    (user: UserListItem) => [user.name, user.email, user.username, user.role, user.roleKey, user.status],
+    [],
+  )
+  const filterSelector = React.useCallback((user: UserListItem, value: string) => user.status === value, [])
+  const controls = useListControls({
+    items: userList,
+    search: searchSelector,
+    filter: filterSelector,
+  })
+
   return (
-    <Panel title="User aktif" description="Hanya admin yang melihat manajemen user pada simulasi RBAC ini.">
-      <div className="grid gap-3">
-        {users.map((user) => (
-          <div key={user.name} className="grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-[1fr_0.5fr_0.4fr_0.7fr] md:items-center">
-            <p className="font-medium">{user.name}</p>
-            <p className="text-sm text-muted-foreground">{user.role}</p>
-            <StatusBadge label={user.status} />
-            <p className="text-sm tabular-nums text-muted-foreground">{user.lastLogin}</p>
-          </div>
-        ))}
-      </div>
-    </Panel>
+    <div className="grid gap-5">
+      <Panel title="User aplikasi" description="Akun internal, role, status, dan jejak login terakhir dari database.">
+        <ListToolbar
+          query={controls.query}
+          onQueryChange={controls.setQuery}
+          searchPlaceholder="Cari nama, email, username, role"
+          resultCount={controls.filteredItems.length}
+          totalCount={userList.length}
+        />
+        <div className="grid gap-3">
+          {controls.paginatedItems.length === 0 ? (
+            <EmptyState title={userList.length === 0 ? "Belum ada user" : "User tidak ditemukan"} detail="Ubah kata kunci atau filter status untuk melihat akun lain." />
+          ) : (
+            controls.paginatedItems.map((user) => (
+              <div key={user.id} className="grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-[1fr_0.55fr_0.35fr_0.55fr] md:items-center">
+                <div>
+                  <p className="font-medium">{user.name}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">
+                    {user.username} - {user.email}
+                  </p>
+                </div>
+                <p className="text-sm text-muted-foreground">{user.role}</p>
+                <StatusBadge label={user.status} />
+                <div className="text-sm tabular-nums text-muted-foreground">
+                  <p>{user.lastLogin}</p>
+                  <p className="mt-1 text-xs">Dibuat {user.createdAt}</p>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+        <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
+      </Panel>
+      <FilterModal
+        open={filtersOpen}
+        onOpenChange={onFiltersOpenChange}
+        title="Filter user"
+        description="Batasi daftar user berdasarkan status akun."
+        filterValue={controls.filterValue}
+        onFilterChange={controls.setFilterValue}
+        filterOptions={userStatuses}
+      />
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola user" description="Tambah akun, ubah role, atau ubah status akun internal sesuai matrix akses PRD.">
+        <div className="grid gap-5">
+          <Panel title="Tambah user" description="Akun dibuat dengan password hash dan role internal sesuai matrix akses PRD.">
+            {canCreate ? <CreateUserForm roleOptions={roleOptions} /> : <PermissionNotice message="Manajemen user hanya tersedia untuk admin." />}
+          </Panel>
+          <Panel title="Update role dan status" description="Gunakan untuk mengubah akses user atau menonaktifkan akun internal.">
+            {canCreate ? <UpdateUserForm userList={userList} roleOptions={roleOptions} /> : <PermissionNotice message="Perubahan user hanya tersedia untuk admin." />}
+          </Panel>
+        </div>
+      </ModalDialog>
+    </div>
   )
 }
 
-function AuditSection({ auditLogs }: { auditLogs: AuditLogListItem[] }) {
+function CreateUserForm({ roleOptions }: { roleOptions: RoleOptionItem[] }) {
+  const [state, formAction, pending] = React.useActionState(createUserAction, initialClinicFormState)
+
+  if (roleOptions.length === 0) {
+    return <EmptyState title="Role belum tersedia" detail="Jalankan seed role terlebih dahulu sebelum membuat user baru." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <div className="grid gap-3">
+        <TextField name="name" label="Nama user" error={state.errors?.name?.[0]} autoComplete="name" />
+        <TextField name="email" label="Email" type="email" error={state.errors?.email?.[0]} autoComplete="email" />
+        <TextField name="username" label="Username" error={state.errors?.username?.[0]} autoComplete="username" />
+        <TextField name="password" label="Password awal" type="password" error={state.errors?.password?.[0]} autoComplete="new-password" />
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Role</span>
+          <select
+            name="roleId"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.roleId)}
+          >
+            <option value="">Pilih role</option>
+            {roleOptions.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+          <FieldError message={state.errors?.roleId?.[0]} />
+        </label>
+      </div>
+      <FormMessage state={state} />
+      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
+        {pending ? "Membuat user..." : "Tambah user"}
+      </Button>
+    </form>
+  )
+}
+
+function UpdateUserForm({ userList, roleOptions }: { userList: UserListItem[]; roleOptions: RoleOptionItem[] }) {
+  const [state, formAction, pending] = React.useActionState(updateUserAction, initialClinicFormState)
+
+  if (userList.length === 0) {
+    return <EmptyState title="Belum ada user" detail="Tambahkan user terlebih dahulu sebelum mengubah role atau status." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <div className="grid gap-3">
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">User</span>
+          <select
+            name="userId"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.userId)}
+          >
+            <option value="">Pilih user</option>
+            {userList.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name} - {user.username} - {user.role}
+              </option>
+            ))}
+          </select>
+          <FieldError message={state.errors?.userId?.[0]} />
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Role baru</span>
+          <select
+            name="roleId"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.roleId)}
+          >
+            <option value="">Tidak diubah</option>
+            {roleOptions.map((role) => (
+              <option key={role.id} value={role.id}>
+                {role.name}
+              </option>
+            ))}
+          </select>
+          <FieldError message={state.errors?.roleId?.[0]} />
+        </label>
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Status baru</span>
+          <select
+            name="status"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.status)}
+          >
+            <option value="">Tidak diubah</option>
+            <option value="ACTIVE">Aktif</option>
+            <option value="INACTIVE">Nonaktif</option>
+            <option value="SUSPENDED">Ditangguhkan</option>
+          </select>
+          <FieldError message={state.errors?.status?.[0]} />
+        </label>
+      </div>
+      <FormMessage state={state} />
+      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
+        {pending ? "Memperbarui..." : "Update user"}
+      </Button>
+    </form>
+  )
+}
+
+function AuditSection({
+  auditLogs,
+  filtersOpen,
+  onFiltersOpenChange,
+}: {
+  auditLogs: AuditLogListItem[]
+  filtersOpen: boolean
+  onFiltersOpenChange: (open: boolean) => void
+}) {
   const auditRisks = React.useMemo(() => getUniqueOptions(auditLogs, (log) => log.risk), [auditLogs])
   const searchSelector = React.useCallback(
     (log: AuditLogListItem) => [log.actor, log.role, log.action, log.entity, log.entityId, log.time, log.risk],
@@ -1421,10 +2094,6 @@ function AuditSection({ auditLogs }: { auditLogs: AuditLogListItem[] }) {
         query={controls.query}
         onQueryChange={controls.setQuery}
         searchPlaceholder="Cari user, role, aksi, entity, waktu"
-        filterValue={controls.filterValue}
-        onFilterChange={controls.setFilterValue}
-        filterLabel="Risiko"
-        filterOptions={auditRisks}
         resultCount={controls.filteredItems.length}
         totalCount={auditLogs.length}
       />
@@ -1447,6 +2116,16 @@ function AuditSection({ auditLogs }: { auditLogs: AuditLogListItem[] }) {
         )}
       </div>
       <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
+      <FilterModal
+        open={filtersOpen}
+        onOpenChange={onFiltersOpenChange}
+        title="Filter audit log"
+        description="Batasi aktivitas berdasarkan tingkat risiko."
+        filterLabel="Risiko"
+        filterValue={controls.filterValue}
+        onFilterChange={controls.setFilterValue}
+        filterOptions={auditRisks}
+      />
     </Panel>
   )
 }
@@ -1476,24 +2155,102 @@ function Panel({ title, description, children }: { title: string; description: s
   )
 }
 
+function ModalDialog({
+  open,
+  onOpenChange,
+  title,
+  description,
+  children,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  description: string
+  children: React.ReactNode
+}) {
+  return (
+    <Dialog.Root open={open} onOpenChange={onOpenChange}>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[88dvh] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-border bg-background p-5 shadow-2xl outline-none">
+          <div className="flex items-start justify-between gap-4">
+            <div>
+              <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
+              <Dialog.Description className="mt-1 text-sm leading-6 text-muted-foreground">{description}</Dialog.Description>
+            </div>
+            <Dialog.Close asChild>
+              <Button type="button" variant="ghost" size="icon" aria-label="Tutup dialog">
+                <X className="size-4" aria-hidden="true" />
+              </Button>
+            </Dialog.Close>
+          </div>
+          {children}
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
+function FilterModal({
+  open,
+  onOpenChange,
+  title,
+  description,
+  filterLabel = "Status",
+  filterValue,
+  onFilterChange,
+  filterOptions,
+}: {
+  open: boolean
+  onOpenChange: (open: boolean) => void
+  title: string
+  description: string
+  filterLabel?: string
+  filterValue: string
+  onFilterChange: (value: string) => void
+  filterOptions: string[]
+}) {
+  return (
+    <ModalDialog open={open} onOpenChange={onOpenChange} title={title} description={description}>
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">{filterLabel}</span>
+        <select
+          value={filterValue}
+          onChange={(event) => onFilterChange(event.target.value)}
+          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+        >
+          <option value="all">Semua {filterLabel.toLowerCase()}</option>
+          {filterOptions.map((option) => (
+            <option key={option} value={option}>
+              {option}
+            </option>
+          ))}
+        </select>
+      </label>
+      <div className="flex justify-end gap-2 border-t border-border pt-4">
+        <Button type="button" variant="outline" size="lg" onClick={() => onFilterChange("all")}>
+          Reset
+        </Button>
+        <Dialog.Close asChild>
+          <Button type="button" size="lg">
+            Terapkan
+          </Button>
+        </Dialog.Close>
+      </div>
+    </ModalDialog>
+  )
+}
+
 function ListToolbar({
   query,
   onQueryChange,
   searchPlaceholder,
-  filterValue,
-  onFilterChange,
-  filterLabel = "Status",
-  filterOptions = [],
   resultCount,
   totalCount,
 }: {
   query: string
   onQueryChange: (value: string) => void
   searchPlaceholder: string
-  filterValue?: string
-  onFilterChange?: (value: string) => void
-  filterLabel?: string
-  filterOptions?: string[]
   resultCount: number
   totalCount: number
 }) {
@@ -1509,24 +2266,6 @@ function ListToolbar({
         />
       </label>
       <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
-        {onFilterChange ? (
-          <label className="flex min-h-11 items-center gap-2 rounded-md border border-border bg-background px-3 text-sm">
-            <Filter className="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-            <span className="sr-only">{filterLabel}</span>
-            <select
-              value={filterValue}
-              onChange={(event) => onFilterChange(event.target.value)}
-              className="h-10 bg-transparent outline-none"
-            >
-              <option value="all">Semua {filterLabel.toLowerCase()}</option>
-              {filterOptions.map((option) => (
-                <option key={option} value={option}>
-                  {option}
-                </option>
-              ))}
-            </select>
-          </label>
-        ) : null}
         <p className="rounded-md bg-muted px-3 py-2 text-xs font-medium text-muted-foreground">
           {resultCount} dari {totalCount} data
         </p>
@@ -1565,7 +2304,17 @@ function PaginationControls({
   )
 }
 
-function ResponsiveVisitsTable({ visits, compact = false }: { visits: VisitListItem[]; compact?: boolean }) {
+function ResponsiveVisitsTable({
+  visits,
+  compact = false,
+  filtersOpen = false,
+  onFiltersOpenChange,
+}: {
+  visits: VisitListItem[]
+  compact?: boolean
+  filtersOpen?: boolean
+  onFiltersOpenChange?: (open: boolean) => void
+}) {
   const visitStatuses = React.useMemo(() => getUniqueOptions(visits, (visit) => visit.status), [visits])
   const searchSelector = React.useCallback(
     (visit: VisitListItem) => [visit.id, visit.patient, visit.medicalRecordNumber, visit.service, visit.doctor, visit.complaint, visit.status],
@@ -1588,14 +2337,22 @@ function ResponsiveVisitsTable({ visits, compact = false }: { visits: VisitListI
             query={controls.query}
             onQueryChange={controls.setQuery}
             searchPlaceholder="Cari pasien, RM, layanan, dokter, keluhan"
-            filterValue={controls.filterValue}
-            onFilterChange={controls.setFilterValue}
-            filterOptions={visitStatuses}
             resultCount={controls.filteredItems.length}
             totalCount={visits.length}
           />
         ) : null}
         <EmptyState title="Belum ada kunjungan" detail="Buat kunjungan baru dari form di halaman Kunjungan agar pasien masuk antrean layanan." />
+        {onFiltersOpenChange ? (
+          <FilterModal
+            open={filtersOpen}
+            onOpenChange={onFiltersOpenChange}
+            title="Filter kunjungan"
+            description="Batasi daftar kunjungan berdasarkan status layanan."
+            filterValue={controls.filterValue}
+            onFilterChange={controls.setFilterValue}
+            filterOptions={visitStatuses}
+          />
+        ) : null}
       </>
     )
   }
@@ -1607,9 +2364,6 @@ function ResponsiveVisitsTable({ visits, compact = false }: { visits: VisitListI
           query={controls.query}
           onQueryChange={controls.setQuery}
           searchPlaceholder="Cari pasien, RM, layanan, dokter, keluhan"
-          filterValue={controls.filterValue}
-          onFilterChange={controls.setFilterValue}
-          filterOptions={visitStatuses}
           resultCount={controls.filteredItems.length}
           totalCount={visits.length}
         />
@@ -1665,6 +2419,17 @@ function ResponsiveVisitsTable({ visits, compact = false }: { visits: VisitListI
           </div>
         ))}
       </div>
+      {onFiltersOpenChange ? (
+        <FilterModal
+          open={filtersOpen}
+          onOpenChange={onFiltersOpenChange}
+          title="Filter kunjungan"
+          description="Batasi daftar kunjungan berdasarkan status layanan."
+          filterValue={controls.filterValue}
+          onFilterChange={controls.setFilterValue}
+          filterOptions={visitStatuses}
+        />
+      ) : null}
       {!compact ? <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} /> : null}
     </div>
   )
@@ -1679,6 +2444,8 @@ function TextField({
   autoComplete,
   inputMode,
   defaultValue,
+  value,
+  onValueChange,
 }: {
   name: string
   label: string
@@ -1688,6 +2455,8 @@ function TextField({
   autoComplete?: string
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]
   defaultValue?: string
+  value?: string
+  onValueChange?: (value: string) => void
 }) {
   return (
     <label className="grid gap-1.5">
@@ -1698,6 +2467,8 @@ function TextField({
         autoComplete={autoComplete}
         inputMode={inputMode}
         defaultValue={defaultValue}
+        value={value}
+        onChange={onValueChange ? (event) => onValueChange(event.target.value) : undefined}
         className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
         placeholder={placeholder ?? `Isi ${label.toLowerCase()}`}
         aria-invalid={Boolean(error)}

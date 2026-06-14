@@ -62,6 +62,12 @@ const documentTypeLabels = {
   OTHER: "Lainnya",
 } as const
 
+const userStatusLabels = {
+  ACTIVE: "Aktif",
+  INACTIVE: "Nonaktif",
+  SUSPENDED: "Ditangguhkan",
+} as const
+
 function maskNik(nik: string | null) {
   if (!nik) {
     return "-"
@@ -268,6 +274,90 @@ export async function getClinicalWorklist() {
   }))
 }
 
+export async function getMedicalRecordHistory() {
+  const records = await prisma.medicalRecord.findMany({
+    orderBy: { updatedAt: "desc" },
+    take: 50,
+    include: {
+      doctor: {
+        select: {
+          name: true,
+        },
+      },
+      visit: {
+        include: {
+          patient: {
+            select: {
+              fullName: true,
+              medicalRecordNumber: true,
+              birthDate: true,
+              gender: true,
+              allergies: true,
+            },
+          },
+          vitalSign: true,
+          documents: {
+            orderBy: { uploadedAt: "desc" },
+            take: 3,
+            select: {
+              fileName: true,
+              type: true,
+            },
+          },
+        },
+      },
+      diagnoses: {
+        orderBy: { createdAt: "asc" },
+      },
+      treatments: {
+        orderBy: { createdAt: "asc" },
+      },
+      prescription: {
+        include: {
+          items: {
+            include: {
+              medicine: {
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return records.map((record) => {
+    const primaryDiagnosis = record.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
+
+    return {
+      id: record.id,
+      patient: record.visit.patient.fullName,
+      medicalRecordNumber: record.visit.patient.medicalRecordNumber,
+      patientMeta: `${genderLabels[record.visit.patient.gender]}, ${calculateAge(record.visit.patient.birthDate)}`,
+      allergies: record.visit.patient.allergies ?? "Tidak ada",
+      visitDate: dateFormatter.format(record.visit.visitDate),
+      service: record.visit.service,
+      doctor: record.doctor?.name ?? "Belum ditentukan",
+      status: medicalRecordStatusLabels[record.status],
+      chiefComplaint: record.visit.chiefComplaint,
+      subjective: record.subjective ?? "-",
+      objective: record.objective ?? "-",
+      assessment: record.assessment ?? primaryDiagnosis?.name ?? "-",
+      plan: record.plan ?? "-",
+      diagnosis: primaryDiagnosis?.name ?? record.diagnoses[0]?.name ?? "-",
+      treatments: record.treatments.map((treatment) => treatment.name).join(", ") || "-",
+      prescriptions: record.prescription?.items.map((item) => `${item.medicine.name} (${item.quantity})`).join(", ") ?? "-",
+      vitalSign: record.visit.vitalSign
+        ? `${record.visit.vitalSign.bloodPressure ?? "-"} mmHg, ${record.visit.vitalSign.temperature?.toString() ?? "-"} C`
+        : "-",
+      documents: record.visit.documents.map((document) => `${documentTypeLabels[document.type]}: ${document.fileName}`).join(", ") || "-",
+      finalizedAt: record.finalizedAt ? dateFormatter.format(record.finalizedAt) : "-",
+    }
+  })
+}
+
 export async function getPrescriptionList() {
   const prescriptions = await prisma.prescription.findMany({
     orderBy: { createdAt: "desc" },
@@ -472,37 +562,67 @@ export async function getDocumentFormOptions() {
   }
 }
 
-export async function getReportSummary() {
+function buildDateRangeFilter(startDate?: string | null, endDate?: string | null) {
   const now = new Date()
-  const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1)
-  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
-  const nextDay = new Date(startOfDay)
-  nextDay.setDate(nextDay.getDate() + 1)
+  const start = startDate ? new Date(`${startDate}T00:00:00.000Z`) : new Date(now.getFullYear(), now.getMonth(), 1)
+  const end = endDate ? new Date(`${endDate}T00:00:00.000Z`) : now
+  const exclusiveEnd = new Date(end)
+  exclusiveEnd.setDate(exclusiveEnd.getDate() + 1)
 
-  const [todayVisits, newPatients, diagnosisGroup, medicineUsage, lowStock] = await Promise.all([
+  return {
+    start: Number.isNaN(start.getTime()) ? new Date(now.getFullYear(), now.getMonth(), 1) : start,
+    end: Number.isNaN(exclusiveEnd.getTime()) ? now : exclusiveEnd,
+  }
+}
+
+export async function getReportSummary(options: { startDate?: string | null; endDate?: string | null } = {}) {
+  const { start, end } = buildDateRangeFilter(options.startDate, options.endDate)
+  const period = `${dateFormatter.format(start)} - ${dateFormatter.format(new Date(end.getTime() - 1))}`
+
+  const [visitsInRange, newPatients, diagnosisGroup, medicineUsage, lowStock] = await Promise.all([
     prisma.visit.count({
       where: {
         visitDate: {
-          gte: startOfDay,
-          lt: nextDay,
+          gte: start,
+          lt: end,
         },
       },
     }),
     prisma.patient.count({
       where: {
         createdAt: {
-          gte: startOfMonth,
+          gte: start,
+          lt: end,
         },
       },
     }),
     prisma.diagnosis.groupBy({
       by: ["name"],
+      where: {
+        medicalRecord: {
+          visit: {
+            visitDate: {
+              gte: start,
+              lt: end,
+            },
+          },
+        },
+      },
       _count: { name: true },
       orderBy: { _count: { name: "desc" } },
       take: 1,
     }),
     prisma.prescriptionItem.groupBy({
       by: ["medicineId"],
+      where: {
+        prescription: {
+          status: "PROCESSED",
+          processedAt: {
+            gte: start,
+            lt: end,
+          },
+        },
+      },
       _sum: { quantity: true },
       orderBy: { _sum: { quantity: "desc" } },
       take: 1,
@@ -522,12 +642,12 @@ export async function getReportSummary() {
     : null
 
   return [
-    { label: "Kunjungan hari ini", period: "Hari berjalan", value: String(todayVisits), trend: "Realtime" },
-    { label: "Pasien baru", period: "Bulan berjalan", value: String(newPatients), trend: "Prisma" },
-    { label: "Diagnosa terbanyak", period: "Data tersedia", value: diagnosisGroup[0]?.name ?? "-", trend: diagnosisGroup[0]?._count.name ? `${diagnosisGroup[0]._count.name} kasus` : "-" },
+    { label: "Kunjungan", period, value: String(visitsInRange), trend: "Range" },
+    { label: "Pasien baru", period, value: String(newPatients), trend: "Range" },
+    { label: "Diagnosa terbanyak", period, value: diagnosisGroup[0]?.name ?? "-", trend: diagnosisGroup[0]?._count.name ? `${diagnosisGroup[0]._count.name} kasus` : "-" },
     {
       label: "Penggunaan obat",
-      period: "Resep diproses",
+      period,
       value: topMedicine?.name ?? "-",
       trend: topMedicine ? `${topMedicine.name}` : "-",
     },
@@ -565,10 +685,55 @@ export async function getAuditLogList() {
   }))
 }
 
+export async function getUserList() {
+  const users = await prisma.user.findMany({
+    orderBy: { createdAt: "desc" },
+    take: 100,
+    include: {
+      role: {
+        select: {
+          key: true,
+          name: true,
+        },
+      },
+    },
+  })
+
+  return users.map((user) => ({
+    id: user.id,
+    name: user.name,
+    email: user.email,
+    username: user.username,
+    role: user.role.name,
+    roleKey: user.role.key,
+    status: userStatusLabels[user.status],
+    lastLogin: user.lastLoginAt ? `${dateFormatter.format(user.lastLoginAt)} ${timeFormatter.format(user.lastLoginAt)}` : "-",
+    createdAt: dateFormatter.format(user.createdAt),
+  }))
+}
+
+export async function getRoleOptions() {
+  const roles = await prisma.role.findMany({
+    orderBy: { name: "asc" },
+    select: {
+      id: true,
+      key: true,
+      name: true,
+    },
+  })
+
+  return roles.map((role) => ({
+    id: role.id,
+    key: role.key,
+    name: role.name,
+  }))
+}
+
 export type PatientListItem = Awaited<ReturnType<typeof getPatientList>>[number]
 export type VisitListItem = Awaited<ReturnType<typeof getVisitList>>[number]
 export type VisitFormOptions = Awaited<ReturnType<typeof getVisitFormOptions>>
 export type ClinicalWorklistItem = Awaited<ReturnType<typeof getClinicalWorklist>>[number]
+export type MedicalRecordHistoryItem = Awaited<ReturnType<typeof getMedicalRecordHistory>>[number]
 export type PrescriptionListItem = Awaited<ReturnType<typeof getPrescriptionList>>[number]
 export type MedicineListItem = Awaited<ReturnType<typeof getMedicineList>>[number]
 export type PrescriptionFormOptions = Awaited<ReturnType<typeof getPrescriptionFormOptions>>
@@ -576,3 +741,5 @@ export type MedicalDocumentListItem = Awaited<ReturnType<typeof getMedicalDocume
 export type DocumentFormOptions = Awaited<ReturnType<typeof getDocumentFormOptions>>
 export type ReportSummaryItem = Awaited<ReturnType<typeof getReportSummary>>[number]
 export type AuditLogListItem = Awaited<ReturnType<typeof getAuditLogList>>[number]
+export type UserListItem = Awaited<ReturnType<typeof getUserList>>[number]
+export type RoleOptionItem = Awaited<ReturnType<typeof getRoleOptions>>[number]

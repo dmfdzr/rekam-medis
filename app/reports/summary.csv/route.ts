@@ -8,14 +8,18 @@ function escapeCsv(value: string) {
   return `"${value.replaceAll('"', '""')}"`
 }
 
-export async function GET() {
+export async function GET(request: Request) {
   const user = await getCurrentUser()
 
   if (!user || !canAccess(user.role, "reports")) {
     return new NextResponse("Forbidden", { status: 403 })
   }
 
-  const reports = await getReportSummary()
+  const url = new URL(request.url)
+  const reports = await getReportSummary({
+    startDate: url.searchParams.get("startDate"),
+    endDate: url.searchParams.get("endDate"),
+  })
   const rows = [["Laporan", "Periode", "Nilai", "Trend"], ...reports.map((report) => [report.label, report.period, report.value, report.trend])]
   const csv = rows.map((row) => row.map(escapeCsv).join(",")).join("\n")
 

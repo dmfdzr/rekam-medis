@@ -6,6 +6,7 @@ import { z } from "zod"
 
 import { writeAuditLog } from "@/lib/auth/audit-log"
 import { getCurrentUser } from "@/lib/auth/current-user"
+import { hashPassword } from "@/lib/auth/password"
 import { prisma } from "@/lib/prisma"
 
 const UserRole = {
@@ -19,10 +20,22 @@ const UserRole = {
 
 type UserRole = (typeof UserRole)[keyof typeof UserRole]
 
+const UserStatus = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+  SUSPENDED: "SUSPENDED",
+} as const
+
 const Gender = {
   MALE: "MALE",
   FEMALE: "FEMALE",
   OTHER: "OTHER",
+} as const
+
+const PatientStatus = {
+  ACTIVE: "ACTIVE",
+  INACTIVE: "INACTIVE",
+  DECEASED: "DECEASED",
 } as const
 
 const VisitStatus = {
@@ -85,11 +98,27 @@ const createPatientSchema = z.object({
   emergencyContact: z.string().trim().optional(),
 })
 
+const updatePatientSchema = z.object({
+  patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
+  fullName: z.string().trim().optional(),
+  phone: z.string().trim().optional(),
+  address: z.string().trim().optional(),
+  bloodType: z.string().trim().optional(),
+  allergies: z.string().trim().optional(),
+  emergencyContact: z.string().trim().optional(),
+  status: z.enum(PatientStatus, "Status pasien wajib dipilih.").optional().or(z.literal("")),
+})
+
 const createVisitSchema = z.object({
   patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
   doctorId: z.string().trim().optional(),
   service: z.string().trim().min(2, "Layanan wajib diisi."),
   chiefComplaint: z.string().trim().min(3, "Keluhan utama minimal 3 karakter."),
+})
+
+const updateVisitStatusSchema = z.object({
+  visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
+  status: z.enum(VisitStatus, "Status kunjungan wajib dipilih."),
 })
 
 const upsertVitalSignSchema = z.object({
@@ -147,12 +176,38 @@ const createMedicineSchema = z.object({
   expirationDate: z.string().trim().optional(),
 })
 
+const updateMedicineSchema = z.object({
+  medicineId: z.string().trim().min(1, "Obat wajib dipilih."),
+  name: z.string().trim().optional(),
+  category: z.string().trim().optional(),
+  unit: z.string().trim().optional(),
+  stock: z.string().trim().optional(),
+  minimumStock: z.string().trim().optional(),
+  price: z.string().trim().optional(),
+  expirationDate: z.string().trim().optional(),
+  status: z.enum(MedicineStatus, "Status obat wajib dipilih.").optional().or(z.literal("")),
+})
+
 const createMedicalDocumentSchema = z.object({
   patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
   visitId: z.string().trim().optional(),
   type: z.enum(DocumentType, "Tipe dokumen wajib dipilih."),
   fileName: z.string().trim().min(2, "Nama file wajib diisi."),
   fileUrl: z.string().trim().min(2, "URL file wajib diisi."),
+})
+
+const createUserSchema = z.object({
+  name: z.string().trim().min(2, "Nama user minimal 2 karakter."),
+  email: z.email("Email tidak valid.").trim().toLowerCase(),
+  username: z.string().trim().min(3, "Username minimal 3 karakter.").toLowerCase(),
+  password: z.string().min(8, "Password minimal 8 karakter."),
+  roleId: z.string().trim().min(1, "Role wajib dipilih."),
+})
+
+const updateUserSchema = z.object({
+  userId: z.string().trim().min(1, "User wajib dipilih."),
+  roleId: z.string().trim().optional(),
+  status: z.enum(UserStatus, "Status user wajib dipilih.").optional().or(z.literal("")),
 })
 
 const patientMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.REGISTRATION])
@@ -163,6 +218,7 @@ const prescriptionMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserR
 const pharmacyMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.PHARMACIST])
 const medicineMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.PHARMACIST])
 const documentMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE])
+const userMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN])
 
 function optionalString(value: string | undefined) {
   return value && value.length > 0 ? value : null
@@ -312,6 +368,94 @@ export async function createPatientAction(_state: ClinicFormState, formData: For
   }
 }
 
+export async function updatePatientAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const user = await getCurrentUser()
+
+  if (!user || !patientMutationRoles.has(user.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk mengubah data pasien.",
+    }
+  }
+
+  const parsed = updatePatientSchema.safeParse({
+    patientId: formData.get("patientId"),
+    fullName: formData.get("fullName"),
+    phone: formData.get("phone"),
+    address: formData.get("address"),
+    bloodType: formData.get("bloodType"),
+    allergies: formData.get("allergies"),
+    emergencyContact: formData.get("emergencyContact"),
+    status: formData.get("status"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data pasien belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const patient = await prisma.patient.findUnique({
+    where: { id: parsed.data.patientId },
+  })
+
+  if (!patient) {
+    return {
+      ok: false,
+      message: "Pasien tidak ditemukan.",
+      errors: { patientId: ["Pasien tidak ditemukan."] },
+    }
+  }
+
+  const updateData = {
+    ...(parsed.data.fullName ? { fullName: parsed.data.fullName } : {}),
+    ...(parsed.data.phone ? { phone: parsed.data.phone } : {}),
+    ...(parsed.data.address ? { address: parsed.data.address } : {}),
+    ...(parsed.data.bloodType ? { bloodType: parsed.data.bloodType } : {}),
+    ...(parsed.data.allergies ? { allergies: parsed.data.allergies } : {}),
+    ...(parsed.data.emergencyContact ? { emergencyContact: parsed.data.emergencyContact } : {}),
+    ...(parsed.data.status ? { status: parsed.data.status } : {}),
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return {
+      ok: false,
+      message: "Isi minimal satu field yang ingin diubah.",
+    }
+  }
+
+  const updatedPatient = await prisma.patient.update({
+    where: { id: patient.id },
+    data: updateData,
+  })
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "UPDATE_PATIENT",
+    entityName: "Patient",
+    entityId: patient.id,
+    beforeData: {
+      fullName: patient.fullName,
+      phone: patient.phone,
+      status: patient.status,
+    },
+    afterData: {
+      fullName: updatedPatient.fullName,
+      phone: updatedPatient.phone,
+      status: updatedPatient.status,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Data pasien ${updatedPatient.fullName} berhasil diperbarui.`,
+  }
+}
+
 export async function createVisitAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
   const user = await getCurrentUser()
 
@@ -379,6 +523,78 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
   return {
     ok: true,
     message: `Kunjungan untuk ${patient.fullName} berhasil dibuat.`,
+  }
+}
+
+export async function updateVisitStatusAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const user = await getCurrentUser()
+
+  if (!user || !visitMutationRoles.has(user.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk mengubah status kunjungan.",
+    }
+  }
+
+  const parsed = updateVisitStatusSchema.safeParse({
+    visitId: formData.get("visitId"),
+    status: formData.get("status"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data status kunjungan belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const visit = await prisma.visit.findUnique({
+    where: { id: parsed.data.visitId },
+    include: {
+      patient: {
+        select: {
+          fullName: true,
+          medicalRecordNumber: true,
+        },
+      },
+    },
+  })
+
+  if (!visit) {
+    return {
+      ok: false,
+      message: "Kunjungan tidak ditemukan.",
+      errors: { visitId: ["Kunjungan tidak ditemukan."] },
+    }
+  }
+
+  const updatedVisit = await prisma.visit.update({
+    where: { id: visit.id },
+    data: { status: parsed.data.status },
+  })
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "UPDATE_VISIT_STATUS",
+    entityName: "Visit",
+    entityId: visit.id,
+    beforeData: {
+      status: visit.status,
+      patientName: visit.patient.fullName,
+    },
+    afterData: {
+      status: updatedVisit.status,
+      patientName: visit.patient.fullName,
+      medicalRecordNumber: visit.patient.medicalRecordNumber,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Status kunjungan ${visit.patient.fullName} berhasil diperbarui.`,
   }
 }
 
@@ -972,6 +1188,126 @@ export async function createMedicineAction(_state: ClinicFormState, formData: Fo
   }
 }
 
+export async function updateMedicineAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const user = await getCurrentUser()
+
+  if (!user || !medicineMutationRoles.has(user.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk mengubah obat.",
+    }
+  }
+
+  const parsed = updateMedicineSchema.safeParse({
+    medicineId: formData.get("medicineId"),
+    name: formData.get("name"),
+    category: formData.get("category"),
+    unit: formData.get("unit"),
+    stock: formData.get("stock"),
+    minimumStock: formData.get("minimumStock"),
+    price: formData.get("price"),
+    expirationDate: formData.get("expirationDate"),
+    status: formData.get("status"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data obat belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const medicine = await prisma.medicine.findUnique({
+    where: { id: parsed.data.medicineId },
+  })
+
+  if (!medicine) {
+    return {
+      ok: false,
+      message: "Obat tidak ditemukan.",
+      errors: { medicineId: ["Obat tidak ditemukan."] },
+    }
+  }
+
+  const stock = optionalInt(parsed.data.stock)
+  const minimumStock = optionalInt(parsed.data.minimumStock)
+
+  if (parsed.data.stock && stock === null) {
+    return {
+      ok: false,
+      message: "Stok harus berupa angka.",
+      errors: { stock: ["Stok harus berupa angka."] },
+    }
+  }
+
+  if (parsed.data.minimumStock && minimumStock === null) {
+    return {
+      ok: false,
+      message: "Stok minimum harus berupa angka.",
+      errors: { minimumStock: ["Stok minimum harus berupa angka."] },
+    }
+  }
+
+  const nextStock = stock ?? medicine.stock
+  const nextMinimumStock = minimumStock ?? medicine.minimumStock
+  const explicitStatus = parsed.data.status || null
+  const derivedStatus = nextStock <= nextMinimumStock ? MedicineStatus.LOW_STOCK : MedicineStatus.ACTIVE
+  const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : undefined
+
+  if (parsed.data.expirationDate && !expirationDate) {
+    return {
+      ok: false,
+      message: "Tanggal kedaluwarsa tidak valid.",
+      errors: { expirationDate: ["Tanggal kedaluwarsa tidak valid."] },
+    }
+  }
+
+  const updateData = {
+    ...(parsed.data.name ? { name: parsed.data.name } : {}),
+    ...(parsed.data.category ? { category: parsed.data.category } : {}),
+    ...(parsed.data.unit ? { unit: parsed.data.unit } : {}),
+    ...(stock !== null ? { stock } : {}),
+    ...(minimumStock !== null ? { minimumStock } : {}),
+    ...(parsed.data.price ? { price: optionalDecimal(parsed.data.price) } : {}),
+    ...(expirationDate !== undefined ? { expirationDate } : {}),
+    status: explicitStatus ?? derivedStatus,
+  }
+
+  const updatedMedicine = await prisma.medicine.update({
+    where: { id: medicine.id },
+    data: updateData,
+  })
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "UPDATE_MEDICINE",
+    entityName: "Medicine",
+    entityId: medicine.id,
+    beforeData: {
+      code: medicine.code,
+      name: medicine.name,
+      stock: medicine.stock,
+      minimumStock: medicine.minimumStock,
+      status: medicine.status,
+    },
+    afterData: {
+      code: updatedMedicine.code,
+      name: updatedMedicine.name,
+      stock: updatedMedicine.stock,
+      minimumStock: updatedMedicine.minimumStock,
+      status: updatedMedicine.status,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Obat ${updatedMedicine.name} berhasil diperbarui.`,
+  }
+}
+
 export async function createMedicalDocumentAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
   const user = await getCurrentUser()
 
@@ -1039,5 +1375,211 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
   return {
     ok: true,
     message: `Dokumen ${document.fileName} untuk ${patient.fullName} berhasil disimpan.`,
+  }
+}
+
+export async function createUserAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const actor = await getCurrentUser()
+
+  if (!actor || !userMutationRoles.has(actor.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk menambah user.",
+    }
+  }
+
+  const parsed = createUserSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    username: formData.get("username"),
+    password: formData.get("password"),
+    roleId: formData.get("roleId"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data user belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const role = await prisma.role.findUnique({
+    where: { id: parsed.data.roleId },
+    select: { id: true, key: true, name: true },
+  })
+
+  if (!role) {
+    return {
+      ok: false,
+      message: "Role tidak ditemukan.",
+      errors: { roleId: ["Role tidak ditemukan."] },
+    }
+  }
+
+  try {
+    const user = await prisma.user.create({
+      data: {
+        name: parsed.data.name,
+        email: parsed.data.email,
+        username: parsed.data.username,
+        passwordHash: await hashPassword(parsed.data.password),
+        roleId: role.id,
+      },
+    })
+
+    await writeAuditLog({
+      userId: actor.id,
+      action: "CREATE_USER",
+      entityName: "User",
+      entityId: user.id,
+      afterData: {
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        role: role.key,
+      },
+    })
+
+    revalidatePath("/")
+
+    return {
+      ok: true,
+      message: `User ${user.name} berhasil dibuat sebagai ${role.name}.`,
+    }
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return {
+        ok: false,
+        message: "Email atau username sudah terdaftar.",
+        errors: {
+          email: ["Periksa email, mungkin sudah digunakan."],
+          username: ["Periksa username, mungkin sudah digunakan."],
+        },
+      }
+    }
+
+    return {
+      ok: false,
+      message: "User gagal dibuat.",
+    }
+  }
+}
+
+export async function updateUserAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const actor = await getCurrentUser()
+
+  if (!actor || !userMutationRoles.has(actor.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk mengubah user.",
+    }
+  }
+
+  const parsed = updateUserSchema.safeParse({
+    userId: formData.get("userId"),
+    roleId: formData.get("roleId"),
+    status: formData.get("status"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data user belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: parsed.data.userId },
+    include: {
+      role: {
+        select: {
+          id: true,
+          key: true,
+          name: true,
+        },
+      },
+    },
+  })
+
+  if (!user) {
+    return {
+      ok: false,
+      message: "User tidak ditemukan.",
+      errors: { userId: ["User tidak ditemukan."] },
+    }
+  }
+
+  if (user.id === actor.id && parsed.data.status && parsed.data.status !== UserStatus.ACTIVE) {
+    return {
+      ok: false,
+      message: "Anda tidak dapat menonaktifkan atau menangguhkan akun yang sedang digunakan.",
+      errors: { status: ["Pilih user lain untuk perubahan status ini."] },
+    }
+  }
+
+  const nextRole = parsed.data.roleId
+    ? await prisma.role.findUnique({
+        where: { id: parsed.data.roleId },
+        select: { id: true, key: true, name: true },
+      })
+    : null
+
+  if (parsed.data.roleId && !nextRole) {
+    return {
+      ok: false,
+      message: "Role tidak ditemukan.",
+      errors: { roleId: ["Role tidak ditemukan."] },
+    }
+  }
+
+  const updateData = {
+    ...(nextRole ? { roleId: nextRole.id } : {}),
+    ...(parsed.data.status ? { status: parsed.data.status } : {}),
+  }
+
+  if (Object.keys(updateData).length === 0) {
+    return {
+      ok: false,
+      message: "Pilih role atau status yang ingin diubah.",
+    }
+  }
+
+  const updatedUser = await prisma.user.update({
+    where: { id: user.id },
+    data: updateData,
+    include: {
+      role: {
+        select: {
+          key: true,
+          name: true,
+        },
+      },
+    },
+  })
+
+  await writeAuditLog({
+    userId: actor.id,
+    action: "UPDATE_USER",
+    entityName: "User",
+    entityId: user.id,
+    beforeData: {
+      username: user.username,
+      role: user.role.key,
+      status: user.status,
+    },
+    afterData: {
+      username: updatedUser.username,
+      role: updatedUser.role.key,
+      status: updatedUser.status,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `User ${updatedUser.name} berhasil diperbarui.`,
   }
 }
