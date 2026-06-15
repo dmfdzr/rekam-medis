@@ -1,6 +1,6 @@
 "use client"
 
-import { useActionState } from "react"
+import { useActionState, useState } from "react"
 import { Dialog } from "radix-ui"
 import { LoaderCircle, LockKeyhole, LogIn, Mail } from "lucide-react"
 
@@ -11,6 +11,7 @@ const initialState: LoginFormState = {}
 
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(loginAction, initialState)
+  const [showPassword, setShowPassword] = useState(false)
 
   return (
     <>
@@ -43,18 +44,31 @@ export function LoginForm() {
           <label htmlFor="password" className="text-sm font-medium">
             Password
           </label>
-          <div className="flex min-h-11 items-center rounded-md border border-input bg-background px-3 transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25">
-            <LockKeyhole className="mr-2 size-4 text-muted-foreground" aria-hidden="true" />
+          <div className="flex min-h-11 items-center rounded-md border border-input bg-background px-3 pr-1 transition focus-within:border-ring focus-within:ring-2 focus-within:ring-ring/25">
+            <LockKeyhole className="mr-2 size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
             <input
               id="password"
               name="password"
-              type="password"
+              type={showPassword ? "text" : "password"}
               autoComplete="current-password"
               className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
               placeholder="Masukkan password"
               aria-describedby={state.errors?.password ? "password-error" : undefined}
               aria-invalid={Boolean(state.errors?.password)}
             />
+            <button
+              type="button"
+              tabIndex={-1}
+              aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+              onClick={() => setShowPassword((v) => !v)}
+              className="flex size-9 shrink-0 items-center justify-center rounded-md text-muted-foreground hover:text-foreground"
+            >
+              {showPassword ? (
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+              ) : (
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              )}
+            </button>
           </div>
           {state.errors?.password ? (
             <p id="password-error" className="text-sm text-destructive" role="alert">

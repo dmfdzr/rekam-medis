@@ -1323,7 +1323,7 @@ function CreatePatientForm() {
     <form action={formAction} className="grid gap-4" noValidate>
       <div className="grid gap-3">
         <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} autoComplete="name" />
-        <TextField name="nik" label="NIK" error={state.errors?.nik?.[0]} inputMode="numeric" maxLength={16} pattern="\d{16}" />
+        <TextField name="nik" label="NIK" error={state.errors?.nik?.[0]} inputMode="numeric" maxLength={16} pattern="\d{16}" numbersOnly />
         <TextField name="birthDate" label="Tanggal lahir" type="date" error={state.errors?.birthDate?.[0]} />
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Jenis kelamin</span>
@@ -1339,11 +1339,11 @@ function CreatePatientForm() {
           </select>
           <FieldError message={state.errors?.gender?.[0]} />
         </label>
-        <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" />
-        <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" />
+        <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
+        <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" lettersOnly />
         <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} placeholder="Contoh: Amoxicillin" />
-        <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" />
+        <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
@@ -1382,9 +1382,9 @@ function UpdatePatientForm({ patients }: { patients: PatientListItem[] }) {
         </label>
         <div className="grid gap-3 md:grid-cols-2">
           <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} />
-          <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" />
-          <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" />
-          <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" />
+          <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
+          <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" lettersOnly />
+          <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
         </div>
         <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} />
@@ -3104,7 +3104,7 @@ function CreateUserForm({ roleOptions }: { roleOptions: RoleOptionItem[] }) {
         <TextField name="name" label="Nama user" error={state.errors?.name?.[0]} autoComplete="name" />
         <TextField name="email" label="Email" type="email" error={state.errors?.email?.[0]} autoComplete="email" />
         <TextField name="username" label="Username" error={state.errors?.username?.[0]} autoComplete="username" />
-        <TextField name="password" label="Password awal" type="password" error={state.errors?.password?.[0]} autoComplete="new-password" />
+        <TextField name="password" label="Password awal" type="password" error={state.errors?.password?.[0]} autoComplete="new-password" showPasswordToggle />
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Role</span>
           <select
@@ -3162,13 +3162,41 @@ function UpdateUserForm({ userList, roleOptions }: { userList: UserListItem[]; r
           <TextField name="username" label="Username baru" error={state.errors?.username?.[0]} autoComplete="username" />
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">Password baru</span>
-            <input
-              name="password"
-              type="password"
-              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-              aria-invalid={Boolean(state.errors?.password)}
-              autoComplete="new-password"
-            />
+            <div className="relative">
+              <input
+                id="update-user-password"
+                name="password"
+                type="password"
+                className="h-11 w-full rounded-md border border-input bg-background px-3 pr-11 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+                aria-invalid={Boolean(state.errors?.password)}
+                autoComplete="new-password"
+                ref={(el) => {
+                  if (!el) return
+                  el.dataset.showToggle = "true"
+                }}
+              />
+              <button
+                type="button"
+                tabIndex={-1}
+                aria-label="Tampilkan password"
+                onClick={(e) => {
+                  const input = e.currentTarget.closest("div")?.querySelector("input")
+                  if (!input) return
+                  const isShowing = input.type === "text"
+                  input.type = isShowing ? "password" : "text"
+                  const label = e.currentTarget.getAttribute("aria-label")
+                  e.currentTarget.setAttribute("aria-label", isShowing ? "Tampilkan password" : "Sembunyikan password")
+                  const icons = e.currentTarget.querySelectorAll("svg")
+                  icons.forEach((svg, i) => {
+                    ;(svg as SVGElement).style.display = i === (isShowing ? 1 : 0) ? "none" : "block"
+                  })
+                }}
+                className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true" style={{display:"none"}}><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+                <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+              </button>
+            </div>
             <p className="text-xs text-muted-foreground">Kosongkan jika password tidak diubah.</p>
             <FieldError message={state.errors?.password?.[0]} />
           </label>
@@ -3423,9 +3451,9 @@ function ChangePasswordForm() {
   return (
     <form action={formAction} className="grid gap-4" noValidate>
       <div className="grid gap-3">
-        <TextField name="currentPassword" label="Password saat ini" type="password" error={state.errors?.currentPassword?.[0]} autoComplete="current-password" />
-        <TextField name="newPassword" label="Password baru" type="password" error={state.errors?.newPassword?.[0]} autoComplete="new-password" />
-        <TextField name="confirmPassword" label="Konfirmasi password" type="password" error={state.errors?.confirmPassword?.[0]} autoComplete="new-password" />
+        <TextField name="currentPassword" label="Password saat ini" type="password" error={state.errors?.currentPassword?.[0]} autoComplete="current-password" showPasswordToggle />
+        <TextField name="newPassword" label="Password baru" type="password" error={state.errors?.newPassword?.[0]} autoComplete="new-password" showPasswordToggle />
+        <TextField name="confirmPassword" label="Konfirmasi password" type="password" error={state.errors?.confirmPassword?.[0]} autoComplete="new-password" showPasswordToggle />
       </div>
       <FormMessage state={state} />
       <ConfirmSubmitButton message="Ganti password akun sekarang?" confirmLabel="Ganti password" pending={pending} pendingLabel="Memperbarui...">
@@ -3862,6 +3890,9 @@ function TextField({
   defaultValue,
   value,
   onValueChange,
+  numbersOnly,
+  lettersOnly,
+  showPasswordToggle,
 }: {
   name: string
   label: string
@@ -3880,29 +3911,65 @@ function TextField({
   defaultValue?: string
   value?: string
   onValueChange?: (value: string) => void
+  numbersOnly?: boolean
+  lettersOnly?: boolean
+  showPasswordToggle?: boolean
 }) {
+  const [showPassword, setShowPassword] = React.useState(false)
+  const isPassword = type === "password"
+  const resolvedType = isPassword && showPasswordToggle ? (showPassword ? "text" : "password") : type
+
+  function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
+    const key = event.key
+    if (key.length === 1) {
+      if (numbersOnly && !/[0-9]/.test(key)) event.preventDefault()
+      if (lettersOnly && !/[A-Za-z+\-]/.test(key)) event.preventDefault()
+    }
+  }
+
   return (
     <label className="grid gap-1.5">
       <span className="text-sm font-medium">{label}</span>
-      <input
-        name={name}
-        type={type}
-        autoComplete={autoComplete}
-        autoCapitalize={autoCapitalize}
-        inputMode={inputMode}
-        list={list}
-        max={max}
-        maxLength={maxLength}
-        min={min}
-        pattern={pattern}
-        step={step}
-        defaultValue={defaultValue}
-        value={value}
-        onChange={onValueChange ? (event) => onValueChange(event.target.value) : undefined}
-        className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-        placeholder={placeholder ?? `Isi ${label.toLowerCase()}`}
-        aria-invalid={Boolean(error)}
-      />
+      <div className={isPassword && showPasswordToggle ? "relative" : undefined}>
+        <input
+          name={name}
+          type={resolvedType}
+          autoComplete={autoComplete}
+          autoCapitalize={autoCapitalize}
+          inputMode={inputMode}
+          list={list}
+          max={max}
+          maxLength={maxLength}
+          min={min}
+          pattern={pattern}
+          step={step}
+          defaultValue={defaultValue}
+          value={value}
+          onChange={onValueChange ? (event) => onValueChange(event.target.value) : undefined}
+          onKeyDown={numbersOnly || lettersOnly ? handleKeyDown : undefined}
+          className={cn(
+            "h-11 rounded-md border border-input bg-background text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25",
+            isPassword && showPasswordToggle ? "w-full px-3 pr-11" : "w-full px-3",
+          )}
+          placeholder={placeholder ?? `Isi ${label.toLowerCase()}`}
+          aria-invalid={Boolean(error)}
+        />
+        {isPassword && showPasswordToggle ? (
+          <button
+            type="button"
+            tabIndex={-1}
+            aria-label={showPassword ? "Sembunyikan password" : "Tampilkan password"}
+            onClick={() => setShowPassword((v) => !v)}
+            className="absolute inset-y-0 right-0 flex items-center px-3 text-muted-foreground hover:text-foreground"
+          >
+            {showPassword ? (
+              <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94"/><path d="M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19"/><line x1="1" y1="1" x2="23" y2="23"/></svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/><circle cx="12" cy="12" r="3"/></svg>
+            )}
+          </button>
+        ) : null}
+      </div>
       <FieldError message={error} />
     </label>
   )
