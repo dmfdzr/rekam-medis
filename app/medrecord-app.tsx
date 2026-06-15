@@ -72,6 +72,7 @@ import {
   type SectionKey,
   workflowSteps,
 } from "@/lib/medical-data"
+import { canViewReportSection, scopeReportBundleForRole } from "@/lib/reports/scope"
 
 type AppUser = {
   id: string
@@ -441,13 +442,13 @@ export function MedRecordApp({
               medicines={medicines}
               prescriptionOptions={prescriptionOptions}
               documents={documents}
-            documentOptions={documentOptions}
+              documentOptions={documentOptions}
               reportSummary={reportSummary}
               reportDetails={reportDetails}
               auditLogs={auditLogs}
-            userList={userList}
-            roleOptions={roleOptions}
-          />
+              userList={userList}
+              roleOptions={roleOptions}
+            />
           </div>
         </main>
       </div>
@@ -608,13 +609,6 @@ function LogoutConfirmDialog({ className }: { className?: string }) {
           onPointerDownOutside={(event) => event.preventDefault()}
         >
           <form action={logoutAction} className="relative grid gap-4">
-            <div className="flex justify-end">
-              <Dialog.Close asChild>
-                <Button type="button" variant="ghost" size="icon" aria-label="Tutup dialog">
-                  <X className="size-4" aria-hidden="true" />
-                </Button>
-              </Dialog.Close>
-            </div>
             <div className="flex gap-3">
               <div className="grid size-10 shrink-0 place-items-center rounded-md bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-200">
                 <AlertTriangle className="size-5" aria-hidden="true" />
@@ -812,7 +806,7 @@ function SectionRenderer({
 }) {
   switch (section) {
     case "dashboard":
-      return <DashboardSection role={role} visits={visits} dashboardSummary={dashboardSummary} />
+      return <DashboardSection role={role} visits={visits} medicines={medicines} dashboardSummary={dashboardSummary} />
     case "patients":
       return <PatientsSection patients={patients} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "visits":
@@ -828,7 +822,7 @@ function SectionRenderer({
     case "documents":
       return <DocumentsSection role={role} documents={documents} documentOptions={documentOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "reports":
-      return <ReportsSection reportSummary={reportSummary} reportDetails={reportDetails} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
+      return <ReportsSection role={role} reportSummary={reportSummary} reportDetails={reportDetails} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
     case "users":
       return <UsersSection role={role} userList={userList} roleOptions={roleOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "audit":
@@ -838,7 +832,19 @@ function SectionRenderer({
   }
 }
 
-function DashboardSection({ role, visits, dashboardSummary }: { role: RoleKey; visits: VisitListItem[]; dashboardSummary: DashboardSummary }) {
+function DashboardSection({
+  role,
+  visits,
+  medicines,
+  dashboardSummary,
+}: {
+  role: RoleKey
+  visits: VisitListItem[]
+  medicines: MedicineListItem[]
+  dashboardSummary: DashboardSummary
+}) {
+  const canSeeMedicineAlerts = role === "admin" || role === "pharmacist"
+
   return (
     <div className="grid gap-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
@@ -846,6 +852,8 @@ function DashboardSection({ role, visits, dashboardSummary }: { role: RoleKey; v
           <MetricCard key={metric.label} {...metric} />
         ))}
       </div>
+
+      {canSeeMedicineAlerts ? <MedicineStockAlertPanel medicines={medicines} /> : null}
 
       <div className="grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
         <Panel title="Antrean layanan" description="Status pasien berjalan hari ini.">
@@ -860,7 +868,7 @@ function DashboardSection({ role, visits, dashboardSummary }: { role: RoleKey; v
           </div>
         </Panel>
 
-      <Panel title="Alur Layanan" description="Tahapan operasional yang digunakan antar role klinik.">
+        <Panel title="Alur Layanan" description="Tahapan operasional yang digunakan antar role klinik.">
           <div className="grid gap-3">
             {workflowSteps.map((step) => {
               const Icon = step.icon
@@ -885,6 +893,94 @@ function DashboardSection({ role, visits, dashboardSummary }: { role: RoleKey; v
         <ResponsiveVisitsTable visits={visits} compact />
       </Panel>
     </div>
+  )
+}
+
+function MedicineStockAlertPanel({ medicines }: { medicines: MedicineListItem[] }) {
+  const alerts = React.useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const nextThirtyDays = new Date(today)
+    nextThirtyDays.setDate(today.getDate() + 30)
+
+    return medicines
+      .map((medicine) => {
+        if (medicine.status === "Kedaluwarsa") {
+          return {
+            id: `${medicine.id}-expired`,
+            severity: "critical" as const,
+            title: `${medicine.name} kedaluwarsa`,
+            detail: `${medicine.code} - stok ${medicine.stock} ${medicine.unit}, tanggal ${medicine.expires}`,
+          }
+        }
+
+        if (medicine.status === "Stok rendah") {
+          return {
+            id: `${medicine.id}-low-stock`,
+            severity: "warning" as const,
+            title: `${medicine.name} stok rendah`,
+            detail: `${medicine.code} - tersedia ${medicine.stock} ${medicine.unit}, minimum ${medicine.min} ${medicine.unit}`,
+          }
+        }
+
+        if (medicine.expires !== "-") {
+          const expiresAt = new Date(medicine.expires)
+
+          if (!Number.isNaN(expiresAt.getTime()) && expiresAt >= today && expiresAt <= nextThirtyDays) {
+            return {
+              id: `${medicine.id}-expiring-soon`,
+              severity: "notice" as const,
+              title: `${medicine.name} akan kedaluwarsa`,
+              detail: `${medicine.code} - tanggal ${medicine.expires}, stok ${medicine.stock} ${medicine.unit}`,
+            }
+          }
+        }
+
+        return null
+      })
+      .filter((alert): alert is NonNullable<typeof alert> => Boolean(alert))
+      .sort((first, second) => {
+        const priority = { critical: 0, warning: 1, notice: 2 }
+
+        return priority[first.severity] - priority[second.severity]
+      })
+      .slice(0, 6)
+  }, [medicines])
+
+  return (
+    <Panel title="Notifikasi stok obat" description="Pantau stok rendah dan obat yang tidak aman diproses dalam resep.">
+      {alerts.length === 0 ? (
+        <div className="flex items-start gap-3 rounded-md border border-emerald-200 bg-emerald-50 p-4 text-emerald-900 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-100">
+          <CheckCircle2 className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+          <div>
+            <p className="text-sm font-medium">Tidak ada notifikasi stok</p>
+            <p className="mt-1 text-sm leading-6 text-emerald-800/80 dark:text-emerald-100/75">Semua obat aktif berada di atas batas minimum dan tidak masuk periode kedaluwarsa 30 hari.</p>
+          </div>
+        </div>
+      ) : (
+        <div className="grid gap-3 lg:grid-cols-2">
+          {alerts.map((alert) => (
+            <div
+              key={alert.id}
+              className={cn(
+                "flex items-start gap-3 rounded-md border p-4",
+                alert.severity === "critical"
+                  ? "border-red-200 bg-red-50 text-red-950 dark:border-red-400/20 dark:bg-red-400/10 dark:text-red-100"
+                  : alert.severity === "warning"
+                    ? "border-amber-200 bg-amber-50 text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100"
+                    : "border-violet-200 bg-violet-50 text-violet-950 dark:border-violet-400/20 dark:bg-violet-400/10 dark:text-violet-100",
+              )}
+            >
+              <AlertTriangle className="mt-0.5 size-5 shrink-0" aria-hidden="true" />
+              <div>
+                <p className="text-sm font-medium">{alert.title}</p>
+                <p className="mt-1 text-sm leading-6 opacity-80">{alert.detail}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      )}
+    </Panel>
   )
 }
 
@@ -1249,11 +1345,11 @@ function CreatePatientForm() {
           </select>
           <FieldError message={state.errors?.gender?.[0]} />
         </label>
-        <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="tel" autoComplete="tel" />
-        <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} />
+        <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" />
+        <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" />
         <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} placeholder="Contoh: Amoxicillin" />
-        <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} />
+        <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" />
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
@@ -1292,9 +1388,9 @@ function UpdatePatientForm({ patients }: { patients: PatientListItem[] }) {
         </label>
         <div className="grid gap-3 md:grid-cols-2">
           <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} />
-          <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="tel" />
-          <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} />
-          <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} />
+          <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" />
+          <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" />
+          <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" />
         </div>
         <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} />
@@ -2095,6 +2191,7 @@ function MedicinesSection({
         <MetricCard label="Kedaluwarsa" value={String(medicineInsights.expired)} change="Tidak boleh diproses" detail="Diblokir saat resep" tone="text-red-700 dark:text-red-300" />
         <MetricCard label="Akan kedaluwarsa" value={String(medicineInsights.expiringSoon)} change="30 hari" detail="Perlu pengecekan" tone="text-violet-700 dark:text-violet-300" />
       </div>
+      <MedicineStockAlertPanel medicines={medicines} />
       <Panel title="Inventori obat" description="Stok minimum dan kedaluwarsa ditampilkan di tabel utama karena berdampak langsung ke resep.">
         <ListToolbar
           query={controls.query}
@@ -2676,18 +2773,21 @@ function DocumentsSection({
 }
 
 function ReportsSection({
+  role,
   reportSummary,
   reportDetails,
   filtersOpen,
   onFiltersOpenChange,
 }: {
+  role: RoleKey
   reportSummary: ReportSummaryItem[]
   reportDetails: ReportDetails
   filtersOpen: boolean
   onFiltersOpenChange: (open: boolean) => void
 }) {
-  const [reports, setReports] = React.useState(reportSummary)
-  const [details, setDetails] = React.useState(reportDetails)
+  const scopedInitialReports = React.useMemo(() => scopeReportBundleForRole(role, { reports: reportSummary, details: reportDetails }), [role, reportDetails, reportSummary])
+  const [reports, setReports] = React.useState(scopedInitialReports.reports)
+  const [details, setDetails] = React.useState(scopedInitialReports.details)
   const [startDate, setStartDate] = React.useState("")
   const [endDate, setEndDate] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
@@ -2720,8 +2820,9 @@ function ReportsSection({
       }
 
       const payload = (await response.json()) as { reports: ReportSummaryItem[]; details: ReportDetails }
-      setReports(payload.reports)
-      setDetails(payload.details)
+      const scopedPayload = scopeReportBundleForRole(role, payload)
+      setReports(scopedPayload.reports)
+      setDetails(scopedPayload.details)
       onFiltersOpenChange(false)
     } catch {
       setError("Laporan gagal dimuat karena koneksi bermasalah.")
@@ -2733,8 +2834,8 @@ function ReportsSection({
   function resetReportFilter() {
     setStartDate("")
     setEndDate("")
-    setReports(reportSummary)
-    setDetails(reportDetails)
+    setReports(scopedInitialReports.reports)
+    setDetails(scopedInitialReports.details)
     setError("")
   }
 
@@ -2771,34 +2872,42 @@ function ReportsSection({
         </div>
       </Panel>
       <div className="grid gap-5 xl:grid-cols-2">
-        <ReportDetailTable
-          title="Diagnosa terbanyak"
-          description="Agregasi diagnosa dari rekam medis dalam rentang tanggal."
-          columns={["Diagnosa", "Kasus"]}
-          rows={details.diagnoses.map((diagnosis) => [diagnosis.name, String(diagnosis.count)])}
-          emptyDetail="Belum ada diagnosa pada rentang laporan ini."
-        />
-        <ReportDetailTable
-          title="Tindakan medis"
-          description="Frekuensi tindakan dan total biaya tercatat."
-          columns={["Tindakan", "Jumlah", "Total biaya"]}
-          rows={details.treatments.map((treatment) => [treatment.name, String(treatment.count), treatment.totalCost])}
-          emptyDetail="Belum ada tindakan pada rentang laporan ini."
-        />
-        <ReportDetailTable
-          title="Penggunaan obat"
-          description="Obat yang sudah diproses oleh farmasi."
-          columns={["Kode", "Obat", "Jumlah"]}
-          rows={details.medicineUsage.map((medicine) => [medicine.code, medicine.name, `${medicine.quantity} ${medicine.unit}`])}
-          emptyDetail="Belum ada penggunaan obat pada rentang laporan ini."
-        />
-        <ReportDetailTable
-          title="Stok perlu perhatian"
-          description="Obat stok rendah atau kedaluwarsa."
-          columns={["Kode", "Obat", "Stok", "Status"]}
-          rows={details.stockReport.map((medicine) => [medicine.code, medicine.name, `${medicine.stock}/${medicine.minimumStock} ${medicine.unit}`, medicine.status])}
-          emptyDetail="Tidak ada stok rendah atau kedaluwarsa."
-        />
+        {canViewReportSection(role, "diagnoses") ? (
+          <ReportDetailTable
+            title="Diagnosa terbanyak"
+            description="Agregasi diagnosa dari rekam medis dalam rentang tanggal."
+            columns={["Diagnosa", "Kasus"]}
+            rows={details.diagnoses.map((diagnosis) => [diagnosis.name, String(diagnosis.count)])}
+            emptyDetail="Belum ada diagnosa pada rentang laporan ini."
+          />
+        ) : null}
+        {canViewReportSection(role, "treatments") ? (
+          <ReportDetailTable
+            title="Tindakan medis"
+            description="Frekuensi tindakan dan total biaya tercatat."
+            columns={["Tindakan", "Jumlah", "Total biaya"]}
+            rows={details.treatments.map((treatment) => [treatment.name, String(treatment.count), treatment.totalCost])}
+            emptyDetail="Belum ada tindakan pada rentang laporan ini."
+          />
+        ) : null}
+        {canViewReportSection(role, "medicineUsage") ? (
+          <ReportDetailTable
+            title="Penggunaan obat"
+            description="Obat yang sudah diproses oleh farmasi."
+            columns={["Kode", "Obat", "Jumlah"]}
+            rows={details.medicineUsage.map((medicine) => [medicine.code, medicine.name, `${medicine.quantity} ${medicine.unit}`])}
+            emptyDetail="Belum ada penggunaan obat pada rentang laporan ini."
+          />
+        ) : null}
+        {canViewReportSection(role, "stockReport") ? (
+          <ReportDetailTable
+            title="Stok perlu perhatian"
+            description="Obat stok rendah atau kedaluwarsa."
+            columns={["Kode", "Obat", "Stok", "Status"]}
+            rows={details.stockReport.map((medicine) => [medicine.code, medicine.name, `${medicine.stock}/${medicine.minimumStock} ${medicine.unit}`, medicine.status])}
+            emptyDetail="Tidak ada stok rendah atau kedaluwarsa."
+          />
+        ) : null}
       </div>
       <ModalDialog open={filtersOpen} onOpenChange={onFiltersOpenChange} title="Filter laporan" description="Batasi laporan berdasarkan rentang tanggal agar query tetap ringan.">
         <div className="grid gap-3 sm:grid-cols-2">
@@ -3748,6 +3857,7 @@ function TextField({
   type = "text",
   placeholder,
   autoComplete,
+  autoCapitalize,
   inputMode,
   list,
   maxLength,
@@ -3765,6 +3875,7 @@ function TextField({
   type?: string
   placeholder?: string
   autoComplete?: string
+  autoCapitalize?: React.InputHTMLAttributes<HTMLInputElement>["autoCapitalize"]
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]
   list?: string
   maxLength?: number
@@ -3783,6 +3894,7 @@ function TextField({
         name={name}
         type={type}
         autoComplete={autoComplete}
+        autoCapitalize={autoCapitalize}
         inputMode={inputMode}
         list={list}
         max={max}

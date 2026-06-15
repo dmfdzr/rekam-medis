@@ -7,6 +7,17 @@ import { z } from "zod"
 import { writeAuditLog } from "@/lib/auth/audit-log"
 import { getCurrentUser } from "@/lib/auth/current-user"
 import { hashPassword } from "@/lib/auth/password"
+import {
+  isBloodPressureInputValid,
+  isOptionalDecimalInputValid,
+  isOptionalDigitsOnlyValid,
+  isOptionalIntegerInputValid,
+  isOptionalLettersOnlyValid,
+  isOptionalNikValid,
+  parseNonNegativeIntegerInput,
+  parseOptionalDecimalInput,
+  parseOptionalIntegerInput,
+} from "@/lib/clinical-validation"
 import { prisma } from "@/lib/prisma"
 
 const UserRole = {
@@ -93,25 +104,25 @@ const createPatientSchema = z.object({
   nik: z
     .string()
     .trim()
-    .refine((value) => value === "" || /^\d{16}$/.test(value), "NIK harus tepat 16 digit angka.")
+    .refine(isOptionalNikValid, "NIK harus tepat 16 digit angka.")
     .optional(),
   birthDate: z.string().trim().min(1, "Tanggal lahir wajib diisi."),
   gender: z.enum(Gender, "Jenis kelamin wajib dipilih."),
-  phone: z.string().trim().optional(),
+  phone: z.string().trim().refine(isOptionalDigitsOnlyValid, "Nomor telepon hanya boleh berisi angka.").optional(),
   address: z.string().trim().optional(),
-  bloodType: z.string().trim().optional(),
+  bloodType: z.string().trim().refine(isOptionalLettersOnlyValid, "Golongan darah hanya boleh berisi huruf.").optional(),
   allergies: z.string().trim().optional(),
-  emergencyContact: z.string().trim().optional(),
+  emergencyContact: z.string().trim().refine(isOptionalDigitsOnlyValid, "Kontak darurat hanya boleh berisi angka.").optional(),
 })
 
 const updatePatientSchema = z.object({
   patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
   fullName: z.string().trim().optional(),
-  phone: z.string().trim().optional(),
+  phone: z.string().trim().refine(isOptionalDigitsOnlyValid, "Nomor telepon hanya boleh berisi angka.").optional(),
   address: z.string().trim().optional(),
-  bloodType: z.string().trim().optional(),
+  bloodType: z.string().trim().refine(isOptionalLettersOnlyValid, "Golongan darah hanya boleh berisi huruf.").optional(),
   allergies: z.string().trim().optional(),
-  emergencyContact: z.string().trim().optional(),
+  emergencyContact: z.string().trim().refine(isOptionalDigitsOnlyValid, "Kontak darurat hanya boleh berisi angka.").optional(),
   status: z.enum(PatientStatus, "Status pasien wajib dipilih.").optional().or(z.literal("")),
 })
 
@@ -139,14 +150,14 @@ const optionalDecimalSchema = (message: string) =>
   z
     .string()
     .trim()
-    .refine((value) => value === "" || /^\d+([.,]\d+)?$/.test(value), message)
+    .refine(isOptionalDecimalInputValid, message)
     .optional()
 
 const optionalIntegerSchema = (message: string) =>
   z
     .string()
     .trim()
-    .refine((value) => value === "" || /^\d+$/.test(value), message)
+    .refine(isOptionalIntegerInputValid, message)
     .optional()
 
 const upsertVitalSignSchema = z.object({
@@ -154,7 +165,7 @@ const upsertVitalSignSchema = z.object({
   bloodPressure: z
     .string()
     .trim()
-    .refine((value) => value === "" || /^\d{2,3}\/\d{2,3}$/.test(value), "Tekanan darah harus berupa angka dengan format 120/80.")
+    .refine(isBloodPressureInputValid, "Tekanan darah harus berupa angka dengan format 120/80.")
     .optional(),
   temperature: optionalDecimalSchema("Suhu tubuh harus berupa angka."),
   weight: optionalDecimalSchema("Berat badan harus berupa angka."),
@@ -321,35 +332,8 @@ function deriveMedicineStatus({
   return MedicineStatus.ACTIVE
 }
 
-function optionalDecimal(value: string | undefined) {
-  if (!value) {
-    return null
-  }
-
-  const normalizedValue = value.replace(",", ".")
-  const parsed = Number(normalizedValue)
-
-  return Number.isFinite(parsed) && parsed >= 0 ? normalizedValue : null
-}
-
 function isInvalidOptionalDecimal(value: string | undefined) {
-  return Boolean(value) && optionalDecimal(value) === null
-}
-
-function optionalInt(value: string | undefined) {
-  if (!value) {
-    return null
-  }
-
-  const parsed = Number.parseInt(value, 10)
-
-  return Number.isNaN(parsed) ? null : parsed
-}
-
-function requiredPositiveInt(value: string) {
-  const parsed = Number.parseInt(value, 10)
-
-  return Number.isNaN(parsed) || parsed < 0 ? null : parsed
+  return Boolean(value) && parseOptionalDecimalInput(value) === null
 }
 
 function getFieldErrors(error: z.ZodError) {
@@ -942,23 +926,23 @@ export async function upsertVitalSignAction(_state: ClinicFormState, formData: F
       where: { visitId: parsed.data.visitId },
       update: {
         bloodPressure: optionalString(parsed.data.bloodPressure),
-        temperature: optionalDecimal(parsed.data.temperature),
-        weight: optionalDecimal(parsed.data.weight),
-        height: optionalDecimal(parsed.data.height),
-        pulse: optionalInt(parsed.data.pulse),
-        respiration: optionalInt(parsed.data.respiration),
-        oxygenSaturation: optionalInt(parsed.data.oxygenSaturation),
+        temperature: parseOptionalDecimalInput(parsed.data.temperature),
+        weight: parseOptionalDecimalInput(parsed.data.weight),
+        height: parseOptionalDecimalInput(parsed.data.height),
+        pulse: parseOptionalIntegerInput(parsed.data.pulse),
+        respiration: parseOptionalIntegerInput(parsed.data.respiration),
+        oxygenSaturation: parseOptionalIntegerInput(parsed.data.oxygenSaturation),
         nurseNote: optionalString(parsed.data.nurseNote),
       },
       create: {
         visitId: parsed.data.visitId,
         bloodPressure: optionalString(parsed.data.bloodPressure),
-        temperature: optionalDecimal(parsed.data.temperature),
-        weight: optionalDecimal(parsed.data.weight),
-        height: optionalDecimal(parsed.data.height),
-        pulse: optionalInt(parsed.data.pulse),
-        respiration: optionalInt(parsed.data.respiration),
-        oxygenSaturation: optionalInt(parsed.data.oxygenSaturation),
+        temperature: parseOptionalDecimalInput(parsed.data.temperature),
+        weight: parseOptionalDecimalInput(parsed.data.weight),
+        height: parseOptionalDecimalInput(parsed.data.height),
+        pulse: parseOptionalIntegerInput(parsed.data.pulse),
+        respiration: parseOptionalIntegerInput(parsed.data.respiration),
+        oxygenSaturation: parseOptionalIntegerInput(parsed.data.oxygenSaturation),
         nurseNote: optionalString(parsed.data.nurseNote),
       },
     })
@@ -1035,7 +1019,7 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
   }
 
   const followUpDate = parsed.data.followUpDate ? toDate(parsed.data.followUpDate) : null
-  const treatmentCost = optionalDecimal(parsed.data.treatmentCost)
+  const treatmentCost = parseOptionalDecimalInput(parsed.data.treatmentCost)
 
   if (parsed.data.followUpDate && !followUpDate) {
     return {
@@ -1208,7 +1192,7 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
     }
   }
 
-  const quantity = requiredPositiveInt(parsed.data.quantity)
+  const quantity = parseNonNegativeIntegerInput(parsed.data.quantity)
 
   if (!quantity || quantity < 1) {
     return {
@@ -1603,10 +1587,10 @@ export async function createMedicineAction(_state: ClinicFormState, formData: Fo
     }
   }
 
-  const stock = requiredPositiveInt(parsed.data.stock)
-  const minimumStock = requiredPositiveInt(parsed.data.minimumStock)
+  const stock = parseNonNegativeIntegerInput(parsed.data.stock)
+  const minimumStock = parseNonNegativeIntegerInput(parsed.data.minimumStock)
   const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : null
-  const price = optionalDecimal(parsed.data.price)
+  const price = parseOptionalDecimalInput(parsed.data.price)
 
   if (stock === null || minimumStock === null) {
     return {
@@ -1726,8 +1710,8 @@ export async function updateMedicineAction(_state: ClinicFormState, formData: Fo
     }
   }
 
-  const stock = optionalInt(parsed.data.stock)
-  const minimumStock = optionalInt(parsed.data.minimumStock)
+  const stock = parseOptionalIntegerInput(parsed.data.stock)
+  const minimumStock = parseOptionalIntegerInput(parsed.data.minimumStock)
 
   if (parsed.data.stock && stock === null) {
     return {
@@ -1749,7 +1733,7 @@ export async function updateMedicineAction(_state: ClinicFormState, formData: Fo
   const nextMinimumStock = minimumStock ?? medicine.minimumStock
   const explicitStatus = parsed.data.status || null
   const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : undefined
-  const price = optionalDecimal(parsed.data.price)
+  const price = parseOptionalDecimalInput(parsed.data.price)
 
   if (parsed.data.expirationDate && !expirationDate) {
     return {

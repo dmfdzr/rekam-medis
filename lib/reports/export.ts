@@ -6,6 +6,7 @@ import { writeAuditLog } from "@/lib/auth/audit-log"
 import { getCurrentUser } from "@/lib/auth/current-user"
 import { canAccess } from "@/lib/auth/permissions"
 import { getReportDetails, getReportSummary } from "@/lib/data/clinic"
+import { scopeReportBundleForRole } from "@/lib/reports/scope"
 
 function getReportDateOptions(request: Request) {
   const url = new URL(request.url)
@@ -26,7 +27,7 @@ export async function getAuthorizedReportBundle(request: Request) {
   const options = getReportDateOptions(request)
   const [reports, details] = await Promise.all([getReportSummary(options), getReportDetails(options)])
 
-  return { reports, details }
+  return scopeReportBundleForRole(user.role, { reports, details })
 }
 
 export async function getAuthorizedReportSummary(request: Request) {
