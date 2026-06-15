@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { escapeCsv, forbiddenReportResponse, getAuthorizedReportSummary } from "@/lib/reports/export"
+import { auditReportAccess, escapeCsv, forbiddenReportResponse, getAuthorizedReportSummary } from "@/lib/reports/export"
 
 export async function GET(request: Request) {
   const reports = await getAuthorizedReportSummary(request)
@@ -8,6 +8,8 @@ export async function GET(request: Request) {
   if (!reports) {
     return forbiddenReportResponse()
   }
+
+  await auditReportAccess(request, "csv")
 
   const rows = [["Laporan", "Periode", "Nilai", "Trend"], ...reports.map((report) => [report.label, report.period, report.value, report.trend])]
   const csv = rows.map((row) => row.map(escapeCsv).join(",")).join("\n")

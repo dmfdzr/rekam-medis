@@ -1,25 +1,15 @@
 import { NextResponse } from "next/server"
 
-import { auditReportAccess, escapeHtml, forbiddenReportResponse, getAuthorizedReportBundle } from "@/lib/reports/export"
+import { auditReportAccess, forbiddenReportResponse, getAuthorizedReportBundle } from "@/lib/reports/export"
+import { buildReportPdf } from "@/lib/reports/pdf"
 
-function buildRows(rows: string[][]) {
-  return rows
-    .map(
-      (row) => `
-        <tr>${row.map((cell) => `<td>${escapeHtml(cell)}</td>`).join("")}</tr>`,
-    )
-    .join("")
-}
-
-function buildSection(title: string, headers: string[], rows: string[][]) {
-  return `
-    <h2>${escapeHtml(title)}</h2>
-    <table>
-      <thead>
-        <tr>${headers.map((header) => `<th>${escapeHtml(header)}</th>`).join("")}</tr>
-      </thead>
-      <tbody>${buildRows(rows.length ? rows : [["Tidak ada data"]])}</tbody>
-    </table>`
+function sectionLines(title: string, headers: string[], rows: string[][]) {
+  return [
+    "",
+    title,
+    headers.join(" | "),
+    ...(rows.length > 0 ? rows.map((row) => row.join(" | ")) : ["Tidak ada data"]),
+  ]
 }
 
 export async function GET(request: Request) {
@@ -29,47 +19,45 @@ export async function GET(request: Request) {
     return forbiddenReportResponse()
   }
 
-  await auditReportAccess(request, "excel")
+  await auditReportAccess(request, "pdf")
 
   const { reports, details } = bundle
-  const workbook = `<!doctype html>
-<html>
-  <head>
-    <meta charset="utf-8" />
-  </head>
-  <body>
-    ${buildSection(
+  const lines = [
+    "MedRecord App - Laporan",
+    `Dibuat: ${new Date().toISOString().slice(0, 10)}`,
+    ...sectionLines(
       "Ringkasan",
       ["Laporan", "Periode", "Nilai", "Trend"],
       reports.map((report) => [report.label, report.period, report.value, report.trend]),
-    )}
-    ${buildSection(
+    ),
+    ...sectionLines(
       "Diagnosa",
       ["Diagnosa", "Kasus"],
       details.diagnoses.map((diagnosis) => [diagnosis.name, String(diagnosis.count)]),
-    )}
-    ${buildSection(
+    ),
+    ...sectionLines(
       "Tindakan",
       ["Tindakan", "Jumlah", "Total biaya"],
       details.treatments.map((treatment) => [treatment.name, String(treatment.count), treatment.totalCost]),
-    )}
-    ${buildSection(
+    ),
+    ...sectionLines(
       "Penggunaan Obat",
       ["Kode", "Obat", "Jumlah"],
       details.medicineUsage.map((medicine) => [medicine.code, medicine.name, `${medicine.quantity} ${medicine.unit}`]),
-    )}
-    ${buildSection(
+    ),
+    ...sectionLines(
       "Stok Perlu Perhatian",
       ["Kode", "Obat", "Stok", "Status"],
       details.stockReport.map((medicine) => [medicine.code, medicine.name, `${medicine.stock}/${medicine.minimumStock} ${medicine.unit}`, medicine.status]),
-    )}
-  </body>
-</html>`
+    ),
+  ]
+  const pdf = buildReportPdf(lines)
 
-  return new NextResponse(workbook, {
+  return new NextResponse(pdf, {
     headers: {
-      "content-disposition": 'attachment; filename="medrecord-report-summary.xls"',
-      "content-type": "application/vnd.ms-excel; charset=utf-8",
+      "content-disposition": 'attachment; filename="medrecord-report-summary.pdf"',
+      "content-type": "application/pdf",
+      "x-content-type-options": "nosniff",
     },
   })
 }

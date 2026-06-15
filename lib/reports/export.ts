@@ -2,6 +2,7 @@ import "server-only"
 
 import { NextResponse } from "next/server"
 
+import { writeAuditLog } from "@/lib/auth/audit-log"
 import { getCurrentUser } from "@/lib/auth/current-user"
 import { canAccess } from "@/lib/auth/permissions"
 import { getReportDetails, getReportSummary } from "@/lib/data/clinic"
@@ -32,6 +33,30 @@ export async function getAuthorizedReportSummary(request: Request) {
   const bundle = await getAuthorizedReportBundle(request)
 
   return bundle?.reports ?? null
+}
+
+export async function auditReportAccess(request: Request, format: "json" | "csv" | "excel" | "pdf") {
+  const user = await getCurrentUser()
+
+  if (!user || !canAccess(user.role, "reports")) {
+    return
+  }
+
+  const options = getReportDateOptions(request)
+  const forwardedFor = request.headers.get("x-forwarded-for")
+
+  await writeAuditLog({
+    userId: user.id,
+    action: format === "json" ? "VIEW_REPORT" : "EXPORT_REPORT",
+    entityName: "Report",
+    afterData: {
+      format,
+      startDate: options.startDate ?? "default",
+      endDate: options.endDate ?? "default",
+    },
+    ipAddress: forwardedFor?.split(",")[0]?.trim() || request.headers.get("x-real-ip"),
+    userAgent: request.headers.get("user-agent"),
+  })
 }
 
 export function forbiddenReportResponse() {

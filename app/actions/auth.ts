@@ -1,7 +1,9 @@
 "use server"
 
 import { headers } from "next/headers"
+import { revalidatePath } from "next/cache"
 import { redirect } from "next/navigation"
+import { Prisma } from "@prisma/client"
 import { z } from "zod"
 
 import { writeAuditLog } from "@/lib/auth/audit-log"
@@ -30,6 +32,22 @@ export type ChangePasswordFormState = {
   }
 }
 
+export type UpdateAccountFormState = {
+  ok?: boolean
+  message?: string
+  errors?: {
+    name?: string[]
+    email?: string[]
+    username?: string[]
+  }
+}
+
+const updateAccountSchema = z.object({
+  name: z.string().trim().min(2, "Nama minimal 2 karakter."),
+  email: z.email("Email tidak valid.").trim().toLowerCase(),
+  username: z.string().trim().min(3, "Username minimal 3 karakter.").toLowerCase(),
+})
+
 const changePasswordSchema = z
   .object({
     currentPassword: z.string().min(1, "Password saat ini wajib diisi."),
@@ -46,6 +64,10 @@ function getRequestContext(headerStore: Headers) {
     ipAddress: headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? headerStore.get("x-real-ip"),
     userAgent: headerStore.get("user-agent"),
   }
+}
+
+function isUniqueConstraintError(error: unknown) {
+  return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
 }
 
 export async function loginAction(_state: LoginFormState, formData: FormData): Promise<LoginFormState> {
@@ -72,6 +94,120 @@ export async function logoutAction() {
   await logoutCurrentUser(getRequestContext(headerStore))
 
   redirect("/login")
+}
+
+export async function updateAccountAction(_state: UpdateAccountFormState, formData: FormData): Promise<UpdateAccountFormState> {
+  const user = await getCurrentUser()
+
+  if (!user) {
+    return {
+      ok: false,
+      message: "Session tidak valid. Silakan login ulang.",
+    }
+  }
+
+  const parsed = updateAccountSchema.safeParse({
+    name: formData.get("name"),
+    email: formData.get("email"),
+    username: formData.get("username"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data akun belum valid.",
+      errors: parsed.error.flatten().fieldErrors,
+    }
+  }
+
+  const account = await prisma.user.findUnique({
+    where: { id: user.id },
+    select: {
+      id: true,
+      name: true,
+      email: true,
+      username: true,
+    },
+  })
+
+  if (!account) {
+    return {
+      ok: false,
+      message: "Akun tidak ditemukan.",
+    }
+  }
+
+  const updateData = {
+    name: parsed.data.name,
+    email: parsed.data.email,
+    username: parsed.data.username,
+  }
+
+  const hasChanges = account.name !== updateData.name || account.email.toLowerCase() !== updateData.email || account.username.toLowerCase() !== updateData.username
+
+  if (!hasChanges) {
+    return {
+      ok: false,
+      message: "Tidak ada perubahan data akun.",
+    }
+  }
+
+  try {
+    const updatedAccount = await prisma.user.update({
+      where: { id: account.id },
+      data: updateData,
+      select: {
+        id: true,
+        name: true,
+        email: true,
+        username: true,
+      },
+    })
+
+    const headerStore = await headers()
+
+    await writeAuditLog({
+      userId: account.id,
+      action: "UPDATE_OWN_ACCOUNT",
+      entityName: "User",
+      entityId: account.id,
+      beforeData: {
+        name: account.name,
+        email: account.email,
+        username: account.username,
+      },
+      afterData: {
+        name: updatedAccount.name,
+        email: updatedAccount.email,
+        username: updatedAccount.username,
+      },
+      ipAddress: headerStore.get("x-forwarded-for")?.split(",")[0]?.trim() ?? headerStore.get("x-real-ip"),
+      userAgent: headerStore.get("user-agent"),
+    })
+
+    revalidatePath("/")
+
+    return {
+      ok: true,
+      message: "Profil akun berhasil diperbarui.",
+    }
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return {
+        ok: false,
+        message: "Email atau username sudah digunakan user lain.",
+        errors: {
+          email: ["Periksa email, mungkin sudah digunakan."],
+          username: ["Periksa username, mungkin sudah digunakan."],
+        },
+      }
+    }
+
+    return {
+      ok: false,
+      message: "Profil akun gagal diperbarui.",
+    }
+  }
 }
 
 export async function changePasswordAction(_state: ChangePasswordFormState, formData: FormData): Promise<ChangePasswordFormState> {

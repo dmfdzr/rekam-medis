@@ -123,6 +123,7 @@
   body {
     @apply bg-background text-foreground;
     font-feature-settings: "cv02", "cv03", "cv04", "tnum";
+    overflow-x: hidden;
     }
   html {
     @apply font-sans;

@@ -90,7 +90,11 @@ export type ClinicFormState = {
 
 const createPatientSchema = z.object({
   fullName: z.string().trim().min(2, "Nama lengkap minimal 2 karakter."),
-  nik: z.string().trim().optional(),
+  nik: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || /^\d{16}$/.test(value), "NIK harus tepat 16 digit angka.")
+    .optional(),
   birthDate: z.string().trim().min(1, "Tanggal lahir wajib diisi."),
   gender: z.enum(Gender, "Jenis kelamin wajib dipilih."),
   phone: z.string().trim().optional(),
@@ -131,15 +135,33 @@ const cancelVisitSchema = z.object({
   visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
 })
 
+const optionalDecimalSchema = (message: string) =>
+  z
+    .string()
+    .trim()
+    .refine((value) => value === "" || /^\d+([.,]\d+)?$/.test(value), message)
+    .optional()
+
+const optionalIntegerSchema = (message: string) =>
+  z
+    .string()
+    .trim()
+    .refine((value) => value === "" || /^\d+$/.test(value), message)
+    .optional()
+
 const upsertVitalSignSchema = z.object({
   visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
-  bloodPressure: z.string().trim().optional(),
-  temperature: z.string().trim().optional(),
-  weight: z.string().trim().optional(),
-  height: z.string().trim().optional(),
-  pulse: z.string().trim().optional(),
-  respiration: z.string().trim().optional(),
-  oxygenSaturation: z.string().trim().optional(),
+  bloodPressure: z
+    .string()
+    .trim()
+    .refine((value) => value === "" || /^\d{2,3}\/\d{2,3}$/.test(value), "Tekanan darah harus berupa angka dengan format 120/80.")
+    .optional(),
+  temperature: optionalDecimalSchema("Suhu tubuh harus berupa angka."),
+  weight: optionalDecimalSchema("Berat badan harus berupa angka."),
+  height: optionalDecimalSchema("Tinggi badan harus berupa angka."),
+  pulse: optionalIntegerSchema("Nadi harus berupa angka."),
+  respiration: optionalIntegerSchema("Respirasi harus berupa angka."),
+  oxygenSaturation: optionalIntegerSchema("Saturasi oksigen harus berupa angka."),
   nurseNote: z.string().trim().optional(),
 })
 
@@ -164,7 +186,8 @@ const saveMedicalRecordSchema = z.object({
 
 const addPrescriptionItemSchema = z.object({
   medicalRecordId: z.string().trim().min(1, "Rekam medis wajib dipilih."),
-  medicineId: z.string().trim().min(1, "Obat wajib dipilih."),
+  medicineId: z.string().trim().optional(),
+  medicineQuery: z.string().trim().optional(),
   dosage: z.string().trim().min(1, "Dosis wajib diisi."),
   usageRule: z.string().trim().min(1, "Aturan pakai wajib diisi."),
   quantity: z.string().trim().min(1, "Jumlah wajib diisi."),
@@ -1170,6 +1193,7 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
   const parsed = addPrescriptionItemSchema.safeParse({
     medicalRecordId: formData.get("medicalRecordId"),
     medicineId: formData.get("medicineId"),
+    medicineQuery: formData.get("medicineQuery"),
     dosage: formData.get("dosage"),
     usageRule: formData.get("usageRule"),
     quantity: formData.get("quantity"),
@@ -1194,6 +1218,17 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
     }
   }
 
+  const medicineId = optionalString(parsed.data.medicineId)
+  const medicineQuery = optionalString(parsed.data.medicineQuery)
+
+  if (!medicineId && !medicineQuery) {
+    return {
+      ok: false,
+      message: "Obat wajib diisi.",
+      errors: { medicineQuery: ["Ketik kode atau nama obat."] },
+    }
+  }
+
   const record = await prisma.medicalRecord.findUnique({
     where: { id: parsed.data.medicalRecordId },
     include: {
@@ -1215,16 +1250,45 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
     }
   }
 
-  const medicine = await prisma.medicine.findUnique({
-    where: { id: parsed.data.medicineId },
-    select: { id: true, name: true },
-  })
+  const medicineSearchText = medicineQuery?.trim()
+  const medicineCode = medicineSearchText?.split(" - ")[0]?.trim()
+  const medicineSearchFilters: Prisma.MedicineWhereInput[] = []
+
+  if (medicineCode) {
+    medicineSearchFilters.push({ code: { equals: medicineCode, mode: "insensitive" } })
+  }
+
+  if (medicineSearchText) {
+    medicineSearchFilters.push(
+      { name: { equals: medicineSearchText, mode: "insensitive" } },
+      { name: { contains: medicineSearchText, mode: "insensitive" } },
+      { code: { contains: medicineSearchText, mode: "insensitive" } },
+    )
+  }
+
+  const medicine = medicineId
+    ? await prisma.medicine.findUnique({
+        where: { id: medicineId },
+        select: { id: true, name: true },
+      })
+    : await prisma.medicine.findFirst({
+        where: {
+          status: {
+            notIn: [MedicineStatus.INACTIVE, MedicineStatus.EXPIRED],
+          },
+          stock: {
+            gt: 0,
+          },
+          OR: medicineSearchFilters,
+        },
+        select: { id: true, name: true },
+      })
 
   if (!medicine) {
     return {
       ok: false,
       message: "Obat tidak ditemukan.",
-      errors: { medicineId: ["Obat tidak ditemukan."] },
+      errors: { medicineQuery: ["Obat tidak ditemukan. Pilih dari saran atau periksa master obat."] },
     }
   }
 

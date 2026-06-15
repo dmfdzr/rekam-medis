@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { forbiddenReportResponse, getAuthorizedReportBundle } from "@/lib/reports/export"
+import { auditReportAccess, forbiddenReportResponse, getAuthorizedReportBundle } from "@/lib/reports/export"
 
 export async function GET(request: Request) {
   const bundle = await getAuthorizedReportBundle(request)
@@ -8,6 +8,8 @@ export async function GET(request: Request) {
   if (!bundle) {
     return forbiddenReportResponse()
   }
+
+  await auditReportAccess(request, "json")
 
   return NextResponse.json(bundle)
 }

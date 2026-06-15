@@ -192,6 +192,38 @@ export async function getPatientList() {
           service: true,
           status: true,
           visitDate: true,
+          medicalRecord: {
+            select: {
+              id: true,
+              status: true,
+              assessment: true,
+              updatedAt: true,
+              diagnoses: {
+                orderBy: { createdAt: "asc" },
+                take: 1,
+                select: {
+                  name: true,
+                },
+              },
+              treatments: {
+                orderBy: { createdAt: "asc" },
+                take: 2,
+                select: {
+                  name: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      documents: {
+        orderBy: { uploadedAt: "desc" },
+        take: 3,
+        select: {
+          id: true,
+          type: true,
+          fileName: true,
+          uploadedAt: true,
         },
       },
       _count: {
@@ -224,6 +256,23 @@ export async function getPatientList() {
       service: visit.service,
       status: visitStatusLabels[visit.status],
       date: dateFormatter.format(visit.visitDate),
+    })),
+    recentMedicalRecords: patient.visits
+      .filter((visit) => visit.medicalRecord)
+      .map((visit) => ({
+        id: visit.medicalRecord?.id ?? visit.id,
+        service: visit.service,
+        date: dateFormatter.format(visit.visitDate),
+        status: medicalRecordStatusLabels[visit.medicalRecord?.status ?? "DRAFT"],
+        assessment: visit.medicalRecord?.assessment ?? visit.medicalRecord?.diagnoses[0]?.name ?? "-",
+        treatments: visit.medicalRecord?.treatments.map((treatment) => treatment.name).join(", ") || "-",
+      })),
+    recentDocuments: patient.documents.map((document) => ({
+      id: document.id,
+      type: documentTypeLabels[document.type],
+      fileName: document.fileName,
+      uploadedAt: dateFormatter.format(document.uploadedAt),
+      fileUrl: `/documents/${document.id}`,
     })),
   }))
 }
@@ -596,6 +645,10 @@ export async function getPrescriptionFormOptions() {
     })),
     medicines: medicines.map((medicine) => ({
       id: medicine.id,
+      code: medicine.code,
+      name: medicine.name,
+      stock: medicine.stock,
+      unit: medicine.unit,
       label: `${medicine.code} - ${medicine.name} (${medicine.stock} ${medicine.unit})`,
     })),
   }
@@ -912,7 +965,14 @@ export async function getAuditLogList() {
     entity: log.entityName,
     entityId: log.entityId ?? "-",
     time: `${dateFormatter.format(log.createdAt)} ${timeFormatter.format(log.createdAt)}`,
-    risk: log.action.includes("MEDICAL_RECORD") || log.action.includes("PRESCRIPTION") || log.action.includes("MEDICAL_DOCUMENT") || log.action === "LOGIN_FAILED" ? "Sensitif" : "Normal",
+    risk:
+      log.action.includes("MEDICAL_RECORD") ||
+      log.action.includes("PRESCRIPTION") ||
+      log.action.includes("MEDICAL_DOCUMENT") ||
+      log.action.includes("REPORT") ||
+      log.action === "LOGIN_FAILED"
+        ? "Sensitif"
+        : "Normal",
     beforeData: summarizeJson(log.beforeData),
     afterData: summarizeJson(log.afterData),
   }))

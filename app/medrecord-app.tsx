@@ -2,6 +2,8 @@
 
 import * as React from "react"
 import { useFormStatus } from "react-dom"
+import { useRouter } from "next/navigation"
+import { useTheme } from "next-themes"
 import { Dialog } from "radix-ui"
 import {
   AlertTriangle,
@@ -13,13 +15,15 @@ import {
   Filter,
   LogOut,
   Menu,
+  Moon,
   Plus,
   Search,
   ShieldCheck,
+  Sun,
   X,
 } from "lucide-react"
 
-import { changePasswordAction, logoutAction } from "@/app/actions/auth"
+import { changePasswordAction, logoutAction, updateAccountAction } from "@/app/actions/auth"
 import {
   addPrescriptionItemAction,
   cancelPrescriptionAction,
@@ -89,6 +93,20 @@ function normalizeSearchValue(value: unknown) {
 
 function getUniqueOptions<T>(items: T[], selector: (item: T) => string) {
   return Array.from(new Set(items.map(selector).filter(Boolean)))
+}
+
+function useRefreshOnSuccess(state: { ok?: boolean; message?: string }) {
+  const router = useRouter()
+  const lastMessageRef = React.useRef<string | undefined>(undefined)
+
+  React.useEffect(() => {
+    if (!state.ok || !state.message || lastMessageRef.current === state.message) {
+      return
+    }
+
+    lastMessageRef.current = state.message
+    router.refresh()
+  }, [router, state.message, state.ok])
 }
 
 function useListControls<T>({
@@ -215,7 +233,7 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
   },
   settings: {
     title: "Pengaturan Akun",
-    description: "Kelola keamanan akun dan password login internal.",
+    description: "Kelola profil akun dan password login internal.",
   },
 }
 
@@ -323,25 +341,30 @@ export function MedRecordApp({
           />
         </aside>
 
-        {mobileOpen ? (
-          <div className="fixed inset-0 z-50 lg:hidden">
-            <button
-              type="button"
-              aria-label="Tutup menu"
-              className="absolute inset-0 bg-slate-950/50"
-              onClick={() => setMobileOpen(false)}
+        <div className={cn("fixed inset-0 z-50 lg:hidden", mobileOpen ? "pointer-events-auto" : "pointer-events-none")} aria-hidden={!mobileOpen}>
+          <button
+            type="button"
+            aria-label="Tutup menu"
+            className={cn("absolute inset-0 bg-slate-950/50 transition-opacity duration-200", mobileOpen ? "opacity-100" : "opacity-0")}
+            onClick={() => setMobileOpen(false)}
+            tabIndex={mobileOpen ? 0 : -1}
+          />
+          <aside
+            className={cn(
+              "relative h-full w-[min(22rem,88vw)] border-r border-border bg-sidebar p-4 shadow-2xl transition-transform duration-300 ease-out",
+              mobileOpen ? "translate-x-0" : "-translate-x-full",
+            )}
+          >
+            <SidebarContent
+              activeSection={activeSection}
+              collapsed={false}
+              navigation={navigation}
+              onNavigate={navigate}
+              onClose={() => setMobileOpen(false)}
+              user={user}
             />
-            <aside className="relative h-full w-[min(22rem,88vw)] border-r border-border bg-sidebar p-4 shadow-2xl">
-              <SidebarContent
-                activeSection={activeSection}
-                collapsed={false}
-                navigation={navigation}
-                onNavigate={navigate}
-                onClose={() => setMobileOpen(false)}
-              />
-            </aside>
-          </div>
-        ) : null}
+          </aside>
+        </div>
 
         <main className="min-w-0 flex-1">
           <header className="sticky top-0 z-30 border-b border-border/80 bg-background/88 px-4 py-3 backdrop-blur md:px-6">
@@ -351,10 +374,10 @@ export function MedRecordApp({
                 variant="outline"
                 size="icon-lg"
                 className="lg:hidden"
-                aria-label="Buka menu"
-                onClick={() => setMobileOpen(true)}
+                aria-label={mobileOpen ? "Tutup menu" : "Buka menu"}
+                onClick={() => setMobileOpen((current) => !current)}
               >
-                {sidebarCollapsed ? <Menu /> : <X />}
+                {mobileOpen ? <X /> : <Menu />}
               </Button>
               <Button
                 type="button"
@@ -364,7 +387,7 @@ export function MedRecordApp({
                 aria-label={sidebarCollapsed ? "Perluas sidebar" : "Ciutkan sidebar"}
                 onClick={() => setSidebarCollapsed((current) => !current)}
               >
-                <Menu />
+                {sidebarCollapsed ? <Menu /> : <X />}
               </Button>
 
               <div className="min-w-0 flex-1">
@@ -376,7 +399,9 @@ export function MedRecordApp({
                 <h1 className="mt-1 truncate text-xl font-semibold tracking-normal md:text-2xl">{meta.title}</h1>
               </div>
 
-              <div className="hidden min-w-0 items-center gap-3 rounded-md border border-border bg-card px-3 py-2 md:flex">
+              <ThemeToggle />
+
+              <div className="hidden min-w-0 items-center gap-3 rounded-md border border-border bg-card px-3 py-2 lg:flex">
                 <div className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
                   <ShieldCheck className="size-4" aria-hidden="true" />
                 </div>
@@ -436,12 +461,14 @@ function SidebarContent({
   navigation,
   onNavigate,
   onClose,
+  user,
 }: {
   activeSection: SectionKey
   collapsed: boolean
   navigation: ReturnType<typeof getNavigationForRole>
   onNavigate: (section: SectionKey) => void
   onClose?: () => void
+  user?: AppUser
 }) {
   return (
     <div className={cn("flex h-full flex-col", collapsed ? "items-center gap-4" : "gap-5")}>
@@ -488,7 +515,22 @@ function SidebarContent({
         })}
       </nav>
 
-      <div className="mt-auto" />
+      {user ? (
+        <div className="mt-auto grid w-full gap-3 border-t border-sidebar-border pt-4">
+          <div className="flex min-w-0 items-center gap-3 rounded-md border border-sidebar-border bg-background/70 p-3">
+            <div className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
+              <ShieldCheck className="size-4" aria-hidden="true" />
+            </div>
+            <div className="min-w-0">
+              <p className="truncate text-sm font-medium">{user.name}</p>
+              <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>
+            </div>
+          </div>
+          <LogoutConfirmDialog className="w-full justify-center" />
+        </div>
+      ) : (
+        <div className="mt-auto" />
+      )}
     </div>
   )
 }
@@ -531,19 +573,48 @@ function PageHeader({
   )
 }
 
-function LogoutConfirmDialog() {
+function ThemeToggle() {
+  const { resolvedTheme, setTheme } = useTheme()
+  const isDark = resolvedTheme === "dark"
+
+  return (
+    <Button
+      type="button"
+      variant="outline"
+      size="icon-lg"
+      aria-label={isDark ? "Aktifkan light mode" : "Aktifkan dark mode"}
+      title={isDark ? "Light mode" : "Dark mode"}
+      onClick={() => setTheme(isDark ? "light" : "dark")}
+    >
+      {isDark ? <Sun className="size-4" aria-hidden="true" /> : <Moon className="size-4" aria-hidden="true" />}
+    </Button>
+  )
+}
+
+function LogoutConfirmDialog({ className }: { className?: string }) {
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
-        <Button type="button" variant="outline" size="sm">
+        <Button type="button" variant="outline" size="sm" className={className}>
           <LogOut className="size-3" aria-hidden="true" />
           Logout
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-md border border-border bg-background p-5 shadow-2xl outline-none">
+        <Dialog.Content
+          className="fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-96 -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-border bg-background p-4 shadow-2xl outline-none sm:w-[min(24rem,calc(100vw-2rem))] sm:p-5"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onPointerDownOutside={(event) => event.preventDefault()}
+        >
           <form action={logoutAction} className="relative grid gap-4">
+            <div className="flex justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="ghost" size="icon" aria-label="Tutup dialog">
+                  <X className="size-4" aria-hidden="true" />
+                </Button>
+              </Dialog.Close>
+            </div>
             <div className="flex gap-3">
               <div className="grid size-10 shrink-0 place-items-center rounded-md bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-200">
                 <AlertTriangle className="size-5" aria-hidden="true" />
@@ -638,7 +709,18 @@ function ConfirmSubmitButton({
       <Dialog.Root open={open} onOpenChange={setOpen}>
         <Dialog.Portal>
           <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm" />
-          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-md border border-border bg-background p-5 shadow-2xl outline-none">
+          <Dialog.Content
+            className="fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-96 -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-border bg-background p-4 shadow-2xl outline-none sm:w-[min(24rem,calc(100vw-2rem))] sm:p-5"
+            onEscapeKeyDown={(event) => event.preventDefault()}
+            onPointerDownOutside={(event) => event.preventDefault()}
+          >
+            <div className="flex justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="ghost" size="icon" aria-label="Tutup dialog">
+                  <X className="size-4" aria-hidden="true" />
+                </Button>
+              </Dialog.Close>
+            </div>
             <div className="flex gap-3">
               <div
                 className={cn(
@@ -848,7 +930,7 @@ function PatientsSection({
           <EmptyState title="Pasien tidak ditemukan" detail="Ubah kata kunci atau filter status untuk melihat data pasien lain." />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto xl:block">
               <table className="w-full min-w-190 text-left text-sm">
                 <thead className="border-b border-border text-xs text-muted-foreground">
                   <tr>
@@ -881,6 +963,40 @@ function PatientsSection({
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="grid gap-3 xl:hidden">
+              {controls.paginatedItems.map((patient) => (
+                <div key={patient.id} className="rounded-md border border-border bg-card p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{patient.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {patient.medicalRecordNumber} - {patient.gender}, {patient.age}
+                      </p>
+                    </div>
+                    <StatusBadge label={patient.status} />
+                  </div>
+                  <div className="mt-3 grid gap-2 text-sm leading-6">
+                    <p>
+                      <span className="text-muted-foreground">NIK: </span>
+                      {patient.nik}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Telepon: </span>
+                      {patient.phone}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Alergi: </span>
+                      {patient.allergy}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Kunjungan terakhir: </span>
+                      {patient.lastVisit}
+                    </p>
+                  </div>
+                  <PatientDetailDialog patient={patient} />
+                </div>
+              ))}
             </div>
             <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
           </>
@@ -1042,6 +1158,58 @@ function PatientDetailDialog({ patient }: { patient: PatientListItem }) {
               </div>
             )}
           </div>
+
+          <div className="grid gap-4 lg:grid-cols-2">
+            <div className="rounded-md border border-border bg-card p-4">
+              <p className="text-sm font-semibold">Riwayat rekam medis</p>
+              {patient.recentMedicalRecords.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">Belum ada rekam medis.</p>
+              ) : (
+                <div className="mt-3 grid gap-2">
+                  {patient.recentMedicalRecords.map((record) => (
+                    <div key={record.id} className="rounded-md bg-muted px-3 py-2 text-sm leading-6">
+                      <div className="flex flex-wrap items-center justify-between gap-2">
+                        <span className="font-medium">
+                          {record.date} - {record.service}
+                        </span>
+                        <StatusBadge label={record.status} />
+                      </div>
+                      <p className="mt-1 text-muted-foreground">Assessment: {record.assessment}</p>
+                      <p className="text-muted-foreground">Tindakan: {record.treatments}</p>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className="rounded-md border border-border bg-card p-4">
+              <p className="text-sm font-semibold">Dokumen pasien</p>
+              {patient.recentDocuments.length === 0 ? (
+                <p className="mt-2 text-sm text-muted-foreground">Belum ada dokumen.</p>
+              ) : (
+                <div className="mt-3 grid gap-2">
+                  {patient.recentDocuments.map((document) => (
+                    <div key={document.id} className="rounded-md bg-muted px-3 py-2 text-sm leading-6">
+                      <div className="flex flex-wrap items-start justify-between gap-2">
+                        <div>
+                          <p className="font-medium">{document.fileName}</p>
+                          <p className="text-muted-foreground">
+                            {document.type} - {document.uploadedAt}
+                          </p>
+                        </div>
+                        <Button asChild variant="outline" size="sm">
+                          <a href={document.fileUrl} target="_blank" rel="noreferrer">
+                            <Download className="size-3" aria-hidden="true" />
+                            Buka
+                          </a>
+                        </Button>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
         </div>
       </ModalDialog>
     </>
@@ -1059,12 +1227,13 @@ function PatientDetailItem({ label, value }: { label: string; value: string | nu
 
 function CreatePatientForm() {
   const [state, formAction, pending] = React.useActionState(createPatientAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
       <div className="grid gap-3">
         <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} autoComplete="name" />
-        <TextField name="nik" label="NIK" error={state.errors?.nik?.[0]} inputMode="numeric" />
+        <TextField name="nik" label="NIK" error={state.errors?.nik?.[0]} inputMode="numeric" maxLength={16} pattern="\d{16}" />
         <TextField name="birthDate" label="Tanggal lahir" type="date" error={state.errors?.birthDate?.[0]} />
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Jenis kelamin</span>
@@ -1096,6 +1265,7 @@ function CreatePatientForm() {
 
 function UpdatePatientForm({ patients }: { patients: PatientListItem[] }) {
   const [state, formAction, pending] = React.useActionState(updatePatientAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
 
   if (patients.length === 0) {
     return <EmptyState title="Belum ada pasien" detail="Tambahkan pasien terlebih dahulu sebelum mengubah data dasar." />
@@ -1153,6 +1323,7 @@ function UpdatePatientForm({ patients }: { patients: PatientListItem[] }) {
 
 function DeactivatePatientForm({ patients }: { patients: PatientListItem[] }) {
   const [state, formAction, pending] = React.useActionState(deactivatePatientAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
   const activePatients = patients.filter((patient) => patient.status !== "Nonaktif")
 
   if (activePatients.length === 0) {
@@ -1194,6 +1365,7 @@ function DeactivatePatientForm({ patients }: { patients: PatientListItem[] }) {
 
 function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptions }) {
   const [state, formAction, pending] = React.useActionState(createVisitAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
@@ -1243,6 +1415,7 @@ function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptions }) {
 
 function UpdateVisitStatusForm({ visits }: { visits: VisitListItem[] }) {
   const [state, formAction, pending] = React.useActionState(updateVisitStatusAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
 
   if (visits.length === 0) {
     return <EmptyState title="Belum ada kunjungan" detail="Status kunjungan dapat diubah setelah ada kunjungan pasien." />
@@ -1295,6 +1468,7 @@ function UpdateVisitStatusForm({ visits }: { visits: VisitListItem[] }) {
 
 function CancelVisitForm({ visits }: { visits: VisitListItem[] }) {
   const [state, formAction, pending] = React.useActionState(cancelVisitAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
   const cancellableVisits = visits.filter((visit) => visit.status !== "Dibatalkan" && visit.status !== "Selesai")
 
   if (cancellableVisits.length === 0) {
@@ -1438,6 +1612,7 @@ function VitalSignGrid({ visit }: { visit: ClinicalWorklistItem }) {
 
 function VitalSignForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWorklistItem[] }) {
   const [state, formAction, pending] = React.useActionState(upsertVitalSignAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
   const [selectedVisitId, setSelectedVisitId] = React.useState(clinicalWorklist[0]?.id ?? "")
   const selectedVisit = clinicalWorklist.find((visit) => visit.id === selectedVisitId)
 
@@ -1464,13 +1639,20 @@ function VitalSignForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWorklis
       </label>
 
       <div key={selectedVisitId} className="grid gap-3 md:grid-cols-2">
-        <TextField name="bloodPressure" label="Tekanan darah" defaultValue={selectedVisit?.vitalSign?.bloodPressure} placeholder="120/80" />
-        <TextField name="temperature" label="Suhu tubuh" defaultValue={selectedVisit?.vitalSign?.temperature} inputMode="decimal" placeholder="37.0" />
-        <TextField name="weight" label="Berat badan" defaultValue={selectedVisit?.vitalSign?.weight} inputMode="decimal" placeholder="58.5" />
-        <TextField name="height" label="Tinggi badan" defaultValue={selectedVisit?.vitalSign?.height} inputMode="decimal" placeholder="160" />
-        <TextField name="pulse" label="Nadi" defaultValue={selectedVisit?.vitalSign?.pulse} inputMode="numeric" />
-        <TextField name="respiration" label="Respirasi" defaultValue={selectedVisit?.vitalSign?.respiration} inputMode="numeric" />
-        <TextField name="oxygenSaturation" label="Saturasi oksigen" defaultValue={selectedVisit?.vitalSign?.oxygenSaturation} inputMode="numeric" />
+        <TextField
+          name="bloodPressure"
+          label="Tekanan darah"
+          defaultValue={selectedVisit?.vitalSign?.bloodPressure}
+          inputMode="numeric"
+          pattern="\d{2,3}/\d{2,3}"
+          placeholder="120/80"
+        />
+        <TextField name="temperature" label="Suhu tubuh" type="number" defaultValue={selectedVisit?.vitalSign?.temperature} inputMode="decimal" step="0.1" min={0} placeholder="37.0" />
+        <TextField name="weight" label="Berat badan" type="number" defaultValue={selectedVisit?.vitalSign?.weight} inputMode="decimal" step="0.1" min={0} placeholder="58.5" />
+        <TextField name="height" label="Tinggi badan" type="number" defaultValue={selectedVisit?.vitalSign?.height} inputMode="decimal" step="0.1" min={0} placeholder="160" />
+        <TextField name="pulse" label="Nadi" type="number" defaultValue={selectedVisit?.vitalSign?.pulse} inputMode="numeric" step="1" min={0} />
+        <TextField name="respiration" label="Respirasi" type="number" defaultValue={selectedVisit?.vitalSign?.respiration} inputMode="numeric" step="1" min={0} />
+        <TextField name="oxygenSaturation" label="Saturasi oksigen" type="number" defaultValue={selectedVisit?.vitalSign?.oxygenSaturation} inputMode="numeric" step="1" min={0} max={100} />
         <div className="md:col-span-2">
           <TextAreaField name="nurseNote" label="Catatan perawat" defaultValue={selectedVisit?.vitalSign?.nurseNote} />
         </div>
@@ -1485,6 +1667,7 @@ function VitalSignForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWorklis
 
 function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWorklistItem[] }) {
   const [state, formAction, pending] = React.useActionState(saveMedicalRecordAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
   const [selectedVisitId, setSelectedVisitId] = React.useState(clinicalWorklist[0]?.id ?? "")
   const selectedVisit = clinicalWorklist.find((visit) => visit.id === selectedVisitId)
   const primaryDiagnosis = selectedVisit?.medicalRecord?.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
@@ -1747,7 +1930,7 @@ function PrescriptionsSection({
           />
         ) : (
           <>
-            <div className="hidden overflow-x-auto md:block">
+            <div className="hidden overflow-x-auto lg:block">
               <table className="w-full min-w-215 text-left text-sm">
                 <thead className="border-b border-border text-xs text-muted-foreground">
                   <tr>
@@ -1779,7 +1962,7 @@ function PrescriptionsSection({
                 </tbody>
               </table>
             </div>
-            <div className="grid gap-3 md:hidden">
+            <div className="grid gap-3 lg:hidden">
               {controls.paginatedItems.map((prescription) => (
                 <div key={prescription.id} className="rounded-md border border-border bg-card p-4">
                   <div className="flex items-start justify-between gap-3">
@@ -1924,7 +2107,7 @@ function MedicinesSection({
           <EmptyState title="Obat tidak ditemukan" detail="Ubah kata kunci atau filter status untuk melihat inventori lain." />
         ) : (
           <>
-            <div className="overflow-x-auto">
+            <div className="hidden overflow-x-auto xl:block">
               <table className="w-full min-w-190 text-left text-sm">
                 <thead className="border-b border-border text-xs text-muted-foreground">
                   <tr>
@@ -1957,6 +2140,42 @@ function MedicinesSection({
                   ))}
                 </tbody>
               </table>
+            </div>
+            <div className="grid gap-3 xl:hidden">
+              {controls.paginatedItems.map((medicine) => (
+                <div key={medicine.code} className="rounded-md border border-border bg-card p-4">
+                  <div className="flex flex-wrap items-start justify-between gap-3">
+                    <div className="min-w-0">
+                      <p className="font-medium">{medicine.name}</p>
+                      <p className="mt-1 text-xs text-muted-foreground">
+                        {medicine.code} - {medicine.category}
+                      </p>
+                    </div>
+                    <StatusBadge label={medicine.status} />
+                  </div>
+                  <div className="mt-3 grid gap-2 text-sm leading-6 sm:grid-cols-2">
+                    <p>
+                      <span className="text-muted-foreground">Stok: </span>
+                      {medicine.stock} {medicine.unit}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Minimum: </span>
+                      {medicine.min} {medicine.unit}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Kedaluwarsa: </span>
+                      {medicine.expires}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Harga: </span>
+                      {medicine.price || "-"}
+                    </p>
+                  </div>
+                  <div className="mt-3">
+                    <MedicineDetailDialog medicine={medicine} />
+                  </div>
+                </div>
+              ))}
             </div>
             <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
           </>
@@ -2055,6 +2274,7 @@ function MedicineDetailDialog({ medicine }: { medicine: MedicineListItem }) {
 
 function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOptions: PrescriptionFormOptions }) {
   const [state, formAction, pending] = React.useActionState(addPrescriptionItemAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
 
   if (prescriptionOptions.records.length === 0 || prescriptionOptions.medicines.length === 0) {
     return <EmptyState title="Belum siap membuat resep" detail="Pastikan ada rekam medis dan master obat aktif sebelum membuat resep." />
@@ -2072,16 +2292,21 @@ function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOptions: Pr
           ))}
         </select>
       </label>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Obat</span>
-        <select name="medicineId" className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
-          {prescriptionOptions.medicines.map((medicine) => (
-            <option key={medicine.id} value={medicine.id}>
-              {medicine.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <TextField
+        name="medicineQuery"
+        label="Obat"
+        placeholder="Ketik kode atau nama obat"
+        error={state.errors?.medicineQuery?.[0] ?? state.errors?.medicineId?.[0]}
+        list="medicine-options"
+      />
+      <datalist id="medicine-options">
+        {prescriptionOptions.medicines.map((medicine) => (
+          <option key={medicine.id} value={`${medicine.code} - ${medicine.name}`}>
+            {medicine.stock} {medicine.unit}
+          </option>
+        ))}
+      </datalist>
+      <p className="-mt-2 text-xs leading-5 text-muted-foreground">Ketik kode atau nama obat, lalu pilih saran agar resep tetap tersambung ke stok farmasi.</p>
       <TextField name="dosage" label="Dosis" placeholder="500mg" error={state.errors?.dosage?.[0]} />
       <TextField name="usageRule" label="Aturan pakai" placeholder="3x sehari setelah makan" error={state.errors?.usageRule?.[0]} />
       <TextField name="quantity" label="Jumlah" inputMode="numeric" error={state.errors?.quantity?.[0]} />
@@ -2288,6 +2513,7 @@ function DeactivateMedicineForm({ medicines }: { medicines: MedicineListItem[] }
 
 function MedicalDocumentForm({ documentOptions }: { documentOptions: DocumentFormOptions }) {
   const [state, formAction, pending] = React.useActionState(createMedicalDocumentAction, initialClinicFormState)
+  useRefreshOnSuccess(state)
 
   if (documentOptions.patients.length === 0) {
     return <EmptyState title="Belum ada pasien" detail="Tambahkan pasien terlebih dahulu sebelum menyimpan dokumen medis." />
@@ -2479,6 +2705,7 @@ function ReportsSection({
   const exportSuffix = exportQuery.size > 0 ? `?${exportQuery.toString()}` : ""
   const csvExportHref = `/reports/summary.csv${exportSuffix}`
   const spreadsheetExportHref = `/reports/summary.xls${exportSuffix}`
+  const pdfExportHref = `/reports/summary.pdf${exportSuffix}`
 
   async function applyReportFilter() {
     setIsLoading(true)
@@ -2521,6 +2748,12 @@ function ReportsSection({
       <Panel title="Export laporan" description="Filter tanggal wajib untuk menjaga query laporan tetap cepat saat database membesar.">
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg">
+            <a href={pdfExportHref}>
+              <Download className="size-4" aria-hidden="true" />
+              Export PDF
+            </a>
+          </Button>
+          <Button asChild size="lg" variant="outline">
             <a href={csvExportHref}>
               <Download className="size-4" aria-hidden="true" />
               Export CSV ringkasan
@@ -2608,30 +2841,46 @@ function ReportDetailTable({
       {rows.length === 0 ? (
         <EmptyState title="Data kosong" detail={emptyDetail} />
       ) : (
-        <div className="overflow-x-auto">
-          <table className="w-full min-w-105 text-left text-sm">
-            <thead className="border-b border-border text-xs text-muted-foreground">
-              <tr>
-                {columns.map((column) => (
-                  <th key={column} className="py-3 pr-4 font-medium">
-                    {column}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-border">
-              {rows.map((row, index) => (
-                <tr key={`${row.join("-")}-${index}`}>
-                  {row.map((cell, cellIndex) => (
-                    <td key={`${cell}-${cellIndex}`} className={cn("py-3 pr-4", cellIndex === 0 ? "font-medium" : "text-muted-foreground")}>
-                      {cell}
-                    </td>
+        <>
+          <div className="hidden overflow-x-auto lg:block">
+            <table className="w-full min-w-105 text-left text-sm">
+              <thead className="border-b border-border text-xs text-muted-foreground">
+                <tr>
+                  {columns.map((column) => (
+                    <th key={column} className="py-3 pr-4 font-medium">
+                      {column}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-border">
+                {rows.map((row, index) => (
+                  <tr key={`${row.join("-")}-${index}`}>
+                    {row.map((cell, cellIndex) => (
+                      <td key={`${cell}-${cellIndex}`} className={cn("py-3 pr-4", cellIndex === 0 ? "font-medium" : "text-muted-foreground")}>
+                        {cell}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+          <div className="grid gap-3 lg:hidden">
+            {rows.map((row, index) => (
+              <div key={`${row.join("-")}-${index}`} className="rounded-md border border-border bg-background p-3 text-sm">
+                <p className="font-medium">{row[0]}</p>
+                <div className="mt-2 grid gap-1 text-muted-foreground">
+                  {row.slice(1).map((cell, cellIndex) => (
+                    <p key={`${cell}-${cellIndex}`}>
+                      {columns[cellIndex + 1]}: {cell}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            ))}
+          </div>
+        </>
       )}
     </Panel>
   )
@@ -2947,19 +3196,7 @@ function AuditSection({
                 <p className="text-sm tabular-nums text-muted-foreground">{log.time}</p>
                 <StatusBadge label={log.risk} />
               </div>
-              <details className="mt-3 rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
-                <summary className="cursor-pointer font-medium text-foreground">Detail perubahan</summary>
-                <div className="mt-3 grid gap-3 md:grid-cols-2">
-                  <div>
-                    <p className="font-medium text-foreground">Sebelum</p>
-                    <p className="mt-1 break-all">{log.beforeData}</p>
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Sesudah</p>
-                    <p className="mt-1 break-all">{log.afterData}</p>
-                  </div>
-                </div>
-              </details>
+              <AuditLogDetailDialog log={log} />
             </div>
           ))
         )}
@@ -2976,6 +3213,49 @@ function AuditSection({
         filterOptions={auditRisks}
       />
     </Panel>
+  )
+}
+
+function AuditLogDetailDialog({ log }: { log: AuditLogListItem }) {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" className="mt-3 w-fit" onClick={() => setOpen(true)}>
+        <FileText className="size-3" aria-hidden="true" />
+        Detail audit
+      </Button>
+      <ModalDialog open={open} onOpenChange={setOpen} title={`Audit ${log.action}`} description={`${log.actor} - ${log.time}`}>
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge label={log.risk} />
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">{log.entity}</span>
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">ID {log.entityId}</span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PatientDetailItem label="User" value={log.actor} />
+            <PatientDetailItem label="Role" value={log.role} />
+            <PatientDetailItem label="Aksi" value={log.action} />
+            <PatientDetailItem label="Waktu" value={log.time} />
+          </div>
+
+          <div className="grid gap-3 md:grid-cols-2">
+            <AuditPayload title="Data sebelum" value={log.beforeData} />
+            <AuditPayload title="Data sesudah" value={log.afterData} />
+          </div>
+        </div>
+      </ModalDialog>
+    </>
+  )
+}
+
+function AuditPayload({ title, value }: { title: string; value: string }) {
+  return (
+    <div className="rounded-md border border-border bg-card p-4">
+      <p className="text-xs font-medium text-muted-foreground">{title}</p>
+      <p className="mt-2 whitespace-pre-wrap break-words text-sm leading-6">{value}</p>
+    </div>
   )
 }
 
@@ -3002,15 +3282,40 @@ function SettingsSection({ user }: { user: AppUser }) {
           </div>
         </div>
       </Panel>
-      <Panel title="Ganti password" description="Gunakan password lama untuk memverifikasi perubahan password akun.">
-        <ChangePasswordForm />
-      </Panel>
+      <div className="grid gap-5">
+        <Panel title="Update profil" description="Perbarui nama, email, dan username akun yang sedang digunakan.">
+          <UpdateAccountForm user={user} />
+        </Panel>
+        <Panel title="Ganti password" description="Gunakan password lama untuk memverifikasi perubahan password akun.">
+          <ChangePasswordForm />
+        </Panel>
+      </div>
     </div>
+  )
+}
+
+function UpdateAccountForm({ user }: { user: AppUser }) {
+  const [state, formAction, pending] = React.useActionState(updateAccountAction, {})
+  useRefreshOnSuccess(state)
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <div className="grid gap-3">
+        <TextField name="name" label="Nama" defaultValue={user.name} error={state.errors?.name?.[0]} autoComplete="name" />
+        <TextField name="email" label="Email" type="email" defaultValue={user.email} error={state.errors?.email?.[0]} autoComplete="email" />
+        <TextField name="username" label="Username" defaultValue={user.username} error={state.errors?.username?.[0]} autoComplete="username" />
+      </div>
+      <FormMessage state={state} />
+      <ConfirmSubmitButton message="Update profil akun ini?" confirmLabel="Update profil" pending={pending} pendingLabel="Memperbarui...">
+        Update profil
+      </ConfirmSubmitButton>
+    </form>
   )
 }
 
 function ChangePasswordForm() {
   const [state, formAction, pending] = React.useActionState(changePasswordAction, {})
+  useRefreshOnSuccess(state)
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
@@ -3130,7 +3435,11 @@ function ModalDialog({
     <Dialog.Root open={open} onOpenChange={onOpenChange}>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm" />
-        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid max-h-[88dvh] w-[min(42rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-border bg-background p-5 shadow-2xl outline-none">
+        <Dialog.Content
+          className="fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-border bg-background p-4 shadow-2xl outline-none sm:w-[min(42rem,calc(100vw-2rem))] sm:p-5"
+          onEscapeKeyDown={(event) => event.preventDefault()}
+          onPointerDownOutside={(event) => event.preventDefault()}
+        >
           <div className="flex items-start justify-between gap-4">
             <div>
               <Dialog.Title className="text-lg font-semibold">{title}</Dialog.Title>
@@ -3326,11 +3635,11 @@ function ResponsiveVisitsTable({
           totalCount={visits.length}
         />
       ) : null}
-      <div className="hidden overflow-x-auto md:block">
+      <div className="hidden overflow-x-auto lg:block">
         <table className="w-full min-w-190 text-left text-sm">
           <thead className="border-b border-border text-xs text-muted-foreground">
             <tr>
-              <th className="py-3 pr-4 font-medium">ID</th>
+              <th className="py-3 pr-4 font-medium">No. RM</th>
               <th className="py-3 pr-4 font-medium">Pasien</th>
               <th className="py-3 pr-4 font-medium">Layanan</th>
               <th className="py-3 pr-4 font-medium">Keluhan</th>
@@ -3342,7 +3651,7 @@ function ResponsiveVisitsTable({
           <tbody className="divide-y divide-border">
             {visibleVisits.map((visit) => (
               <tr key={visit.id} className="align-top">
-                <td className="py-4 pr-4 font-medium tabular-nums">{visit.id}</td>
+                <td className="py-4 pr-4 font-medium tabular-nums">{visit.medicalRecordNumber}</td>
                 <td className="py-4 pr-4">
                   <p className="font-medium">{visit.patient}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
@@ -3364,7 +3673,7 @@ function ResponsiveVisitsTable({
         </table>
       </div>
 
-      <div className="grid gap-3 md:hidden">
+      <div className="grid gap-3 lg:hidden">
         {visibleVisits.map((visit) => (
           <div key={visit.id} className="rounded-md border border-border bg-card p-4">
             <div className="flex items-start justify-between gap-3">
@@ -3411,7 +3720,7 @@ function VisitDetailDialog({ visit }: { visit: VisitListItem }) {
         <div className="grid gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge label={visit.status} />
-            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">ID {visit.id}</span>
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">No. RM {visit.medicalRecordNumber}</span>
             <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Jam {visit.time}</span>
           </div>
 
@@ -3440,6 +3749,12 @@ function TextField({
   placeholder,
   autoComplete,
   inputMode,
+  list,
+  maxLength,
+  max,
+  min,
+  pattern,
+  step,
   defaultValue,
   value,
   onValueChange,
@@ -3451,6 +3766,12 @@ function TextField({
   placeholder?: string
   autoComplete?: string
   inputMode?: React.HTMLAttributes<HTMLInputElement>["inputMode"]
+  list?: string
+  maxLength?: number
+  max?: number
+  min?: number
+  pattern?: string
+  step?: string
   defaultValue?: string
   value?: string
   onValueChange?: (value: string) => void
@@ -3463,6 +3784,12 @@ function TextField({
         type={type}
         autoComplete={autoComplete}
         inputMode={inputMode}
+        list={list}
+        max={max}
+        maxLength={maxLength}
+        min={min}
+        pattern={pattern}
+        step={step}
         defaultValue={defaultValue}
         value={value}
         onChange={onValueChange ? (event) => onValueChange(event.target.value) : undefined}
