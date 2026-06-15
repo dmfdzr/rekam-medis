@@ -7,6 +7,7 @@ import {
   ClipboardList,
   FileText,
   HeartPulse,
+  KeyRound,
   LayoutDashboard,
   Pill,
   ShieldCheck,
@@ -36,6 +37,7 @@ export type SectionKey =
   | "reports"
   | "users"
   | "audit"
+  | "settings"
 
 export const roles: Record<
   RoleKey,
@@ -90,6 +92,7 @@ const navigation: NavigationItem[] = [
   { id: "reports", label: "Laporan", icon: BarChart3 },
   { id: "users", label: "Manajemen User", icon: Users },
   { id: "audit", label: "Audit Log", icon: ShieldCheck },
+  { id: "settings", label: "Pengaturan Akun", icon: KeyRound },
 ]
 
 const roleAccess: Record<RoleKey, SectionKey[]> = {
@@ -105,11 +108,12 @@ const roleAccess: Record<RoleKey, SectionKey[]> = {
     "reports",
     "users",
     "audit",
+    "settings",
   ],
-  registration: ["dashboard", "patients", "visits"],
-  doctor: ["dashboard", "patients", "visits", "vitals", "records", "prescriptions", "medicines", "documents", "reports"],
-  nurse: ["dashboard", "patients", "visits", "vitals", "documents"],
-  pharmacist: ["dashboard", "prescriptions", "medicines", "reports"],
+  registration: ["dashboard", "patients", "visits", "settings"],
+  doctor: ["dashboard", "patients", "visits", "vitals", "records", "prescriptions", "medicines", "documents", "reports", "settings"],
+  nurse: ["dashboard", "patients", "visits", "vitals", "documents", "settings"],
+  pharmacist: ["dashboard", "prescriptions", "medicines", "reports", "settings"],
 }
 
 export function getNavigationForRole(role: RoleKey) {

@@ -44,6 +44,20 @@ export async function loginWithPassword({
   })
 
   if (!user || user.status !== "ACTIVE") {
+    await writeAuditLog({
+      userId: user?.id,
+      action: "LOGIN_FAILED",
+      entityName: "User",
+      entityId: user?.id,
+      afterData: {
+        identifier: normalizedIdentifier,
+        reason: user ? "ACCOUNT_NOT_ACTIVE" : "ACCOUNT_NOT_FOUND",
+        status: user?.status ?? "UNKNOWN",
+      },
+      ipAddress,
+      userAgent,
+    })
+
     return {
       ok: false,
       message: "Akun tidak ditemukan atau tidak aktif.",
@@ -58,6 +72,11 @@ export async function loginWithPassword({
       action: "LOGIN_FAILED",
       entityName: "User",
       entityId: user.id,
+      afterData: {
+        identifier: normalizedIdentifier,
+        reason: "INVALID_PASSWORD",
+        status: user.status,
+      },
       ipAddress,
       userAgent,
     })

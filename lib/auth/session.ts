@@ -1,20 +1,37 @@
 import "server-only"
 
-import { createHash, randomBytes } from "node:crypto"
 import { cookies } from "next/headers"
 
 import { prisma } from "@/lib/prisma"
+import { createSessionToken, hashSessionToken } from "@/lib/auth/session-token"
 
 export const sessionCookieName = "medrecord_session"
 
 const sessionMaxAgeMs = 1000 * 60 * 60 * 8
+const sessionRetentionMs = 1000 * 60 * 60 * 24 * 30
 
-export function hashSessionToken(token: string) {
-  return createHash("sha256").update(token).digest("hex")
+export async function pruneExpiredSessions(userId?: string) {
+  const retentionCutoff = new Date(Date.now() - sessionRetentionMs)
+
+  return prisma.session.deleteMany({
+    where: {
+      ...(userId ? { userId } : {}),
+      OR: [{ expiresAt: { lt: new Date() } }, { revokedAt: { lt: retentionCutoff } }],
+    },
+  })
 }
 
-export function createSessionToken() {
-  return randomBytes(32).toString("base64url")
+export async function revokeOtherUserSessions(userId: string, currentToken?: string | null) {
+  return prisma.session.updateMany({
+    where: {
+      userId,
+      revokedAt: null,
+      ...(currentToken ? { tokenHash: { not: hashSessionToken(currentToken) } } : {}),
+    },
+    data: {
+      revokedAt: new Date(),
+    },
+  })
 }
 
 export async function createSession({
@@ -26,6 +43,8 @@ export async function createSession({
   ipAddress?: string | null
   userAgent?: string | null
 }) {
+  await pruneExpiredSessions(userId)
+
   const token = createSessionToken()
   const expiresAt = new Date(Date.now() + sessionMaxAgeMs)
 
@@ -76,6 +95,12 @@ export async function getSessionFromCookie() {
       },
     },
   })
+}
+
+export async function getCurrentSessionToken() {
+  const cookieStore = await cookies()
+
+  return cookieStore.get(sessionCookieName)?.value ?? null
 }
 
 export async function revokeCurrentSession() {

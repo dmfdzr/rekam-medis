@@ -88,6 +88,97 @@ function calculateAge(birthDate: Date) {
   return `${age} th`
 }
 
+function startOfToday() {
+  const now = new Date()
+
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
+function getMedicineDisplayStatus(medicine: { status: keyof typeof medicineStatusLabels; stock: number; minimumStock: number; expirationDate: Date | null }) {
+  if (medicine.status === "INACTIVE") {
+    return medicineStatusLabels.INACTIVE
+  }
+
+  if (medicine.status === "EXPIRED" || (medicine.expirationDate && medicine.expirationDate < startOfToday())) {
+    return medicineStatusLabels.EXPIRED
+  }
+
+  if (medicine.stock <= medicine.minimumStock) {
+    return medicineStatusLabels.LOW_STOCK
+  }
+
+  return medicineStatusLabels[medicine.status]
+}
+
+function summarizeJson(value: unknown) {
+  if (!value) {
+    return "-"
+  }
+
+  const text = JSON.stringify(value)
+
+  return text.length > 220 ? `${text.slice(0, 220)}...` : text
+}
+
+export async function getDashboardSummary() {
+  const now = new Date()
+  const startOfDay = new Date(now.getFullYear(), now.getMonth(), now.getDate())
+  const nextDay = new Date(startOfDay)
+  nextDay.setDate(nextDay.getDate() + 1)
+
+  const [todayVisits, activePatients, pendingPrescriptions, lowStockMedicines, visitStatusGroups] = await Promise.all([
+    prisma.visit.count({
+      where: {
+        visitDate: {
+          gte: startOfDay,
+          lt: nextDay,
+        },
+      },
+    }),
+    prisma.patient.count({
+      where: {
+        status: "ACTIVE",
+      },
+    }),
+    prisma.prescription.count({
+      where: {
+        status: {
+          in: ["PENDING", "VALIDATING_STOCK"],
+        },
+      },
+    }),
+    prisma.medicine.count({
+      where: {
+        OR: [{ status: "LOW_STOCK" }, { stock: { lte: prisma.medicine.fields.minimumStock } }],
+      },
+    }),
+    prisma.visit.groupBy({
+      by: ["status"],
+      where: {
+        status: {
+          in: ["WAITING", "VITAL_SIGN", "EXAMINATION", "PHARMACY"],
+        },
+      },
+      _count: { status: true },
+    }),
+  ])
+
+  const queue = ["WAITING", "VITAL_SIGN", "EXAMINATION", "PHARMACY"].map((status) => ({
+    status: visitStatusLabels[status as keyof typeof visitStatusLabels],
+    count: String(visitStatusGroups.find((group) => group.status === status)?._count.status ?? 0),
+  }))
+
+  return {
+    metrics: [
+      { label: "Kunjungan hari ini", value: String(todayVisits), change: "Realtime", detail: "Hari berjalan", tone: "text-sky-700 dark:text-sky-300" },
+      { label: "Pasien aktif", value: String(activePatients), change: "Total", detail: "Data pasien aktif", tone: "text-teal-700 dark:text-teal-300" },
+      { label: "Resep pending", value: String(pendingPrescriptions), change: "Farmasi", detail: "Menunggu proses", tone: "text-violet-700 dark:text-violet-300" },
+      { label: "Stok rendah", value: String(lowStockMedicines), change: "Inventori", detail: "Perlu dicek", tone: "text-amber-700 dark:text-amber-300" },
+    ],
+    queue,
+  }
+}
+
 export async function getPatientList() {
   const patients = await prisma.patient.findMany({
     orderBy: { createdAt: "desc" },
@@ -95,9 +186,18 @@ export async function getPatientList() {
     include: {
       visits: {
         orderBy: { visitDate: "desc" },
-        take: 1,
+        take: 3,
         select: {
+          id: true,
+          service: true,
+          status: true,
           visitDate: true,
+        },
+      },
+      _count: {
+        select: {
+          visits: true,
+          documents: true,
         },
       },
     },
@@ -111,9 +211,20 @@ export async function getPatientList() {
     gender: genderLabels[patient.gender],
     age: calculateAge(patient.birthDate),
     phone: patient.phone ?? "-",
+    address: patient.address ?? "-",
+    bloodType: patient.bloodType ?? "-",
     allergy: patient.allergies ?? "Tidak ada",
+    emergencyContact: patient.emergencyContact ?? "-",
     status: patientStatusLabels[patient.status],
     lastVisit: patient.visits[0] ? dateFormatter.format(patient.visits[0].visitDate) : "-",
+    visitCount: patient._count.visits,
+    documentCount: patient._count.documents,
+    recentVisits: patient.visits.map((visit) => ({
+      id: visit.id,
+      service: visit.service,
+      status: visitStatusLabels[visit.status],
+      date: dateFormatter.format(visit.visitDate),
+    })),
   }))
 }
 
@@ -429,7 +540,7 @@ export async function getMedicineList() {
     min: medicine.minimumStock,
     price: medicine.price?.toString() ?? "",
     expires: medicine.expirationDate ? medicine.expirationDate.toISOString().slice(0, 10) : "-",
-    status: medicine.stock <= medicine.minimumStock ? "Stok rendah" : medicineStatusLabels[medicine.status],
+    status: getMedicineDisplayStatus(medicine),
   }))
 }
 
@@ -459,8 +570,12 @@ export async function getPrescriptionFormOptions() {
     prisma.medicine.findMany({
       where: {
         status: {
-          not: "INACTIVE",
+          notIn: ["INACTIVE", "EXPIRED"],
         },
+        stock: {
+          gt: 0,
+        },
+        OR: [{ expirationDate: null }, { expirationDate: { gte: startOfToday() } }],
       },
       orderBy: { name: "asc" },
       take: 100,
@@ -518,7 +633,7 @@ export async function getMedicalDocumentList() {
     visit: document.visit ? `${document.visit.service} - ${dateFormatter.format(document.visit.visitDate)}` : "-",
     type: documentTypeLabels[document.type],
     fileName: document.fileName,
-    fileUrl: document.fileUrl,
+    fileUrl: `/documents/${document.id}`,
     uploadedBy: document.uploadedBy?.name ?? "-",
     uploadedAt: dateFormatter.format(document.uploadedAt),
   }))
@@ -655,6 +770,122 @@ export async function getReportSummary(options: { startDate?: string | null; end
   ]
 }
 
+export async function getReportDetails(options: { startDate?: string | null; endDate?: string | null } = {}) {
+  const { start, end } = buildDateRangeFilter(options.startDate, options.endDate)
+  const [diagnoses, treatments, medicineUsage, stockReport] = await Promise.all([
+    prisma.diagnosis.groupBy({
+      by: ["name"],
+      where: {
+        medicalRecord: {
+          visit: {
+            visitDate: {
+              gte: start,
+              lt: end,
+            },
+          },
+        },
+      },
+      _count: { name: true },
+      orderBy: { _count: { name: "desc" } },
+      take: 8,
+    }),
+    prisma.treatment.groupBy({
+      by: ["name"],
+      where: {
+        medicalRecord: {
+          visit: {
+            visitDate: {
+              gte: start,
+              lt: end,
+            },
+          },
+        },
+      },
+      _count: { name: true },
+      _sum: { cost: true },
+      orderBy: { _count: { name: "desc" } },
+      take: 8,
+    }),
+    prisma.prescriptionItem.groupBy({
+      by: ["medicineId"],
+      where: {
+        prescription: {
+          status: "PROCESSED",
+          processedAt: {
+            gte: start,
+            lt: end,
+          },
+        },
+      },
+      _sum: { quantity: true },
+      orderBy: { _sum: { quantity: "desc" } },
+      take: 8,
+    }),
+    prisma.medicine.findMany({
+      where: {
+        OR: [{ status: { in: ["LOW_STOCK", "EXPIRED"] } }, { stock: { lte: prisma.medicine.fields.minimumStock } }, { expirationDate: { lt: startOfToday() } }],
+      },
+      orderBy: [{ status: "desc" }, { stock: "asc" }, { name: "asc" }],
+      take: 12,
+      select: {
+        id: true,
+        code: true,
+        name: true,
+        stock: true,
+        minimumStock: true,
+        unit: true,
+        status: true,
+        expirationDate: true,
+      },
+    }),
+  ])
+
+  const medicineIds = medicineUsage.map((item) => item.medicineId)
+  const medicines = medicineIds.length
+    ? await prisma.medicine.findMany({
+        where: { id: { in: medicineIds } },
+        select: {
+          id: true,
+          code: true,
+          name: true,
+          unit: true,
+        },
+      })
+    : []
+  const medicineById = new Map(medicines.map((medicine) => [medicine.id, medicine]))
+
+  return {
+    diagnoses: diagnoses.map((diagnosis) => ({
+      name: diagnosis.name,
+      count: diagnosis._count.name,
+    })),
+    treatments: treatments.map((treatment) => ({
+      name: treatment.name,
+      count: treatment._count.name,
+      totalCost: treatment._sum.cost?.toString() ?? "0",
+    })),
+    medicineUsage: medicineUsage.map((item) => {
+      const medicine = medicineById.get(item.medicineId)
+
+      return {
+        code: medicine?.code ?? "-",
+        name: medicine?.name ?? "Obat tidak ditemukan",
+        quantity: item._sum.quantity ?? 0,
+        unit: medicine?.unit ?? "-",
+      }
+    }),
+    stockReport: stockReport.map((medicine) => ({
+      code: medicine.code,
+      name: medicine.name,
+      stock: medicine.stock,
+      minimumStock: medicine.minimumStock,
+      unit: medicine.unit,
+      expires: medicine.expirationDate ? medicine.expirationDate.toISOString().slice(0, 10) : "-",
+      status: getMedicineDisplayStatus(medicine),
+    })),
+  }
+}
+
 export async function getAuditLogList() {
   const logs = await prisma.auditLog.findMany({
     orderBy: { createdAt: "desc" },
@@ -681,7 +912,9 @@ export async function getAuditLogList() {
     entity: log.entityName,
     entityId: log.entityId ?? "-",
     time: `${dateFormatter.format(log.createdAt)} ${timeFormatter.format(log.createdAt)}`,
-    risk: log.action.includes("MEDICAL_RECORD") || log.action.includes("PRESCRIPTION") ? "Sensitif" : "Normal",
+    risk: log.action.includes("MEDICAL_RECORD") || log.action.includes("PRESCRIPTION") || log.action.includes("MEDICAL_DOCUMENT") || log.action === "LOGIN_FAILED" ? "Sensitif" : "Normal",
+    beforeData: summarizeJson(log.beforeData),
+    afterData: summarizeJson(log.afterData),
   }))
 }
 
@@ -730,6 +963,7 @@ export async function getRoleOptions() {
 }
 
 export type PatientListItem = Awaited<ReturnType<typeof getPatientList>>[number]
+export type DashboardSummary = Awaited<ReturnType<typeof getDashboardSummary>>
 export type VisitListItem = Awaited<ReturnType<typeof getVisitList>>[number]
 export type VisitFormOptions = Awaited<ReturnType<typeof getVisitFormOptions>>
 export type ClinicalWorklistItem = Awaited<ReturnType<typeof getClinicalWorklist>>[number]
@@ -740,6 +974,7 @@ export type PrescriptionFormOptions = Awaited<ReturnType<typeof getPrescriptionF
 export type MedicalDocumentListItem = Awaited<ReturnType<typeof getMedicalDocumentList>>[number]
 export type DocumentFormOptions = Awaited<ReturnType<typeof getDocumentFormOptions>>
 export type ReportSummaryItem = Awaited<ReturnType<typeof getReportSummary>>[number]
+export type ReportDetails = Awaited<ReturnType<typeof getReportDetails>>
 export type AuditLogListItem = Awaited<ReturnType<typeof getAuditLogList>>[number]
 export type UserListItem = Awaited<ReturnType<typeof getUserList>>[number]
 export type RoleOptionItem = Awaited<ReturnType<typeof getRoleOptions>>[number]

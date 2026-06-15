@@ -17,7 +17,7 @@ import {
   X,
 } from "lucide-react"
 
-import { logoutAction } from "@/app/actions/auth"
+import { changePasswordAction, logoutAction } from "@/app/actions/auth"
 import {
   addPrescriptionItemAction,
   createMedicalDocumentAction,
@@ -38,6 +38,7 @@ import { Button } from "@/components/ui/button"
 import type {
   ClinicalWorklistItem,
   AuditLogListItem,
+  DashboardSummary,
   DocumentFormOptions,
   MedicineListItem,
   MedicalDocumentListItem,
@@ -46,6 +47,7 @@ import type {
   PrescriptionFormOptions,
   PrescriptionListItem,
   RoleOptionItem,
+  ReportDetails,
   ReportSummaryItem,
   UserListItem,
   VisitFormOptions,
@@ -53,9 +55,7 @@ import type {
 } from "@/lib/data/clinic"
 import { cn } from "@/lib/utils"
 import {
-  dashboardMetrics,
   getNavigationForRole,
-  queueSummary,
   roles,
   type RoleKey,
   type SectionKey,
@@ -82,6 +82,14 @@ function normalizeSearchValue(value: unknown) {
 
 function getUniqueOptions<T>(items: T[], selector: (item: T) => string) {
   return Array.from(new Set(items.map(selector).filter(Boolean)))
+}
+
+function confirmSubmit(message: string) {
+  return (event: React.MouseEvent<HTMLButtonElement>) => {
+    if (!window.confirm(message)) {
+      event.preventDefault()
+    }
+  }
 }
 
 function useListControls<T>({
@@ -206,6 +214,10 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
     title: "Audit Log",
     description: "Lacak aktivitas penting untuk keamanan dan akuntabilitas data medis.",
   },
+  settings: {
+    title: "Pengaturan Akun",
+    description: "Kelola keamanan akun dan password login internal.",
+  },
 }
 
 const statusTone: Record<string, string> = {
@@ -241,6 +253,7 @@ const statusTone: Record<string, string> = {
 
 export function MedRecordApp({
   user,
+  dashboardSummary,
   patients,
   visits,
   visitOptions,
@@ -252,11 +265,13 @@ export function MedRecordApp({
   documents,
   documentOptions,
   reportSummary,
+  reportDetails,
   auditLogs,
   userList,
   roleOptions,
 }: {
   user: AppUser
+  dashboardSummary: DashboardSummary
   patients: PatientListItem[]
   visits: VisitListItem[]
   visitOptions: VisitFormOptions
@@ -268,6 +283,7 @@ export function MedRecordApp({
   documents: MedicalDocumentListItem[]
   documentOptions: DocumentFormOptions
   reportSummary: ReportSummaryItem[]
+  reportDetails: ReportDetails
   auditLogs: AuditLogListItem[]
   userList: UserListItem[]
   roleOptions: RoleOptionItem[]
@@ -370,7 +386,7 @@ export function MedRecordApp({
                   <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>
                 </div>
                 <form action={logoutAction}>
-                  <Button type="submit" variant="outline" size="sm">
+                  <Button type="submit" variant="outline" size="sm" onClick={confirmSubmit("Logout dari aplikasi sekarang?")}>
                     <LogOut className="size-3" aria-hidden="true" />
                     Logout
                   </Button>
@@ -389,8 +405,10 @@ export function MedRecordApp({
               onOpenComposer={() => setComposerOpen(true)}
             />
             <SectionRenderer
+              user={user}
               section={activeSection}
               role={activeRole}
+              dashboardSummary={dashboardSummary}
               filtersOpen={filtersOpen}
               composerOpen={composerOpen}
               onFiltersOpenChange={setFiltersOpen}
@@ -405,8 +423,9 @@ export function MedRecordApp({
               prescriptionOptions={prescriptionOptions}
               documents={documents}
             documentOptions={documentOptions}
-            reportSummary={reportSummary}
-            auditLogs={auditLogs}
+              reportSummary={reportSummary}
+              reportDetails={reportDetails}
+              auditLogs={auditLogs}
             userList={userList}
             roleOptions={roleOptions}
           />
@@ -519,8 +538,10 @@ function PageHeader({
 }
 
 function SectionRenderer({
+  user,
   section,
   role,
+  dashboardSummary,
   filtersOpen,
   composerOpen,
   onFiltersOpenChange,
@@ -536,12 +557,15 @@ function SectionRenderer({
   documents,
   documentOptions,
   reportSummary,
+  reportDetails,
   auditLogs,
   userList,
   roleOptions,
 }: {
+  user: AppUser
   section: SectionKey
   role: RoleKey
+  dashboardSummary: DashboardSummary
   filtersOpen: boolean
   composerOpen: boolean
   onFiltersOpenChange: (open: boolean) => void
@@ -557,13 +581,14 @@ function SectionRenderer({
   documents: MedicalDocumentListItem[]
   documentOptions: DocumentFormOptions
   reportSummary: ReportSummaryItem[]
+  reportDetails: ReportDetails
   auditLogs: AuditLogListItem[]
   userList: UserListItem[]
   roleOptions: RoleOptionItem[]
 }) {
   switch (section) {
     case "dashboard":
-      return <DashboardSection role={role} visits={visits} />
+      return <DashboardSection role={role} visits={visits} dashboardSummary={dashboardSummary} />
     case "patients":
       return <PatientsSection patients={patients} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "visits":
@@ -579,19 +604,21 @@ function SectionRenderer({
     case "documents":
       return <DocumentsSection role={role} documents={documents} documentOptions={documentOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "reports":
-      return <ReportsSection reportSummary={reportSummary} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
+      return <ReportsSection reportSummary={reportSummary} reportDetails={reportDetails} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
     case "users":
       return <UsersSection role={role} userList={userList} roleOptions={roleOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "audit":
       return <AuditSection auditLogs={auditLogs} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
+    case "settings":
+      return <SettingsSection user={user} />
   }
 }
 
-function DashboardSection({ role, visits }: { role: RoleKey; visits: VisitListItem[] }) {
+function DashboardSection({ role, visits, dashboardSummary }: { role: RoleKey; visits: VisitListItem[]; dashboardSummary: DashboardSummary }) {
   return (
     <div className="grid gap-5">
       <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {dashboardMetrics.map((metric) => (
+        {dashboardSummary.metrics.map((metric) => (
           <MetricCard key={metric.label} {...metric} />
         ))}
       </div>
@@ -599,9 +626,9 @@ function DashboardSection({ role, visits }: { role: RoleKey; visits: VisitListIt
       <div className="grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
         <Panel title="Antrean layanan" description="Status pasien berjalan hari ini.">
           <div className="grid gap-3 sm:grid-cols-2">
-            {queueSummary.map((item) => (
+            {dashboardSummary.queue.map((item) => (
               <div key={item.status} className="rounded-md border border-border bg-card p-4">
-                <span className={cn("inline-flex rounded-md px-2 py-1 text-xs font-medium", item.className)}>{item.status}</span>
+                <StatusBadge label={item.status} />
                 <p className="mt-4 text-3xl font-semibold tabular-nums">{item.count}</p>
                 <p className="mt-1 text-sm text-muted-foreground">pasien</p>
               </div>
@@ -655,7 +682,7 @@ function PatientsSection({
   const canCreate = role === "admin" || role === "registration"
   const patientStatuses = React.useMemo(() => getUniqueOptions(patients, (patient) => patient.status), [patients])
   const searchSelector = React.useCallback(
-    (patient: PatientListItem) => [patient.medicalRecordNumber, patient.name, patient.nik, patient.phone, patient.allergy, patient.status],
+    (patient: PatientListItem) => [patient.medicalRecordNumber, patient.name, patient.nik, patient.phone, patient.address, patient.allergy, patient.status],
     [],
   )
   const filterSelector = React.useCallback((patient: PatientListItem, value: string) => patient.status === value, [])
@@ -700,6 +727,44 @@ function PatientsSection({
                         <p className="mt-1 text-xs text-muted-foreground">
                           {patient.gender}, {patient.age} - {patient.nik}
                         </p>
+                        <details className="mt-3 rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
+                          <summary className="cursor-pointer font-medium text-foreground">Detail pasien</summary>
+                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
+                            <div>
+                              <p className="font-medium text-foreground">Alamat</p>
+                              <p className="mt-1">{patient.address}</p>
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">Kontak darurat</p>
+                              <p className="mt-1">{patient.emergencyContact}</p>
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">Golongan darah</p>
+                              <p className="mt-1">{patient.bloodType}</p>
+                            </div>
+                            <div>
+                              <p className="font-medium text-foreground">Ringkasan</p>
+                              <p className="mt-1">
+                                {patient.visitCount} kunjungan, {patient.documentCount} dokumen
+                              </p>
+                            </div>
+                          </div>
+                          <div className="mt-3 border-t border-border pt-3">
+                            <p className="font-medium text-foreground">Riwayat kunjungan terakhir</p>
+                            {patient.recentVisits.length === 0 ? (
+                              <p className="mt-1">Belum ada kunjungan.</p>
+                            ) : (
+                              <div className="mt-2 grid gap-2">
+                                {patient.recentVisits.map((visit) => (
+                                  <div key={visit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-3 py-2">
+                                    <span>{visit.date} - {visit.service}</span>
+                                    <StatusBadge label={visit.status} />
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </details>
                       </td>
                       <td className="py-4 pr-4 tabular-nums">{patient.phone}</td>
                       <td className="py-4 pr-4">{patient.allergy}</td>
@@ -965,7 +1030,7 @@ function UpdateVisitStatusForm({ visits }: { visits: VisitListItem[] }) {
         </label>
       </div>
       <FormMessage state={state} />
-      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
+      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending} onClick={confirmSubmit("Update status kunjungan ini? Perubahan akan tercatat di audit log.")}>
         {pending ? "Memperbarui..." : "Update status"}
       </Button>
     </form>
@@ -1127,6 +1192,7 @@ function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWor
   const selectedVisit = clinicalWorklist.find((visit) => visit.id === selectedVisitId)
   const primaryDiagnosis = selectedVisit?.medicalRecord?.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
   const latestTreatment = selectedVisit?.medicalRecord?.treatments.at(-1)
+  const isSelectedRecordFinal = selectedVisit?.medicalRecord?.status === "Final"
 
   if (clinicalWorklist.length === 0) {
     return <EmptyState title="Belum ada pasien untuk pemeriksaan" detail="Kunjungan aktif akan muncul setelah pasien didaftarkan dan tanda vital diisi." />
@@ -1151,6 +1217,11 @@ function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWor
       </label>
 
       <div key={selectedVisitId} className="grid gap-3">
+        {isSelectedRecordFinal ? (
+          <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+            Rekam medis ini sudah final. Data ditampilkan untuk referensi dan tidak dapat disimpan ulang dari form pemeriksaan.
+          </div>
+        ) : null}
         <TextAreaField name="subjective" label="Subjective" defaultValue={selectedVisit?.medicalRecord?.subjective} />
         <TextAreaField name="objective" label="Objective" defaultValue={selectedVisit?.medicalRecord?.objective} />
         <TextAreaField name="assessment" label="Assessment" defaultValue={selectedVisit?.medicalRecord?.assessment} />
@@ -1176,10 +1247,10 @@ function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWor
       </div>
       <FormMessage state={state} />
       <div className="flex flex-col gap-2 sm:flex-row">
-        <Button type="submit" name="intent" value="draft" variant="outline" size="lg" disabled={pending}>
+        <Button type="submit" name="intent" value="draft" variant="outline" size="lg" disabled={pending || isSelectedRecordFinal}>
           {pending ? "Menyimpan..." : "Simpan draft"}
         </Button>
-        <Button type="submit" name="intent" value="final" size="lg" disabled={pending}>
+        <Button type="submit" name="intent" value="final" size="lg" disabled={pending || isSelectedRecordFinal} onClick={confirmSubmit("Finalisasi rekam medis ini? Data final digunakan sebagai riwayat klinis pasien.")}>
           Finalisasi rekam medis
         </Button>
       </div>
@@ -1397,6 +1468,27 @@ function MedicinesSection({
 }) {
   const canCreate = role === "admin" || role === "pharmacist"
   const medicineStatuses = React.useMemo(() => getUniqueOptions(medicines, (medicine) => medicine.status), [medicines])
+  const medicineInsights = React.useMemo(() => {
+    const today = new Date()
+    today.setHours(0, 0, 0, 0)
+    const nextThirtyDays = new Date(today)
+    nextThirtyDays.setDate(today.getDate() + 30)
+
+    return {
+      total: medicines.length,
+      lowStock: medicines.filter((medicine) => medicine.status === "Stok rendah").length,
+      expired: medicines.filter((medicine) => medicine.status === "Kedaluwarsa").length,
+      expiringSoon: medicines.filter((medicine) => {
+        if (medicine.expires === "-" || medicine.status === "Kedaluwarsa") {
+          return false
+        }
+
+        const expiresAt = new Date(medicine.expires)
+
+        return !Number.isNaN(expiresAt.getTime()) && expiresAt >= today && expiresAt <= nextThirtyDays
+      }).length,
+    }
+  }, [medicines])
   const searchSelector = React.useCallback(
     (medicine: MedicineListItem) => [medicine.code, medicine.name, medicine.category, medicine.unit, medicine.status, medicine.expires],
     [],
@@ -1410,6 +1502,12 @@ function MedicinesSection({
 
   return (
     <div className="grid gap-5">
+      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+        <MetricCard label="Total obat" value={String(medicineInsights.total)} change="Inventori" detail="Semua master obat" tone="text-sky-700 dark:text-sky-300" />
+        <MetricCard label="Stok rendah" value={String(medicineInsights.lowStock)} change="Perlu restock" detail="Stok <= minimum" tone="text-amber-700 dark:text-amber-300" />
+        <MetricCard label="Kedaluwarsa" value={String(medicineInsights.expired)} change="Tidak boleh diproses" detail="Diblokir saat resep" tone="text-red-700 dark:text-red-300" />
+        <MetricCard label="Akan kedaluwarsa" value={String(medicineInsights.expiringSoon)} change="30 hari" detail="Perlu pengecekan" tone="text-violet-700 dark:text-violet-300" />
+      </div>
       <Panel title="Inventori obat" description="Stok minimum dan kedaluwarsa ditampilkan di tabel utama karena berdampak langsung ke resep.">
         <ListToolbar
           query={controls.query}
@@ -1541,7 +1639,7 @@ function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Prescriptio
         </select>
       </label>
       <FormMessage state={state} />
-      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
+      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending} onClick={confirmSubmit("Proses resep ini dan kurangi stok obat?")}>
         {pending ? "Memproses..." : "Proses resep"}
       </Button>
     </form>
@@ -1671,11 +1769,21 @@ function MedicalDocumentForm({ documentOptions }: { documentOptions: DocumentFor
           <option value="OTHER">Lainnya</option>
         </select>
       </label>
-      <TextField name="fileName" label="Nama file" error={state.errors?.fileName?.[0]} placeholder="hasil-lab.pdf" />
-      <TextField name="fileUrl" label="URL file" error={state.errors?.fileUrl?.[0]} placeholder="supabase://medical-documents/..." />
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">File dokumen</span>
+        <input
+          name="file"
+          type="file"
+          accept="application/pdf,image/jpeg,image/png,image/webp"
+          className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium focus:border-ring focus:ring-2 focus:ring-ring/25 focus:outline-none"
+          aria-invalid={Boolean(state.errors?.file)}
+        />
+        <p className="text-xs text-muted-foreground">PDF, JPG, PNG, atau WebP. Maksimal 2 MB.</p>
+        <FieldError message={state.errors?.file?.[0]} />
+      </label>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
-        {pending ? "Menyimpan..." : "Simpan dokumen"}
+        {pending ? "Mengunggah..." : "Upload dokumen"}
       </Button>
     </form>
   )
@@ -1733,7 +1841,7 @@ function DocumentsSection({
         {controls.paginatedItems.length === 0 ? (
           <EmptyState
             title={documents.length === 0 ? "Belum ada dokumen" : "Dokumen tidak ditemukan"}
-            detail={documents.length === 0 ? "Dokumen medis yang ditambahkan akan tampil dengan pasien, tipe, uploader, dan URL file." : "Ubah kata kunci atau filter tipe dokumen."}
+            detail={documents.length === 0 ? "Dokumen medis yang diupload akan tampil dengan pasien, tipe, uploader, dan akses file." : "Ubah kata kunci atau filter tipe dokumen."}
           />
         ) : (
           <>
@@ -1750,7 +1858,12 @@ function DocumentsSection({
                     <StatusBadge label={document.type} />
                   </div>
                   <p className="mt-3 text-sm text-muted-foreground">{document.visit}</p>
-                  <p className="mt-2 break-all text-xs text-muted-foreground">{document.fileUrl}</p>
+                  <Button asChild variant="outline" size="sm" className="mt-3 w-fit">
+                    <a href={document.fileUrl} target="_blank" rel="noreferrer">
+                      <Download className="size-3" aria-hidden="true" />
+                      Buka dokumen
+                    </a>
+                  </Button>
                   <p className="mt-3 text-xs text-muted-foreground">
                     {document.uploadedBy} - {document.uploadedAt}
                   </p>
@@ -1771,7 +1884,7 @@ function DocumentsSection({
         onFilterChange={controls.setFilterValue}
         filterOptions={documentTypes}
       />
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Upload dokumen" description="Metadata dokumen disimpan sekarang; binary file bisa diarahkan ke Supabase Storage saat env storage tersedia.">
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Upload dokumen" description="File disimpan secara internal dan hanya dibuka melalui route yang mengecek session serta role.">
         {canCreate ? <MedicalDocumentForm documentOptions={documentOptions} /> : <PermissionNotice message="Upload dokumen dibatasi untuk admin, dokter, dan perawat." />}
       </ModalDialog>
     </div>
@@ -1780,14 +1893,17 @@ function DocumentsSection({
 
 function ReportsSection({
   reportSummary,
+  reportDetails,
   filtersOpen,
   onFiltersOpenChange,
 }: {
   reportSummary: ReportSummaryItem[]
+  reportDetails: ReportDetails
   filtersOpen: boolean
   onFiltersOpenChange: (open: boolean) => void
 }) {
   const [reports, setReports] = React.useState(reportSummary)
+  const [details, setDetails] = React.useState(reportDetails)
   const [startDate, setStartDate] = React.useState("")
   const [endDate, setEndDate] = React.useState("")
   const [isLoading, setIsLoading] = React.useState(false)
@@ -1802,7 +1918,9 @@ function ReportsSection({
     exportQuery.set("endDate", endDate)
   }
 
-  const exportHref = `/reports/summary.csv${exportQuery.size > 0 ? `?${exportQuery.toString()}` : ""}`
+  const exportSuffix = exportQuery.size > 0 ? `?${exportQuery.toString()}` : ""
+  const csvExportHref = `/reports/summary.csv${exportSuffix}`
+  const spreadsheetExportHref = `/reports/summary.xls${exportSuffix}`
 
   async function applyReportFilter() {
     setIsLoading(true)
@@ -1816,8 +1934,9 @@ function ReportsSection({
         return
       }
 
-      const payload = (await response.json()) as { reports: ReportSummaryItem[] }
+      const payload = (await response.json()) as { reports: ReportSummaryItem[]; details: ReportDetails }
       setReports(payload.reports)
+      setDetails(payload.details)
       onFiltersOpenChange(false)
     } catch {
       setError("Laporan gagal dimuat karena koneksi bermasalah.")
@@ -1830,6 +1949,7 @@ function ReportsSection({
     setStartDate("")
     setEndDate("")
     setReports(reportSummary)
+    setDetails(reportDetails)
     setError("")
   }
 
@@ -1843,9 +1963,15 @@ function ReportsSection({
       <Panel title="Export laporan" description="Filter tanggal wajib untuk menjaga query laporan tetap cepat saat database membesar.">
         <div className="flex flex-col gap-3 sm:flex-row">
           <Button asChild size="lg">
-            <a href={exportHref}>
+            <a href={csvExportHref}>
               <Download className="size-4" aria-hidden="true" />
               Export CSV ringkasan
+            </a>
+          </Button>
+          <Button asChild size="lg" variant="outline">
+            <a href={spreadsheetExportHref}>
+              <Download className="size-4" aria-hidden="true" />
+              Export Excel
             </a>
           </Button>
           <div className="rounded-md border border-cyan-200 bg-cyan-50 p-3 text-sm leading-6 text-cyan-950 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-100">
@@ -1853,6 +1979,36 @@ function ReportsSection({
           </div>
         </div>
       </Panel>
+      <div className="grid gap-5 xl:grid-cols-2">
+        <ReportDetailTable
+          title="Diagnosa terbanyak"
+          description="Agregasi diagnosa dari rekam medis dalam rentang tanggal."
+          columns={["Diagnosa", "Kasus"]}
+          rows={details.diagnoses.map((diagnosis) => [diagnosis.name, String(diagnosis.count)])}
+          emptyDetail="Belum ada diagnosa pada rentang laporan ini."
+        />
+        <ReportDetailTable
+          title="Tindakan medis"
+          description="Frekuensi tindakan dan total biaya tercatat."
+          columns={["Tindakan", "Jumlah", "Total biaya"]}
+          rows={details.treatments.map((treatment) => [treatment.name, String(treatment.count), treatment.totalCost])}
+          emptyDetail="Belum ada tindakan pada rentang laporan ini."
+        />
+        <ReportDetailTable
+          title="Penggunaan obat"
+          description="Obat yang sudah diproses oleh farmasi."
+          columns={["Kode", "Obat", "Jumlah"]}
+          rows={details.medicineUsage.map((medicine) => [medicine.code, medicine.name, `${medicine.quantity} ${medicine.unit}`])}
+          emptyDetail="Belum ada penggunaan obat pada rentang laporan ini."
+        />
+        <ReportDetailTable
+          title="Stok perlu perhatian"
+          description="Obat stok rendah atau kedaluwarsa."
+          columns={["Kode", "Obat", "Stok", "Status"]}
+          rows={details.stockReport.map((medicine) => [medicine.code, medicine.name, `${medicine.stock}/${medicine.minimumStock} ${medicine.unit}`, medicine.status])}
+          emptyDetail="Tidak ada stok rendah atau kedaluwarsa."
+        />
+      </div>
       <ModalDialog open={filtersOpen} onOpenChange={onFiltersOpenChange} title="Filter laporan" description="Batasi laporan berdasarkan rentang tanggal agar query tetap ringan.">
         <div className="grid gap-3 sm:grid-cols-2">
           <TextField name="startDate" label="Tanggal mulai" type="date" value={startDate} onValueChange={setStartDate} />
@@ -1873,6 +2029,53 @@ function ReportsSection({
         </div>
       </ModalDialog>
     </div>
+  )
+}
+
+function ReportDetailTable({
+  title,
+  description,
+  columns,
+  rows,
+  emptyDetail,
+}: {
+  title: string
+  description: string
+  columns: string[]
+  rows: string[][]
+  emptyDetail: string
+}) {
+  return (
+    <Panel title={title} description={description}>
+      {rows.length === 0 ? (
+        <EmptyState title="Data kosong" detail={emptyDetail} />
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full min-w-[420px] text-left text-sm">
+            <thead className="border-b border-border text-xs text-muted-foreground">
+              <tr>
+                {columns.map((column) => (
+                  <th key={column} className="py-3 pr-4 font-medium">
+                    {column}
+                  </th>
+                ))}
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-border">
+              {rows.map((row, index) => (
+                <tr key={`${row.join("-")}-${index}`}>
+                  {row.map((cell, cellIndex) => (
+                    <td key={`${cell}-${cellIndex}`} className={cn("py-3 pr-4", cellIndex === 0 ? "font-medium" : "text-muted-foreground")}>
+                      {cell}
+                    </td>
+                  ))}
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </Panel>
   )
 }
 
@@ -2102,15 +2305,30 @@ function AuditSection({
           <EmptyState title={auditLogs.length === 0 ? "Belum ada audit log" : "Audit log tidak ditemukan"} detail="Ubah kata kunci atau filter risiko untuk melihat aktivitas lain." />
         ) : (
           controls.paginatedItems.map((log) => (
-            <div key={log.id} className="grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-[0.8fr_1fr_0.45fr_0.45fr_0.35fr] md:items-center">
-              <div>
-                <p className="font-medium">{log.actor}</p>
-                <p className="mt-1 text-xs text-muted-foreground">{log.role}</p>
+            <div key={log.id} className="rounded-md border border-border bg-card p-4">
+              <div className="grid gap-3 md:grid-cols-[0.8fr_1fr_0.45fr_0.45fr_0.35fr] md:items-center">
+                <div>
+                  <p className="font-medium">{log.actor}</p>
+                  <p className="mt-1 text-xs text-muted-foreground">{log.role}</p>
+                </div>
+                <p className="text-sm text-muted-foreground">{log.action}</p>
+                <p className="text-sm tabular-nums">{log.entity}</p>
+                <p className="text-sm tabular-nums text-muted-foreground">{log.time}</p>
+                <StatusBadge label={log.risk} />
               </div>
-              <p className="text-sm text-muted-foreground">{log.action}</p>
-              <p className="text-sm tabular-nums">{log.entity}</p>
-              <p className="text-sm tabular-nums text-muted-foreground">{log.time}</p>
-              <StatusBadge label={log.risk} />
+              <details className="mt-3 rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
+                <summary className="cursor-pointer font-medium text-foreground">Detail perubahan</summary>
+                <div className="mt-3 grid gap-3 md:grid-cols-2">
+                  <div>
+                    <p className="font-medium text-foreground">Sebelum</p>
+                    <p className="mt-1 break-all">{log.beforeData}</p>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Sesudah</p>
+                    <p className="mt-1 break-all">{log.afterData}</p>
+                  </div>
+                </div>
+              </details>
             </div>
           ))
         )}
@@ -2127,6 +2345,54 @@ function AuditSection({
         filterOptions={auditRisks}
       />
     </Panel>
+  )
+}
+
+function SettingsSection({ user }: { user: AppUser }) {
+  return (
+    <div className="grid gap-5 xl:grid-cols-[0.8fr_1.2fr]">
+      <Panel title="Profil akun" description="Informasi akun yang sedang digunakan pada session aktif.">
+        <div className="grid gap-3 rounded-md border border-border bg-card p-4">
+          <div>
+            <p className="text-xs text-muted-foreground">Nama</p>
+            <p className="mt-1 font-medium">{user.name}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Email</p>
+            <p className="mt-1 font-medium">{user.email}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Username</p>
+            <p className="mt-1 font-medium">{user.username}</p>
+          </div>
+          <div>
+            <p className="text-xs text-muted-foreground">Role</p>
+            <p className="mt-1 font-medium">{user.roleName}</p>
+          </div>
+        </div>
+      </Panel>
+      <Panel title="Ganti password" description="Gunakan password lama untuk memverifikasi perubahan password akun.">
+        <ChangePasswordForm />
+      </Panel>
+    </div>
+  )
+}
+
+function ChangePasswordForm() {
+  const [state, formAction, pending] = React.useActionState(changePasswordAction, {})
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <div className="grid gap-3">
+        <TextField name="currentPassword" label="Password saat ini" type="password" error={state.errors?.currentPassword?.[0]} autoComplete="current-password" />
+        <TextField name="newPassword" label="Password baru" type="password" error={state.errors?.newPassword?.[0]} autoComplete="new-password" />
+        <TextField name="confirmPassword" label="Konfirmasi password" type="password" error={state.errors?.confirmPassword?.[0]} autoComplete="new-password" />
+      </div>
+      <FormMessage state={state} />
+      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending} onClick={confirmSubmit("Ganti password akun sekarang?")}>
+        {pending ? "Memperbarui..." : "Ganti password"}
+      </Button>
+    </form>
   )
 }
 
@@ -2518,7 +2784,7 @@ function FieldError({ message }: { message?: string }) {
   )
 }
 
-function FormMessage({ state }: { state: ClinicFormState }) {
+function FormMessage({ state }: { state: { ok?: boolean; message?: string } }) {
   if (!state.message) {
     return null
   }

@@ -71,6 +71,8 @@ const MedicineStatus = {
   EXPIRED: "EXPIRED",
 } as const
 
+type MedicineStatus = (typeof MedicineStatus)[keyof typeof MedicineStatus]
+
 const DocumentType = {
   LAB_RESULT: "LAB_RESULT",
   REFERRAL_LETTER: "REFERRAL_LETTER",
@@ -192,8 +194,6 @@ const createMedicalDocumentSchema = z.object({
   patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
   visitId: z.string().trim().optional(),
   type: z.enum(DocumentType, "Tipe dokumen wajib dipilih."),
-  fileName: z.string().trim().min(2, "Nama file wajib diisi."),
-  fileUrl: z.string().trim().min(2, "URL file wajib diisi."),
 })
 
 const createUserSchema = z.object({
@@ -224,10 +224,53 @@ function optionalString(value: string | undefined) {
   return value && value.length > 0 ? value : null
 }
 
+const maxMedicalDocumentSize = 2 * 1024 * 1024
+const allowedMedicalDocumentTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"])
+
+function sanitizeFileName(fileName: string) {
+  return fileName.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 120)
+}
+
 function toDate(value: string) {
   const date = new Date(value)
 
   return Number.isNaN(date.getTime()) ? null : date
+}
+
+function startOfToday() {
+  const now = new Date()
+
+  return new Date(now.getFullYear(), now.getMonth(), now.getDate())
+}
+
+function isExpiredDate(date: Date | null) {
+  return Boolean(date && date < startOfToday())
+}
+
+function deriveMedicineStatus({
+  stock,
+  minimumStock,
+  expirationDate,
+  explicitStatus,
+}: {
+  stock: number
+  minimumStock: number
+  expirationDate: Date | null
+  explicitStatus?: MedicineStatus | null
+}) {
+  if (explicitStatus === MedicineStatus.INACTIVE) {
+    return MedicineStatus.INACTIVE
+  }
+
+  if (explicitStatus === MedicineStatus.EXPIRED || isExpiredDate(expirationDate)) {
+    return MedicineStatus.EXPIRED
+  }
+
+  if (stock <= minimumStock) {
+    return MedicineStatus.LOW_STOCK
+  }
+
+  return MedicineStatus.ACTIVE
 }
 
 function optionalDecimal(value: string | undefined) {
@@ -751,6 +794,13 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
     where: { id: parsed.data.visitId },
     select: {
       id: true,
+      medicalRecord: {
+        select: {
+          id: true,
+          status: true,
+          finalizedAt: true,
+        },
+      },
       patient: {
         select: {
           fullName: true,
@@ -764,6 +814,14 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
       ok: false,
       message: "Kunjungan tidak ditemukan.",
       errors: { visitId: ["Kunjungan tidak ditemukan."] },
+    }
+  }
+
+  if (visit.medicalRecord?.status === MedicalRecordStatus.FINAL) {
+    return {
+      ok: false,
+      message: "Rekam medis sudah final dan tidak dapat diubah. Buat alur amandemen terpisah jika koreksi final diperlukan.",
+      errors: { visitId: ["Rekam medis final terkunci."] },
     }
   }
 
@@ -1025,6 +1083,20 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
       return { ok: false as const, message: "Resep belum memiliki item obat." }
     }
 
+    const expired = prescription.items.find((item) => item.medicine.status === MedicineStatus.EXPIRED || isExpiredDate(item.medicine.expirationDate))
+
+    if (expired) {
+      await tx.prescription.update({
+        where: { id: prescription.id },
+        data: { status: PrescriptionStatus.VALIDATING_STOCK },
+      })
+
+      return {
+        ok: false as const,
+        message: `${expired.medicine.name} sudah kedaluwarsa dan tidak dapat diproses.`,
+      }
+    }
+
     const insufficient = prescription.items.find((item) => item.medicine.stock < item.quantity)
 
     if (insufficient) {
@@ -1046,7 +1118,11 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
         where: { id: item.medicineId },
         data: {
           stock: nextStock,
-          status: nextStock <= item.medicine.minimumStock ? MedicineStatus.LOW_STOCK : MedicineStatus.ACTIVE,
+          status: deriveMedicineStatus({
+            stock: nextStock,
+            minimumStock: item.medicine.minimumStock,
+            expirationDate: item.medicine.expirationDate,
+          }),
         },
       })
     }
@@ -1131,11 +1207,20 @@ export async function createMedicineAction(_state: ClinicFormState, formData: Fo
 
   const stock = requiredPositiveInt(parsed.data.stock)
   const minimumStock = requiredPositiveInt(parsed.data.minimumStock)
+  const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : null
 
   if (stock === null || minimumStock === null) {
     return {
       ok: false,
       message: "Stok dan stok minimum harus berupa angka.",
+    }
+  }
+
+  if (parsed.data.expirationDate && !expirationDate) {
+    return {
+      ok: false,
+      message: "Tanggal kedaluwarsa tidak valid.",
+      errors: { expirationDate: ["Tanggal kedaluwarsa tidak valid."] },
     }
   }
 
@@ -1149,8 +1234,12 @@ export async function createMedicineAction(_state: ClinicFormState, formData: Fo
         stock,
         minimumStock,
         price: optionalDecimal(parsed.data.price),
-        expirationDate: parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : null,
-        status: stock <= minimumStock ? MedicineStatus.LOW_STOCK : MedicineStatus.ACTIVE,
+        expirationDate,
+        status: deriveMedicineStatus({
+          stock,
+          minimumStock,
+          expirationDate,
+        }),
       },
     })
 
@@ -1252,7 +1341,6 @@ export async function updateMedicineAction(_state: ClinicFormState, formData: Fo
   const nextStock = stock ?? medicine.stock
   const nextMinimumStock = minimumStock ?? medicine.minimumStock
   const explicitStatus = parsed.data.status || null
-  const derivedStatus = nextStock <= nextMinimumStock ? MedicineStatus.LOW_STOCK : MedicineStatus.ACTIVE
   const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : undefined
 
   if (parsed.data.expirationDate && !expirationDate) {
@@ -1271,7 +1359,12 @@ export async function updateMedicineAction(_state: ClinicFormState, formData: Fo
     ...(minimumStock !== null ? { minimumStock } : {}),
     ...(parsed.data.price ? { price: optionalDecimal(parsed.data.price) } : {}),
     ...(expirationDate !== undefined ? { expirationDate } : {}),
-    status: explicitStatus ?? derivedStatus,
+    status: deriveMedicineStatus({
+      stock: nextStock,
+      minimumStock: nextMinimumStock,
+      expirationDate: expirationDate ?? medicine.expirationDate,
+      explicitStatus,
+    }),
   }
 
   const updatedMedicine = await prisma.medicine.update({
@@ -1322,8 +1415,6 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
     patientId: formData.get("patientId"),
     visitId: formData.get("visitId"),
     type: formData.get("type"),
-    fileName: formData.get("fileName"),
-    fileUrl: formData.get("fileUrl"),
   })
 
   if (!parsed.success) {
@@ -1331,6 +1422,32 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
       ok: false,
       message: "Data dokumen belum valid.",
       errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const uploadedFile = formData.get("file")
+
+  if (!(uploadedFile instanceof File) || uploadedFile.size === 0) {
+    return {
+      ok: false,
+      message: "File dokumen wajib dipilih.",
+      errors: { file: ["File dokumen wajib dipilih."] },
+    }
+  }
+
+  if (!allowedMedicalDocumentTypes.has(uploadedFile.type)) {
+    return {
+      ok: false,
+      message: "Format file belum didukung.",
+      errors: { file: ["Gunakan PDF, JPG, PNG, atau WebP."] },
+    }
+  }
+
+  if (uploadedFile.size > maxMedicalDocumentSize) {
+    return {
+      ok: false,
+      message: "Ukuran file terlalu besar.",
+      errors: { file: ["Maksimal ukuran file adalah 2 MB untuk MVP."] },
     }
   }
 
@@ -1347,13 +1464,17 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
     }
   }
 
+  const fileBuffer = Buffer.from(await uploadedFile.arrayBuffer())
+  const fileName = sanitizeFileName(uploadedFile.name || `dokumen-${Date.now()}`)
+  const fileUrl = `data:${uploadedFile.type};base64,${fileBuffer.toString("base64")}`
+
   const document = await prisma.medicalDocument.create({
     data: {
       patientId: parsed.data.patientId,
       visitId: optionalString(parsed.data.visitId),
       type: parsed.data.type,
-      fileName: parsed.data.fileName,
-      fileUrl: parsed.data.fileUrl,
+      fileName,
+      fileUrl,
       uploadedById: user.id,
     },
   })
