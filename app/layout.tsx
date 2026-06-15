@@ -13,8 +13,13 @@ const fontMono = Geist_Mono({
 })
 
 export const metadata: Metadata = {
-  title: "MedRecord App",
+  title: "MedNote",
   description: "Aplikasi rekam medis elektronik standalone untuk operasional klinik.",
+  icons: {
+    icon: "/assets/health.png",
+    shortcut: "/assets/health.png",
+    apple: "/assets/health.png",
+  },
 }
 
 export default function RootLayout({

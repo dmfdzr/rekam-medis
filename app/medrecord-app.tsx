@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import Image from "next/image"
 import { useFormStatus } from "react-dom"
 import { useRouter } from "next/navigation"
 import { useTheme } from "next-themes"
@@ -18,7 +19,6 @@ import {
   Moon,
   Plus,
   Search,
-  ShieldCheck,
   Sun,
   X,
 } from "lucide-react"
@@ -393,7 +393,7 @@ export function MedRecordApp({
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>MedRecord App</span>
+                  <span>MedNote</span>
                   <ChevronRight className="size-3" aria-hidden="true" />
                   <span>{currentRole.label}</span>
                 </div>
@@ -403,9 +403,7 @@ export function MedRecordApp({
               <ThemeToggle />
 
               <div className="hidden min-w-0 items-center gap-3 rounded-md border border-border bg-card px-3 py-2 lg:flex">
-                <div className="grid size-9 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-                  <ShieldCheck className="size-4" aria-hidden="true" />
-                </div>
+                <Image src="/assets/health.png" alt="MedNote Logo" width={24} height={24} className="size-6 shrink-0" />
                 <div className="min-w-0 text-right">
                   <p className="truncate text-sm font-medium">{user.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>
@@ -475,11 +473,9 @@ function SidebarContent({
     <div className={cn("flex h-full flex-col", collapsed ? "items-center gap-4" : "gap-5")}>
       <div className={cn("flex w-full items-start justify-between gap-3", collapsed ? "justify-center" : "")}>
         <div className="flex min-w-0 items-center gap-3">
-          <div className="grid size-10 shrink-0 place-items-center rounded-md bg-primary text-primary-foreground">
-            <ShieldCheck className="size-5" aria-hidden="true" />
-          </div>
+          <Image src="/assets/health.png" alt="MedNote Logo" width={32} height={32} className="size-8 shrink-0" />
           <div className={cn("min-w-0", collapsed ? "sr-only" : "")}>
-            <p className="truncate text-sm font-semibold">MedRecord</p>
+            <p className="truncate text-sm font-semibold">MedNote</p>
             <p className="truncate text-xs text-muted-foreground">Standalone EHR</p>
           </div>
         </div>
@@ -519,9 +515,7 @@ function SidebarContent({
       {user ? (
         <div className="mt-auto grid w-full gap-3 border-t border-sidebar-border pt-4">
           <div className="flex min-w-0 items-center gap-3 rounded-md border border-sidebar-border bg-background/70 p-3">
-            <div className="grid size-10 shrink-0 place-items-center rounded-md bg-primary/10 text-primary">
-              <ShieldCheck className="size-4" aria-hidden="true" />
-            </div>
+            <Image src="/assets/health.png" alt="MedNote Logo" width={24} height={24} className="size-6 shrink-0" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user.name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>

@@ -1,17 +1,52 @@
-# MedRecord App
+# MedNote
 
-Aplikasi rekam medis elektronik standalone untuk operasional klinik kecil sampai menengah. Aplikasi memakai Next.js App Router, TypeScript/TSX, Tailwind CSS, Prisma, dan Supabase PostgreSQL.
+Aplikasi rekam medis elektronik standalone untuk operasional klinik kecil sampai menengah. Aplikasi memakai Next.js App Router, TypeScript/TSX, Tailwind CSS, Shadcn UI, Prisma, dan Supabase PostgreSQL.
+
+## Deskripsi
+
+MedNote adalah aplikasi rekam medis elektronik berbasis web yang dirancang untuk membantu operasional fasilitas kesehatan skala kecil hingga menengah seperti klinik, praktik dokter, atau layanan kesehatan mandiri.
+
+Aplikasi mendukung alur kerja multi-role dari pendaftaran pasien, pencatatan tanda vital, pemeriksaan dokter, pengelolaan resep dan obat, hingga laporan operasional — semuanya dalam satu platform terintegrasi.
 
 ## Fitur Utama
 
 - Custom login, logout, HTTP-only cookie, dan database session.
 - Role-based navigation dan server-side data minimization.
-- Manajemen pasien, kunjungan, tanda vital, rekam medis, resep, obat, dokumen medis, laporan, user, audit log, dan pengaturan akun.
-- Dashboard dari agregasi database.
-- Export laporan CSV dengan filter tanggal.
+- Dashboard operasional per role dengan data agregasi.
+- Manajemen pasien dengan nomor rekam medis otomatis.
+- Pendaftaran kunjungan dan update status alur pelayanan.
+- Pencatatan tanda vital pasien oleh perawat.
+- Rekam medis dokter dengan SOAP, diagnosa, tindakan, dan resep.
+- Manajemen resep dan pemrosesan oleh apoteker.
+- Manajemen stok obat dengan peringatan stok rendah dan kedaluwarsa.
+- Upload dan pengelolaan dokumen medis pasien.
+- Laporan operasional dengan export PDF dan CSV.
 - Audit log untuk aktivitas penting.
-- Dialog/modal untuk form dan filter.
+- Dialog/modal konfirmasi untuk aksi berisiko.
 - Loading, error, dan not-found state.
+- Responsive design untuk desktop, tablet, dan mobile.
+
+## Roles Pengguna
+
+| Role              | Akses Utama                                                       |
+| ----------------- | ----------------------------------------------------------------- |
+| Super Admin       | Akses penuh ke seluruh sistem                                     |
+| Admin Klinik      | User, pasien, kunjungan, obat, laporan, audit log                 |
+| Petugas Pendaftaran | Pasien dan kunjungan                                            |
+| Dokter            | Rekam medis, diagnosa, tindakan, resep                            |
+| Perawat           | Tanda vital, dokumen medis                                        |
+| Apoteker          | Resep, manajemen obat, laporan penggunaan obat                    |
+
+## Tech Stack
+
+- **Framework**: Next.js App Router
+- **Bahasa**: TypeScript
+- **Styling**: Tailwind CSS, Shadcn UI
+- **ORM**: Prisma
+- **Database**: Supabase PostgreSQL
+- **Auth**: Custom (bcrypt, HTTP-only cookie, database session)
+- **Storage**: Supabase Storage (untuk dokumen medis)
+- **Deployment**: Vercel
 
 ## Prasyarat
 
@@ -98,6 +133,7 @@ Script build sudah menjalankan `prisma generate` sebelum `next build`, sehingga 
 - Akses modul dibatasi berdasarkan role.
 - Data server hanya di-fetch jika role memiliki permission modul terkait.
 - Aktivitas penting dicatat ke audit log.
+- Dokumen medis tidak dapat diakses secara publik.
 
 ## Troubleshooting
 

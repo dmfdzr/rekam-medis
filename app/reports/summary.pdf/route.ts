@@ -23,7 +23,7 @@ export async function GET(request: Request) {
 
   const { reports, details } = bundle
   const lines = [
-    "MedRecord App - Laporan",
+    "MedNote - Laporan",
     `Dibuat: ${new Date().toISOString().slice(0, 10)}`,
     ...sectionLines(
       "Ringkasan",
@@ -55,7 +55,7 @@ export async function GET(request: Request) {
 
   return new NextResponse(pdf, {
     headers: {
-      "content-disposition": 'attachment; filename="medrecord-report-summary.pdf"',
+      "content-disposition": 'attachment; filename="mednote-report-summary.pdf"',
       "content-type": "application/pdf",
       "x-content-type-options": "nosniff",
     },
