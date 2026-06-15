@@ -2,7 +2,7 @@
 
 Aplikasi rekam medis elektronik standalone untuk operasional klinik kecil sampai menengah. Aplikasi memakai Next.js App Router, TypeScript/TSX, Tailwind CSS, Prisma, dan Supabase PostgreSQL.
 
-## Fitur MVP
+## Fitur Utama
 
 - Custom login, logout, HTTP-only cookie, dan database session.
 - Role-based navigation dan server-side data minimization.
@@ -44,9 +44,9 @@ npm run dev
 
 App berjalan di `http://localhost:3000`.
 
-## Akun Demo Seed
+## Akun Awal
 
-Semua akun demo memakai password:
+Semua akun awal memakai password:
 
 ```text
 rekammedis123
@@ -62,13 +62,13 @@ Username:
 
 ## Script
 
-- `npm run dev` menjalankan development server.
+- `npm run dev` menjalankan server lokal.
 - `npm run build` menjalankan `prisma generate` lalu `next build`.
 - `npm run start` menjalankan production server.
 - `npm run typecheck` menjalankan TypeScript check.
 - `npm run lint` menjalankan ESLint.
 - `npm run db:migrate` menjalankan Prisma migration.
-- `npm run db:seed` mengisi data demo.
+- `npm run db:seed` mengisi data awal.
 - `npm run db:studio` membuka Prisma Studio.
 
 ## Deployment Vercel
@@ -113,4 +113,4 @@ Jika login gagal setelah deploy, cek:
 - `SESSION_SECRET` sudah ada.
 - `DATABASE_URL` dan `DIRECT_URL` benar.
 - Migration sudah dijalankan.
-- Seed user sudah tersedia atau user dibuat dari database.
+- Data user awal sudah tersedia atau user dibuat dari database.

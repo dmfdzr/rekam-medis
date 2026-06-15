@@ -1,5 +1,5 @@
 import { redirect } from "next/navigation"
-import { Activity, Database, ShieldCheck } from "lucide-react"
+import { ClipboardCheck, ShieldCheck, Stethoscope } from "lucide-react"
 
 import { LoginForm } from "@/app/login/login-form"
 import { getCurrentUser } from "@/lib/auth/current-user"
@@ -18,25 +18,25 @@ export default async function LoginPage() {
           <div className="max-w-xl">
             <div className="inline-flex items-center rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
               <ShieldCheck className="mr-2 size-4 text-primary" aria-hidden="true" />
-              Standalone electronic health record
+              Rekam medis elektronik klinik
             </div>
             <h1 className="mt-6 text-4xl font-semibold tracking-normal text-balance xl:text-5xl">
-              Rekam medis klinik yang rapi, aman, dan siap diaudit.
+              Data pasien, pemeriksaan, dan resep dalam satu alur kerja klinik.
             </h1>
             <p className="mt-5 max-w-lg text-base leading-7 text-muted-foreground">
-              Login internal dengan database session, HTTP-only cookie, dan role access sebagai fondasi sebelum modul pasien dan pemeriksaan masuk ke produksi.
+              Akses aplikasi sesuai peran kerja untuk membantu pendaftaran, pemeriksaan, farmasi, laporan, dan pengelolaan data medis.
             </p>
 
             <div className="mt-8 grid max-w-lg gap-3 sm:grid-cols-2">
               <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-                <Database className="size-5 text-primary" aria-hidden="true" />
-                <p className="mt-3 text-sm font-medium">Supabase PostgreSQL</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Data auth dan klinik berjalan lewat Prisma schema.</p>
+                <Stethoscope className="size-5 text-primary" aria-hidden="true" />
+                <p className="mt-3 text-sm font-medium">Alur pemeriksaan</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Kunjungan, tanda vital, rekam medis, tindakan, dan resep tercatat rapi.</p>
               </div>
               <div className="rounded-md border border-border bg-card p-4 shadow-sm">
-                <Activity className="size-5 text-primary" aria-hidden="true" />
-                <p className="mt-3 text-sm font-medium">Audit-ready</p>
-                <p className="mt-1 text-xs leading-5 text-muted-foreground">Login, logout, dan aktivitas penting disiapkan untuk audit log.</p>
+                <ClipboardCheck className="size-5 text-primary" aria-hidden="true" />
+                <p className="mt-3 text-sm font-medium">Kontrol akses</p>
+                <p className="mt-1 text-xs leading-5 text-muted-foreground">Setiap pengguna hanya melihat menu dan data sesuai tanggung jawabnya.</p>
               </div>
             </div>
           </div>
@@ -49,7 +49,7 @@ export default async function LoginPage() {
             </div>
             <h2 className="mt-5 text-2xl font-semibold tracking-normal">Masuk ke MedRecord</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Gunakan akun internal sesuai role klinik. Session akan disimpan sebagai cookie HTTP-only.
+              Gunakan akun yang diberikan administrator klinik untuk mengakses aplikasi.
             </p>
           </div>
           <LoginForm />

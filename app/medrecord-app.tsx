@@ -1,6 +1,7 @@
 "use client"
 
 import * as React from "react"
+import { useFormStatus } from "react-dom"
 import { Dialog } from "radix-ui"
 import {
   AlertTriangle,
@@ -8,6 +9,7 @@ import {
   ChevronRight,
   Clock3,
   Download,
+  FileText,
   Filter,
   LogOut,
   Menu,
@@ -20,11 +22,16 @@ import {
 import { changePasswordAction, logoutAction } from "@/app/actions/auth"
 import {
   addPrescriptionItemAction,
+  cancelPrescriptionAction,
+  cancelVisitAction,
   createMedicalDocumentAction,
   createMedicineAction,
   createPatientAction,
   createUserAction,
   createVisitAction,
+  deactivateMedicineAction,
+  deactivatePatientAction,
+  deactivateUserAction,
   processPrescriptionAction,
   saveMedicalRecordAction,
   type ClinicFormState,
@@ -82,14 +89,6 @@ function normalizeSearchValue(value: unknown) {
 
 function getUniqueOptions<T>(items: T[], selector: (item: T) => string) {
   return Array.from(new Set(items.map(selector).filter(Boolean)))
-}
-
-function confirmSubmit(message: string) {
-  return (event: React.MouseEvent<HTMLButtonElement>) => {
-    if (!window.confirm(message)) {
-      event.preventDefault()
-    }
-  }
 }
 
 function useListControls<T>({
@@ -168,12 +167,12 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
   patients: {
     title: "Data Pasien",
     description: "Kelola identitas pasien, alergi, kontak, dan riwayat kunjungan.",
-    action: "Tambah pasien",
+    action: "Kelola pasien",
   },
   visits: {
     title: "Kunjungan",
     description: "Buat kunjungan baru, cek status layanan, dan arahkan pasien ke role berikutnya.",
-    action: "Buat kunjungan",
+    action: "Kelola kunjungan",
   },
   vitals: {
     title: "Tanda Vital",
@@ -188,17 +187,17 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
   prescriptions: {
     title: "Resep",
     description: "Kelola resep dari dokter, validasi stok, dan proses obat ke pasien.",
-    action: "Proses resep",
+    action: "Kelola resep",
   },
   medicines: {
     title: "Obat",
     description: "Pantau stok, batas minimum, kategori, dan obat yang mendekati kedaluwarsa.",
-    action: "Tambah obat",
+    action: "Kelola obat",
   },
   documents: {
     title: "Dokumen Medis",
     description: "Kelola dokumen pendukung pasien dengan akses terbatas sesuai role.",
-    action: "Upload dokumen",
+    action: "Kelola dokumen",
   },
   reports: {
     title: "Laporan",
@@ -208,7 +207,7 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
   users: {
     title: "Manajemen User",
     description: "Kelola akun, role, status user, dan akses modul aplikasi.",
-    action: "Tambah user",
+    action: "Kelola user",
   },
   audit: {
     title: "Audit Log",
@@ -385,12 +384,7 @@ export function MedRecordApp({
                   <p className="truncate text-sm font-medium">{user.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>
                 </div>
-                <form action={logoutAction}>
-                  <Button type="submit" variant="outline" size="sm" onClick={confirmSubmit("Logout dari aplikasi sekarang?")}>
-                    <LogOut className="size-3" aria-hidden="true" />
-                    Logout
-                  </Button>
-                </form>
+                <LogoutConfirmDialog />
               </div>
             </div>
           </header>
@@ -537,6 +531,154 @@ function PageHeader({
   )
 }
 
+function LogoutConfirmDialog() {
+  return (
+    <Dialog.Root>
+      <Dialog.Trigger asChild>
+        <Button type="button" variant="outline" size="sm">
+          <LogOut className="size-3" aria-hidden="true" />
+          Logout
+        </Button>
+      </Dialog.Trigger>
+      <Dialog.Portal>
+        <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm" />
+        <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-md border border-border bg-background p-5 shadow-2xl outline-none">
+          <form action={logoutAction} className="relative grid gap-4">
+            <div className="flex gap-3">
+              <div className="grid size-10 shrink-0 place-items-center rounded-md bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-200">
+                <AlertTriangle className="size-5" aria-hidden="true" />
+              </div>
+              <div>
+                <Dialog.Title className="text-lg font-semibold">Keluar dari aplikasi?</Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm leading-6 text-muted-foreground">
+                  Sesi kerja akan ditutup. Pastikan perubahan data yang sedang dikerjakan sudah tersimpan.
+                </Dialog.Description>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="outline" size="lg">
+                  Batal
+                </Button>
+              </Dialog.Close>
+              <LogoutSubmitButton />
+            </div>
+            <LogoutPendingOverlay />
+          </form>
+        </Dialog.Content>
+      </Dialog.Portal>
+    </Dialog.Root>
+  )
+}
+
+function LogoutSubmitButton() {
+  const { pending } = useFormStatus()
+
+  return (
+    <Button type="submit" variant="destructive" size="lg" className="w-full sm:w-fit" disabled={pending} aria-busy={pending}>
+      {pending ? <Clock3 className="size-4 animate-spin" aria-hidden="true" /> : <LogOut className="size-4" aria-hidden="true" />}
+      {pending ? "Keluar..." : "Keluar"}
+    </Button>
+  )
+}
+
+function LogoutPendingOverlay() {
+  const { pending } = useFormStatus()
+
+  if (!pending) {
+    return null
+  }
+
+  return (
+    <div className="absolute inset-0 grid place-items-center rounded-md bg-background/90 p-5 text-center backdrop-blur-sm" role="status" aria-live="polite">
+      <div className="grid justify-items-center gap-3">
+        <div className="grid size-11 place-items-center rounded-md bg-primary/10 text-primary">
+          <Clock3 className="size-5 animate-spin" aria-hidden="true" />
+        </div>
+        <div>
+          <p className="text-sm font-semibold">Mengakhiri sesi</p>
+          <p className="mt-1 text-sm leading-6 text-muted-foreground">Mohon tunggu sebentar.</p>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function ConfirmSubmitButton({
+  children,
+  message,
+  confirmLabel,
+  pending,
+  pendingLabel,
+  variant = "default",
+  disabled = false,
+  name,
+  value,
+}: {
+  children: React.ReactNode
+  message: string
+  confirmLabel: string
+  pending: boolean
+  pendingLabel: string
+  variant?: React.ComponentProps<typeof Button>["variant"]
+  disabled?: boolean
+  name?: string
+  value?: string
+}) {
+  const [open, setOpen] = React.useState(false)
+  const submitButtonRef = React.useRef<HTMLButtonElement>(null)
+  const isDestructive = variant === "destructive"
+
+  return (
+    <>
+      <Button type="button" variant={variant} size="lg" className="w-full sm:w-fit" disabled={disabled || pending} onClick={() => setOpen(true)}>
+        {pending ? pendingLabel : children}
+      </Button>
+      <button ref={submitButtonRef} type="submit" name={name} value={value} className="hidden" tabIndex={-1} aria-hidden="true" />
+      <Dialog.Root open={open} onOpenChange={setOpen}>
+        <Dialog.Portal>
+          <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm" />
+          <Dialog.Content className="fixed left-1/2 top-1/2 z-50 grid w-[min(24rem,calc(100vw-2rem))] -translate-x-1/2 -translate-y-1/2 gap-4 rounded-md border border-border bg-background p-5 shadow-2xl outline-none">
+            <div className="flex gap-3">
+              <div
+                className={cn(
+                  "grid size-10 shrink-0 place-items-center rounded-md",
+                  isDestructive ? "bg-destructive/10 text-destructive" : "bg-amber-100 text-amber-700 dark:bg-amber-400/15 dark:text-amber-200",
+                )}
+              >
+                <AlertTriangle className="size-5" aria-hidden="true" />
+              </div>
+              <div>
+                <Dialog.Title className="text-lg font-semibold">Konfirmasi tindakan</Dialog.Title>
+                <Dialog.Description className="mt-1 text-sm leading-6 text-muted-foreground">{message}</Dialog.Description>
+              </div>
+            </div>
+            <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+              <Dialog.Close asChild>
+                <Button type="button" variant="outline" size="lg">
+                  Batal
+                </Button>
+              </Dialog.Close>
+              <Button
+                type="button"
+                variant={variant}
+                size="lg"
+                className="w-full sm:w-fit"
+                onClick={() => {
+                  setOpen(false)
+                  submitButtonRef.current?.click()
+                }}
+              >
+                {confirmLabel}
+              </Button>
+            </div>
+          </Dialog.Content>
+        </Dialog.Portal>
+      </Dialog.Root>
+    </>
+  )
+}
+
 function SectionRenderer({
   user,
   section,
@@ -636,7 +778,7 @@ function DashboardSection({ role, visits, dashboardSummary }: { role: RoleKey; v
           </div>
         </Panel>
 
-        <Panel title="Alur MVP" description="Tahapan operasional yang sudah direpresentasikan di UI.">
+      <Panel title="Alur Layanan" description="Tahapan operasional yang digunakan antar role klinik.">
           <div className="grid gap-3">
             {workflowSteps.map((step) => {
               const Icon = step.icon
@@ -657,7 +799,7 @@ function DashboardSection({ role, visits, dashboardSummary }: { role: RoleKey; v
         </Panel>
       </div>
 
-      <Panel title={`Antrian relevan untuk ${roles[role].label}`} description="Data ini nanti difilter dari DAL berdasarkan role dan permission.">
+      <Panel title={`Antrian relevan untuk ${roles[role].label}`} description="Data ditampilkan sesuai role dan permission akun.">
         <ResponsiveVisitsTable visits={visits} compact />
       </Panel>
     </div>
@@ -707,7 +849,7 @@ function PatientsSection({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-190 text-left text-sm">
                 <thead className="border-b border-border text-xs text-muted-foreground">
                   <tr>
                     <th className="py-3 pr-4 font-medium">No. RM</th>
@@ -727,44 +869,7 @@ function PatientsSection({
                         <p className="mt-1 text-xs text-muted-foreground">
                           {patient.gender}, {patient.age} - {patient.nik}
                         </p>
-                        <details className="mt-3 rounded-md bg-muted p-3 text-xs leading-5 text-muted-foreground">
-                          <summary className="cursor-pointer font-medium text-foreground">Detail pasien</summary>
-                          <div className="mt-3 grid gap-3 sm:grid-cols-2">
-                            <div>
-                              <p className="font-medium text-foreground">Alamat</p>
-                              <p className="mt-1">{patient.address}</p>
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">Kontak darurat</p>
-                              <p className="mt-1">{patient.emergencyContact}</p>
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">Golongan darah</p>
-                              <p className="mt-1">{patient.bloodType}</p>
-                            </div>
-                            <div>
-                              <p className="font-medium text-foreground">Ringkasan</p>
-                              <p className="mt-1">
-                                {patient.visitCount} kunjungan, {patient.documentCount} dokumen
-                              </p>
-                            </div>
-                          </div>
-                          <div className="mt-3 border-t border-border pt-3">
-                            <p className="font-medium text-foreground">Riwayat kunjungan terakhir</p>
-                            {patient.recentVisits.length === 0 ? (
-                              <p className="mt-1">Belum ada kunjungan.</p>
-                            ) : (
-                              <div className="mt-2 grid gap-2">
-                                {patient.recentVisits.map((visit) => (
-                                  <div key={visit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-background px-3 py-2">
-                                    <span>{visit.date} - {visit.service}</span>
-                                    <StatusBadge label={visit.status} />
-                                  </div>
-                                ))}
-                              </div>
-                            )}
-                          </div>
-                        </details>
+                        <PatientDetailDialog patient={patient} />
                       </td>
                       <td className="py-4 pr-4 tabular-nums">{patient.phone}</td>
                       <td className="py-4 pr-4">{patient.allergy}</td>
@@ -790,15 +895,35 @@ function PatientsSection({
         onFilterChange={controls.setFilterValue}
         filterOptions={patientStatuses}
       />
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola pasien" description="Tambah pasien baru atau ubah data dasar pasien yang sudah terdaftar.">
-        <div className="grid gap-5">
-          <Panel title="Tambah pasien" description="Field prioritas untuk mengurangi waktu input pendaftaran.">
-            {canCreate ? <CreatePatientForm /> : <PermissionNotice message="Role ini hanya dapat melihat data pasien. Pembuatan pasien dibatasi untuk admin dan petugas pendaftaran." />}
-          </Panel>
-          <Panel title="Update data dasar" description="Perbarui data kontak, alergi, status, dan informasi dasar pasien.">
-            {canCreate ? <UpdatePatientForm patients={patients} /> : <PermissionNotice message="Perubahan data pasien dibatasi untuk admin dan petugas pendaftaran." />}
-          </Panel>
-        </div>
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola pasien" description="Pilih aksi pengelolaan pasien yang ingin dikerjakan.">
+        <ChoiceFormSwitch
+          key={composerOpen ? "patients-open" : "patients-closed"}
+          emptyMessage="Pengelolaan pasien dibatasi untuk admin dan petugas pendaftaran."
+          options={
+            canCreate
+              ? [
+                  {
+                    id: "create-patient",
+                    title: "Tambah pasien",
+                    description: "Daftarkan pasien baru dengan data identitas, kontak, alergi, dan status awal.",
+                    content: <CreatePatientForm />,
+                  },
+                  {
+                    id: "update-patient",
+                    title: "Update data dasar",
+                    description: "Perbarui data kontak, alergi, status, dan informasi dasar pasien yang sudah terdaftar.",
+                    content: <UpdatePatientForm patients={patients} />,
+                  },
+                  {
+                    id: "deactivate-patient",
+                    title: "Nonaktifkan pasien",
+                    description: "Sembunyikan pasien dari alur operasional baru tanpa menghapus riwayat klinis dan audit.",
+                    content: <DeactivatePatientForm patients={patients} />,
+                  },
+                ]
+              : []
+          }
+        />
       </ModalDialog>
     </div>
   )
@@ -828,16 +953,106 @@ function VisitsSection({
       <Panel title="Daftar kunjungan" description="Status kunjungan dibuat eksplisit agar handoff antar role tidak ambigu.">
         <ResponsiveVisitsTable visits={visits} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
       </Panel>
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola kunjungan" description="Buat kunjungan baru atau ubah status kunjungan sesuai alur operasional.">
-        <div className="grid gap-5">
-          <Panel title="Buat kunjungan" description="Payload kunjungan dibuat ramping: pasien, layanan, dokter, keluhan, dan status awal.">
-            {canCreate ? <CreateVisitForm visitOptions={visitOptions} /> : <PermissionNotice message="Role ini hanya dapat melihat kunjungan. Pembuatan kunjungan dibatasi untuk admin dan petugas pendaftaran." />}
-          </Panel>
-          <Panel title="Update status kunjungan" description="Gunakan untuk membatalkan, menyelesaikan, atau mengoreksi status handoff layanan.">
-            {canCreate ? <UpdateVisitStatusForm visits={visits} /> : <PermissionNotice message="Perubahan status kunjungan dibatasi untuk admin dan petugas pendaftaran." />}
-          </Panel>
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola kunjungan" description="Pilih aksi pengelolaan kunjungan yang ingin dikerjakan.">
+        <ChoiceFormSwitch
+          key={composerOpen ? "visits-open" : "visits-closed"}
+          emptyMessage="Pengelolaan kunjungan dibatasi untuk admin dan petugas pendaftaran."
+          options={
+            canCreate
+              ? [
+                  {
+                    id: "create-visit",
+                    title: "Buat kunjungan",
+                    description: "Daftarkan kunjungan pasien dengan layanan, dokter, keluhan, dan status awal.",
+                    content: <CreateVisitForm visitOptions={visitOptions} />,
+                  },
+                  {
+                    id: "update-visit",
+                    title: "Update status kunjungan",
+                    description: "Ubah status kunjungan untuk pembatalan, penyelesaian, atau koreksi handoff layanan.",
+                    content: <UpdateVisitStatusForm visits={visits} />,
+                  },
+                  {
+                    id: "cancel-visit",
+                    title: "Batalkan kunjungan",
+                    description: "Tandai kunjungan sebagai dibatalkan tanpa menghapus jejak pendaftaran dan audit layanan.",
+                    content: <CancelVisitForm visits={visits} />,
+                  },
+                ]
+              : []
+          }
+        />
+      </ModalDialog>
+    </div>
+  )
+}
+
+function PatientDetailDialog({ patient }: { patient: PatientListItem }) {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" className="mt-3" onClick={() => setOpen(true)}>
+        <FileText className="size-3" aria-hidden="true" />
+        Detail
+      </Button>
+      <ModalDialog open={open} onOpenChange={setOpen} title={patient.name} description={`${patient.medicalRecordNumber} - ${patient.gender}, ${patient.age}`}>
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge label={patient.status} />
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">NIK {patient.nik}</span>
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Kunjungan terakhir {patient.lastVisit}</span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PatientDetailItem label="Telepon" value={patient.phone} />
+            <PatientDetailItem label="Kontak darurat" value={patient.emergencyContact} />
+            <PatientDetailItem label="Golongan darah" value={patient.bloodType} />
+            <PatientDetailItem label="Alergi" value={patient.allergy} />
+            <div className="sm:col-span-2">
+              <PatientDetailItem label="Alamat" value={patient.address} />
+            </div>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <div className="rounded-md border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Total kunjungan</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">{patient.visitCount}</p>
+            </div>
+            <div className="rounded-md border border-border bg-card p-4">
+              <p className="text-xs text-muted-foreground">Dokumen medis</p>
+              <p className="mt-1 text-2xl font-semibold tabular-nums">{patient.documentCount}</p>
+            </div>
+          </div>
+
+          <div className="rounded-md border border-border bg-card p-4">
+            <p className="text-sm font-semibold">Riwayat kunjungan terakhir</p>
+            {patient.recentVisits.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">Belum ada kunjungan.</p>
+            ) : (
+              <div className="mt-3 grid gap-2">
+                {patient.recentVisits.map((visit) => (
+                  <div key={visit.id} className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted px-3 py-2 text-sm">
+                    <span>
+                      {visit.date} - {visit.service}
+                    </span>
+                    <StatusBadge label={visit.status} />
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
         </div>
       </ModalDialog>
+    </>
+  )
+}
+
+function PatientDetailItem({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-md border border-border bg-card p-4">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 text-sm font-medium leading-6">{value}</p>
     </div>
   )
 }
@@ -936,6 +1151,47 @@ function UpdatePatientForm({ patients }: { patients: PatientListItem[] }) {
   )
 }
 
+function DeactivatePatientForm({ patients }: { patients: PatientListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(deactivatePatientAction, initialClinicFormState)
+  const activePatients = patients.filter((patient) => patient.status !== "Nonaktif")
+
+  if (activePatients.length === 0) {
+    return <EmptyState title="Tidak ada pasien aktif" detail="Pasien aktif akan muncul di sini jika perlu dinonaktifkan." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">Pasien</span>
+        <select
+          name="patientId"
+          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+          aria-invalid={Boolean(state.errors?.patientId)}
+        >
+          <option value="">Pilih pasien</option>
+          {activePatients.map((patient) => (
+            <option key={patient.id} value={patient.id}>
+              {patient.medicalRecordNumber} - {patient.name} - {patient.status}
+            </option>
+          ))}
+        </select>
+        <FieldError message={state.errors?.patientId?.[0]} />
+      </label>
+      <DestructiveActionNotice message="Pasien tidak dihapus permanen. Statusnya menjadi nonaktif agar riwayat klinis, dokumen, dan audit tetap tersimpan." />
+      <FormMessage state={state} />
+      <ConfirmSubmitButton
+        message="Nonaktifkan pasien ini? Riwayat klinis tetap tersimpan."
+        confirmLabel="Nonaktifkan pasien"
+        pending={pending}
+        pendingLabel="Menonaktifkan..."
+        variant="destructive"
+      >
+        Nonaktifkan pasien
+      </ConfirmSubmitButton>
+    </form>
+  )
+}
+
 function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptions }) {
   const [state, formAction, pending] = React.useActionState(createVisitAction, initialClinicFormState)
 
@@ -1030,9 +1286,50 @@ function UpdateVisitStatusForm({ visits }: { visits: VisitListItem[] }) {
         </label>
       </div>
       <FormMessage state={state} />
-      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending} onClick={confirmSubmit("Update status kunjungan ini? Perubahan akan tercatat di audit log.")}>
-        {pending ? "Memperbarui..." : "Update status"}
-      </Button>
+      <ConfirmSubmitButton message="Update status kunjungan ini? Perubahan akan tercatat di audit log." confirmLabel="Update status" pending={pending} pendingLabel="Memperbarui...">
+        Update status
+      </ConfirmSubmitButton>
+    </form>
+  )
+}
+
+function CancelVisitForm({ visits }: { visits: VisitListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(cancelVisitAction, initialClinicFormState)
+  const cancellableVisits = visits.filter((visit) => visit.status !== "Dibatalkan" && visit.status !== "Selesai")
+
+  if (cancellableVisits.length === 0) {
+    return <EmptyState title="Tidak ada kunjungan yang bisa dibatalkan" detail="Kunjungan yang belum selesai akan muncul di sini." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">Kunjungan</span>
+        <select
+          name="visitId"
+          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+          aria-invalid={Boolean(state.errors?.visitId)}
+        >
+          <option value="">Pilih kunjungan</option>
+          {cancellableVisits.map((visit) => (
+            <option key={visit.id} value={visit.id}>
+              {visit.medicalRecordNumber} - {visit.patient} - {visit.service} - {visit.status}
+            </option>
+          ))}
+        </select>
+        <FieldError message={state.errors?.visitId?.[0]} />
+      </label>
+      <DestructiveActionNotice message="Kunjungan tidak dihapus permanen. Statusnya menjadi dibatalkan agar alur layanan dan audit tetap bisa ditelusuri." />
+      <FormMessage state={state} />
+      <ConfirmSubmitButton
+        message="Batalkan kunjungan ini? Perubahan akan tercatat di audit log."
+        confirmLabel="Batalkan kunjungan"
+        pending={pending}
+        pendingLabel="Membatalkan..."
+        variant="destructive"
+      >
+        Batalkan kunjungan
+      </ConfirmSubmitButton>
     </form>
   )
 }
@@ -1250,9 +1547,17 @@ function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWor
         <Button type="submit" name="intent" value="draft" variant="outline" size="lg" disabled={pending || isSelectedRecordFinal}>
           {pending ? "Menyimpan..." : "Simpan draft"}
         </Button>
-        <Button type="submit" name="intent" value="final" size="lg" disabled={pending || isSelectedRecordFinal} onClick={confirmSubmit("Finalisasi rekam medis ini? Data final digunakan sebagai riwayat klinis pasien.")}>
+        <ConfirmSubmitButton
+          message="Finalisasi rekam medis ini? Data final digunakan sebagai riwayat klinis pasien."
+          confirmLabel="Finalisasi"
+          pending={pending}
+          pendingLabel="Memfinalisasi..."
+          disabled={isSelectedRecordFinal}
+          name="intent"
+          value="final"
+        >
           Finalisasi rekam medis
-        </Button>
+        </ConfirmSubmitButton>
       </div>
     </form>
   )
@@ -1373,6 +1678,38 @@ function PrescriptionsSection({
 }) {
   const canCreate = role === "admin" || role === "doctor"
   const canProcess = role === "admin" || role === "pharmacist"
+  const prescriptionActions: ChoiceFormOption[] = [
+    ...(canCreate
+      ? [
+          {
+            id: "create-prescription",
+            title: "Buat resep",
+            description: "Tambahkan obat dari rekam medis pasien setelah pemeriksaan dokter selesai.",
+            content: <PrescriptionItemForm prescriptionOptions={prescriptionOptions} />,
+          },
+        ]
+      : []),
+    ...(canProcess
+      ? [
+          {
+            id: "process-prescription",
+            title: "Proses resep",
+            description: "Validasi stok, proses resep, dan catat status penyerahan obat.",
+            content: <ProcessPrescriptionForm prescriptions={prescriptions} />,
+          },
+        ]
+      : []),
+    ...(canCreate || canProcess
+      ? [
+          {
+            id: "cancel-prescription",
+            title: "Batalkan resep",
+            description: "Batalkan resep yang belum diproses tanpa menghapus catatan klinisnya.",
+            content: <CancelPrescriptionForm prescriptions={prescriptions} />,
+          },
+        ]
+      : []),
+  ]
   const prescriptionStatuses = React.useMemo(() => getUniqueOptions(prescriptions, (prescription) => prescription.status), [prescriptions])
   const searchSelector = React.useCallback(
     (prescription: PrescriptionListItem) => [
@@ -1403,29 +1740,77 @@ function PrescriptionsSection({
           resultCount={controls.filteredItems.length}
           totalCount={prescriptions.length}
         />
-        <div className="grid gap-3">
-          {controls.paginatedItems.length === 0 ? (
-            <EmptyState
-              title={prescriptions.length === 0 ? "Belum ada resep" : "Resep tidak ditemukan"}
-              detail={prescriptions.length === 0 ? "Resep yang dibuat dokter dari rekam medis akan tampil di sini." : "Ubah kata kunci atau filter status resep."}
-            />
-          ) : (
-            controls.paginatedItems.map((prescription) => (
-              <div key={prescription.id} className="grid gap-3 rounded-md border border-border bg-card p-4 md:grid-cols-[0.7fr_1fr_0.45fr_0.35fr] md:items-center">
-                <div>
-                  <p className="font-medium">{prescription.medicalRecordNumber}</p>
-                  <p className="mt-1 text-sm text-muted-foreground">{prescription.patient}</p>
+        {controls.paginatedItems.length === 0 ? (
+          <EmptyState
+            title={prescriptions.length === 0 ? "Belum ada resep" : "Resep tidak ditemukan"}
+            detail={prescriptions.length === 0 ? "Resep yang dibuat dokter dari rekam medis akan tampil di sini." : "Ubah kata kunci atau filter status resep."}
+          />
+        ) : (
+          <>
+            <div className="hidden overflow-x-auto md:block">
+              <table className="w-full min-w-215 text-left text-sm">
+                <thead className="border-b border-border text-xs text-muted-foreground">
+                  <tr>
+                    <th className="py-3 pr-4 font-medium">No. RM</th>
+                    <th className="py-3 pr-4 font-medium">Pasien</th>
+                    <th className="py-3 pr-4 font-medium">Item obat</th>
+                    <th className="py-3 pr-4 font-medium">Dokter</th>
+                    <th className="py-3 pr-4 font-medium">Stok</th>
+                    <th className="py-3 pr-4 font-medium">Status</th>
+                    <th className="py-3 font-medium">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {controls.paginatedItems.map((prescription) => (
+                    <tr key={prescription.id} className="align-top">
+                      <td className="py-4 pr-4 font-medium tabular-nums">{prescription.medicalRecordNumber}</td>
+                      <td className="py-4 pr-4">{prescription.patient}</td>
+                      <td className="max-w-80 py-4 pr-4 leading-6">{prescription.items}</td>
+                      <td className="py-4 pr-4 text-muted-foreground">{prescription.doctor}</td>
+                      <td className="py-4 pr-4 text-muted-foreground">{prescription.stock}</td>
+                      <td className="py-4 pr-4">
+                        <StatusBadge label={prescription.status} />
+                      </td>
+                      <td className="py-4">
+                        <PrescriptionDetailDialog prescription={prescription} />
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid gap-3 md:hidden">
+              {controls.paginatedItems.map((prescription) => (
+                <div key={prescription.id} className="rounded-md border border-border bg-card p-4">
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="font-medium">{prescription.medicalRecordNumber}</p>
+                      <p className="mt-1 text-sm text-muted-foreground">{prescription.patient}</p>
+                    </div>
+                    <StatusBadge label={prescription.status} />
+                  </div>
+                  <div className="mt-3 grid gap-2 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">Item obat: </span>
+                      {prescription.items}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Dokter: </span>
+                      {prescription.doctor}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Stok: </span>
+                      {prescription.stock}
+                    </p>
+                  </div>
+                  <div className="mt-3">
+                    <PrescriptionDetailDialog prescription={prescription} />
+                  </div>
                 </div>
-                <div>
-                  <p className="text-sm">{prescription.items}</p>
-                  <p className="mt-1 text-xs text-muted-foreground">{prescription.doctor}</p>
-                </div>
-                <p className="text-sm text-muted-foreground">{prescription.stock}</p>
-                <StatusBadge label={prescription.status} />
-              </div>
-            ))
-          )}
-        </div>
+              ))}
+            </div>
+          </>
+        )}
         <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
       </Panel>
       <FilterModal
@@ -1437,15 +1822,12 @@ function PrescriptionsSection({
         onFilterChange={controls.setFilterValue}
         filterOptions={prescriptionStatuses}
       />
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Aksi resep" description="Buat item resep sebagai dokter atau proses resep sebagai apoteker sesuai role.">
-        <div className="grid gap-5">
-          <Panel title="Buat resep" description="Dokter menambahkan obat dari rekam medis pasien.">
-            {canCreate ? <PrescriptionItemForm prescriptionOptions={prescriptionOptions} /> : <PermissionNotice message="Pembuatan resep dibatasi untuk admin dan dokter." />}
-          </Panel>
-          <Panel title="Proses resep" description="Apoteker memvalidasi stok dan memproses resep.">
-            {canProcess ? <ProcessPrescriptionForm prescriptions={prescriptions} /> : <PermissionNotice message="Pemrosesan resep dibatasi untuk admin dan apoteker." />}
-          </Panel>
-        </div>
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola resep" description="Pilih aksi resep sesuai kewenangan role aktif.">
+        <ChoiceFormSwitch
+          key={composerOpen ? "prescriptions-open" : "prescriptions-closed"}
+          options={prescriptionActions}
+          emptyMessage="Pengelolaan resep dibatasi untuk admin, dokter, dan apoteker sesuai kewenangan masing-masing."
+        />
       </ModalDialog>
     </div>
   )
@@ -1467,6 +1849,28 @@ function MedicinesSection({
   onComposerOpenChange: (open: boolean) => void
 }) {
   const canCreate = role === "admin" || role === "pharmacist"
+  const medicineActions: ChoiceFormOption[] = canCreate
+    ? [
+        {
+          id: "create-medicine",
+          title: "Tambah obat",
+          description: "Tambahkan master obat yang dipakai saat dokter membuat resep dan apoteker memproses stok.",
+          content: <CreateMedicineForm />,
+        },
+        {
+          id: "update-medicine",
+          title: "Update inventori",
+          description: "Perbarui stok, batas minimum, status, harga, atau tanggal kedaluwarsa obat.",
+          content: <UpdateMedicineForm medicines={medicines} />,
+        },
+        {
+          id: "deactivate-medicine",
+          title: "Nonaktifkan obat",
+          description: "Keluarkan obat dari pilihan resep aktif tanpa menghapus histori penggunaan.",
+          content: <DeactivateMedicineForm medicines={medicines} />,
+        },
+      ]
+    : []
   const medicineStatuses = React.useMemo(() => getUniqueOptions(medicines, (medicine) => medicine.status), [medicines])
   const medicineInsights = React.useMemo(() => {
     const today = new Date()
@@ -1521,7 +1925,7 @@ function MedicinesSection({
         ) : (
           <>
             <div className="overflow-x-auto">
-              <table className="w-full min-w-[760px] text-left text-sm">
+              <table className="w-full min-w-190 text-left text-sm">
                 <thead className="border-b border-border text-xs text-muted-foreground">
                   <tr>
                     <th className="py-3 pr-4 font-medium">Kode</th>
@@ -1530,7 +1934,8 @@ function MedicinesSection({
                     <th className="py-3 pr-4 font-medium">Stok</th>
                     <th className="py-3 pr-4 font-medium">Minimum</th>
                     <th className="py-3 pr-4 font-medium">Kedaluwarsa</th>
-                    <th className="py-3 font-medium">Status</th>
+                    <th className="py-3 pr-4 font-medium">Status</th>
+                    <th className="py-3 font-medium">Aksi</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -1542,8 +1947,11 @@ function MedicinesSection({
                       <td className="py-4 pr-4 tabular-nums">{medicine.stock}</td>
                       <td className="py-4 pr-4 tabular-nums">{medicine.min}</td>
                       <td className="py-4 pr-4 tabular-nums">{medicine.expires}</td>
-                      <td className="py-4">
+                      <td className="py-4 pr-4">
                         <StatusBadge label={medicine.status} />
+                      </td>
+                      <td className="py-4">
+                        <MedicineDetailDialog medicine={medicine} />
                       </td>
                     </tr>
                   ))}
@@ -1563,17 +1971,85 @@ function MedicinesSection({
         onFilterChange={controls.setFilterValue}
         filterOptions={medicineStatuses}
       />
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola obat" description="Tambah master obat atau perbarui stok, status, dan data inventori.">
-        <div className="grid gap-5">
-          <Panel title="Tambah obat" description="Master obat dipakai saat dokter membuat resep dan apoteker memproses stok.">
-            {canCreate ? <CreateMedicineForm /> : <PermissionNotice message="Penambahan obat dibatasi untuk admin dan apoteker." />}
-          </Panel>
-          <Panel title="Update inventori" description="Perbarui stok, batas minimum, status, harga, atau tanggal kedaluwarsa obat.">
-            {canCreate ? <UpdateMedicineForm medicines={medicines} /> : <PermissionNotice message="Perubahan obat dibatasi untuk admin dan apoteker." />}
-          </Panel>
-        </div>
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola obat" description="Pilih aksi pengelolaan obat yang ingin dikerjakan.">
+        <ChoiceFormSwitch key={composerOpen ? "medicines-open" : "medicines-closed"} options={medicineActions} emptyMessage="Pengelolaan obat dibatasi untuk admin dan apoteker." />
       </ModalDialog>
     </div>
+  )
+}
+
+function PrescriptionDetailDialog({ prescription }: { prescription: PrescriptionListItem }) {
+  const [open, setOpen] = React.useState(false)
+  const medicineItems = prescription.items === "-" ? [] : prescription.items.split(",").map((item) => item.trim())
+
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => setOpen(true)}>
+        <FileText className="size-3" aria-hidden="true" />
+        Detail
+      </Button>
+      <ModalDialog open={open} onOpenChange={setOpen} title={`Resep ${prescription.patient}`} description={`${prescription.medicalRecordNumber} - dibuat ${prescription.createdAt}`}>
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge label={prescription.status} />
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Stok {prescription.stock}</span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PatientDetailItem label="Pasien" value={prescription.patient} />
+            <PatientDetailItem label="No. rekam medis" value={prescription.medicalRecordNumber} />
+            <PatientDetailItem label="Dokter" value={prescription.doctor} />
+            <PatientDetailItem label="Apoteker" value={prescription.pharmacist} />
+          </div>
+
+          <div className="rounded-md border border-border bg-card p-4">
+            <p className="text-sm font-semibold">Item obat</p>
+            {medicineItems.length === 0 ? (
+              <p className="mt-2 text-sm text-muted-foreground">Belum ada item obat.</p>
+            ) : (
+              <div className="mt-3 grid gap-2">
+                {medicineItems.map((item) => (
+                  <div key={item} className="rounded-md bg-muted px-3 py-2 text-sm leading-6">
+                    {item}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        </div>
+      </ModalDialog>
+    </>
+  )
+}
+
+function MedicineDetailDialog({ medicine }: { medicine: MedicineListItem }) {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" className="w-fit" onClick={() => setOpen(true)}>
+        <FileText className="size-3" aria-hidden="true" />
+        Detail
+      </Button>
+      <ModalDialog open={open} onOpenChange={setOpen} title={medicine.name} description={`${medicine.code} - ${medicine.category}`}>
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge label={medicine.status} />
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Satuan {medicine.unit}</span>
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Kedaluwarsa {medicine.expires}</span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PatientDetailItem label="Kode obat" value={medicine.code} />
+            <PatientDetailItem label="Kategori" value={medicine.category} />
+            <PatientDetailItem label="Stok tersedia" value={`${medicine.stock} ${medicine.unit}`} />
+            <PatientDetailItem label="Stok minimum" value={`${medicine.min} ${medicine.unit}`} />
+            <PatientDetailItem label="Harga" value={medicine.price || "-"} />
+            <PatientDetailItem label="Status" value={medicine.status} />
+          </div>
+        </div>
+      </ModalDialog>
+    </>
   )
 }
 
@@ -1639,9 +2115,50 @@ function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Prescriptio
         </select>
       </label>
       <FormMessage state={state} />
-      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending} onClick={confirmSubmit("Proses resep ini dan kurangi stok obat?")}>
-        {pending ? "Memproses..." : "Proses resep"}
-      </Button>
+      <ConfirmSubmitButton message="Proses resep ini dan kurangi stok obat?" confirmLabel="Proses resep" pending={pending} pendingLabel="Memproses...">
+        Proses resep
+      </ConfirmSubmitButton>
+    </form>
+  )
+}
+
+function CancelPrescriptionForm({ prescriptions }: { prescriptions: PrescriptionListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(cancelPrescriptionAction, initialClinicFormState)
+  const cancellablePrescriptions = prescriptions.filter((prescription) => prescription.status === "Pending" || prescription.status === "Validasi stok")
+
+  if (cancellablePrescriptions.length === 0) {
+    return <EmptyState title="Tidak ada resep yang bisa dibatalkan" detail="Resep pending atau validasi stok akan muncul di sini." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">Resep</span>
+        <select
+          name="prescriptionId"
+          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+          aria-invalid={Boolean(state.errors?.prescriptionId)}
+        >
+          <option value="">Pilih resep</option>
+          {cancellablePrescriptions.map((prescription) => (
+            <option key={prescription.id} value={prescription.id}>
+              {prescription.medicalRecordNumber} - {prescription.patient} - {prescription.items}
+            </option>
+          ))}
+        </select>
+        <FieldError message={state.errors?.prescriptionId?.[0]} />
+      </label>
+      <DestructiveActionNotice message="Resep yang sudah diproses tidak bisa dibatalkan dari aksi ini karena stok sudah berubah. Resep pending akan ditandai dibatalkan." />
+      <FormMessage state={state} />
+      <ConfirmSubmitButton
+        message="Batalkan resep ini? Catatan resep tetap tersimpan di riwayat pasien."
+        confirmLabel="Batalkan resep"
+        pending={pending}
+        pendingLabel="Membatalkan..."
+        variant="destructive"
+      >
+        Batalkan resep
+      </ConfirmSubmitButton>
     </form>
   )
 }
@@ -1724,6 +2241,47 @@ function UpdateMedicineForm({ medicines }: { medicines: MedicineListItem[] }) {
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
         {pending ? "Memperbarui..." : "Update obat"}
       </Button>
+    </form>
+  )
+}
+
+function DeactivateMedicineForm({ medicines }: { medicines: MedicineListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(deactivateMedicineAction, initialClinicFormState)
+  const activeMedicines = medicines.filter((medicine) => medicine.status !== "Nonaktif")
+
+  if (activeMedicines.length === 0) {
+    return <EmptyState title="Tidak ada obat aktif" detail="Obat yang masih aktif akan muncul di sini jika perlu dinonaktifkan." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">Obat</span>
+        <select
+          name="medicineId"
+          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+          aria-invalid={Boolean(state.errors?.medicineId)}
+        >
+          <option value="">Pilih obat</option>
+          {activeMedicines.map((medicine) => (
+            <option key={medicine.id} value={medicine.id}>
+              {medicine.code} - {medicine.name} - {medicine.status}
+            </option>
+          ))}
+        </select>
+        <FieldError message={state.errors?.medicineId?.[0]} />
+      </label>
+      <DestructiveActionNotice message="Obat tidak dihapus permanen. Status nonaktif membuat obat tidak dipakai untuk resep baru, tetapi histori penggunaan tetap tersimpan." />
+      <FormMessage state={state} />
+      <ConfirmSubmitButton
+        message="Nonaktifkan obat ini? Histori penggunaan tetap tersimpan."
+        confirmLabel="Nonaktifkan obat"
+        pending={pending}
+        pendingLabel="Menonaktifkan..."
+        variant="destructive"
+      >
+        Nonaktifkan obat
+      </ConfirmSubmitButton>
     </form>
   )
 }
@@ -1884,7 +2442,7 @@ function DocumentsSection({
         onFilterChange={controls.setFilterValue}
         filterOptions={documentTypes}
       />
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Upload dokumen" description="File disimpan secara internal dan hanya dibuka melalui route yang mengecek session serta role.">
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola dokumen" description="File disimpan aman dan hanya dapat dibuka oleh role yang berwenang.">
         {canCreate ? <MedicalDocumentForm documentOptions={documentOptions} /> : <PermissionNotice message="Upload dokumen dibatasi untuk admin, dokter, dan perawat." />}
       </ModalDialog>
     </div>
@@ -2051,7 +2609,7 @@ function ReportDetailTable({
         <EmptyState title="Data kosong" detail={emptyDetail} />
       ) : (
         <div className="overflow-x-auto">
-          <table className="w-full min-w-[420px] text-left text-sm">
+          <table className="w-full min-w-105 text-left text-sm">
             <thead className="border-b border-border text-xs text-muted-foreground">
               <tr>
                 {columns.map((column) => (
@@ -2097,6 +2655,28 @@ function UsersSection({
   onComposerOpenChange: (open: boolean) => void
 }) {
   const canCreate = role === "admin"
+  const userActions: ChoiceFormOption[] = canCreate
+    ? [
+        {
+          id: "create-user",
+          title: "Tambah user",
+          description: "Buat akun internal dengan role, username, email, dan password awal.",
+          content: <CreateUserForm roleOptions={roleOptions} />,
+        },
+        {
+          id: "update-user",
+          title: "Update user",
+          description: "Ubah profil akun, password, role, atau status user sesuai kebutuhan operasional.",
+          content: <UpdateUserForm userList={userList} roleOptions={roleOptions} />,
+        },
+        {
+          id: "deactivate-user",
+          title: "Nonaktifkan user",
+          description: "Nonaktifkan akun dan cabut sesi aktif tanpa menghapus audit aktivitas sebelumnya.",
+          content: <DeactivateUserForm userList={userList} />,
+        },
+      ]
+    : []
   const userStatuses = React.useMemo(() => getUniqueOptions(userList, (user) => user.status), [userList])
   const searchSelector = React.useCallback(
     (user: UserListItem) => [user.name, user.email, user.username, user.role, user.roleKey, user.status],
@@ -2152,15 +2732,8 @@ function UsersSection({
         onFilterChange={controls.setFilterValue}
         filterOptions={userStatuses}
       />
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola user" description="Tambah akun, ubah role, atau ubah status akun internal sesuai matrix akses PRD.">
-        <div className="grid gap-5">
-          <Panel title="Tambah user" description="Akun dibuat dengan password hash dan role internal sesuai matrix akses PRD.">
-            {canCreate ? <CreateUserForm roleOptions={roleOptions} /> : <PermissionNotice message="Manajemen user hanya tersedia untuk admin." />}
-          </Panel>
-          <Panel title="Update role dan status" description="Gunakan untuk mengubah akses user atau menonaktifkan akun internal.">
-            {canCreate ? <UpdateUserForm userList={userList} roleOptions={roleOptions} /> : <PermissionNotice message="Perubahan user hanya tersedia untuk admin." />}
-          </Panel>
-        </div>
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola user" description="Pilih aksi pengelolaan user yang ingin dikerjakan.">
+        <ChoiceFormSwitch key={composerOpen ? "users-open" : "users-closed"} options={userActions} emptyMessage="Manajemen user hanya tersedia untuk admin." />
       </ModalDialog>
     </div>
   )
@@ -2170,7 +2743,7 @@ function CreateUserForm({ roleOptions }: { roleOptions: RoleOptionItem[] }) {
   const [state, formAction, pending] = React.useActionState(createUserAction, initialClinicFormState)
 
   if (roleOptions.length === 0) {
-    return <EmptyState title="Role belum tersedia" detail="Jalankan seed role terlebih dahulu sebelum membuat user baru." />
+    return <EmptyState title="Role belum tersedia" detail="Hubungi administrator sistem sebelum membuat user baru." />
   }
 
   return (
@@ -2209,7 +2782,7 @@ function UpdateUserForm({ userList, roleOptions }: { userList: UserListItem[]; r
   const [state, formAction, pending] = React.useActionState(updateUserAction, initialClinicFormState)
 
   if (userList.length === 0) {
-    return <EmptyState title="Belum ada user" detail="Tambahkan user terlebih dahulu sebelum mengubah role atau status." />
+    return <EmptyState title="Belum ada user" detail="Tambahkan user terlebih dahulu sebelum memperbarui data akun." />
   }
 
   return (
@@ -2231,41 +2804,99 @@ function UpdateUserForm({ userList, roleOptions }: { userList: UserListItem[]; r
           </select>
           <FieldError message={state.errors?.userId?.[0]} />
         </label>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Role baru</span>
-          <select
-            name="roleId"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.roleId)}
-          >
-            <option value="">Tidak diubah</option>
-            {roleOptions.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.roleId?.[0]} />
-        </label>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Status baru</span>
-          <select
-            name="status"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.status)}
-          >
-            <option value="">Tidak diubah</option>
-            <option value="ACTIVE">Aktif</option>
-            <option value="INACTIVE">Nonaktif</option>
-            <option value="SUSPENDED">Ditangguhkan</option>
-          </select>
-          <FieldError message={state.errors?.status?.[0]} />
-        </label>
+        <div className="grid gap-3 md:grid-cols-2">
+          <TextField name="name" label="Nama baru" error={state.errors?.name?.[0]} autoComplete="name" />
+          <TextField name="email" label="Email baru" type="email" error={state.errors?.email?.[0]} autoComplete="email" />
+          <TextField name="username" label="Username baru" error={state.errors?.username?.[0]} autoComplete="username" />
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium">Password baru</span>
+            <input
+              name="password"
+              type="password"
+              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+              aria-invalid={Boolean(state.errors?.password)}
+              autoComplete="new-password"
+            />
+            <p className="text-xs text-muted-foreground">Kosongkan jika password tidak diubah.</p>
+            <FieldError message={state.errors?.password?.[0]} />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium">Role baru</span>
+            <select
+              name="roleId"
+              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+              aria-invalid={Boolean(state.errors?.roleId)}
+            >
+              <option value="">Tidak diubah</option>
+              {roleOptions.map((role) => (
+                <option key={role.id} value={role.id}>
+                  {role.name}
+                </option>
+              ))}
+            </select>
+            <FieldError message={state.errors?.roleId?.[0]} />
+          </label>
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium">Status baru</span>
+            <select
+              name="status"
+              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+              aria-invalid={Boolean(state.errors?.status)}
+            >
+              <option value="">Tidak diubah</option>
+              <option value="ACTIVE">Aktif</option>
+              <option value="INACTIVE">Nonaktif</option>
+              <option value="SUSPENDED">Ditangguhkan</option>
+            </select>
+            <FieldError message={state.errors?.status?.[0]} />
+          </label>
+        </div>
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
         {pending ? "Memperbarui..." : "Update user"}
       </Button>
+    </form>
+  )
+}
+
+function DeactivateUserForm({ userList }: { userList: UserListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(deactivateUserAction, initialClinicFormState)
+  const activeUsers = userList.filter((user) => user.status !== "Nonaktif")
+
+  if (activeUsers.length === 0) {
+    return <EmptyState title="Tidak ada user aktif" detail="User aktif akan muncul di sini jika perlu dinonaktifkan." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <label className="grid gap-1.5">
+        <span className="text-sm font-medium">User</span>
+        <select
+          name="userId"
+          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+          aria-invalid={Boolean(state.errors?.userId)}
+        >
+          <option value="">Pilih user</option>
+          {activeUsers.map((user) => (
+            <option key={user.id} value={user.id}>
+              {user.name} - {user.username} - {user.role}
+            </option>
+          ))}
+        </select>
+        <FieldError message={state.errors?.userId?.[0]} />
+      </label>
+      <DestructiveActionNotice message="User tidak dihapus permanen. Akun menjadi nonaktif dan sesi aktifnya dicabut agar akses berhenti." />
+      <FormMessage state={state} />
+      <ConfirmSubmitButton
+        message="Nonaktifkan user ini dan cabut sesi aktifnya?"
+        confirmLabel="Nonaktifkan user"
+        pending={pending}
+        pendingLabel="Menonaktifkan..."
+        variant="destructive"
+      >
+        Nonaktifkan user
+      </ConfirmSubmitButton>
     </form>
   )
 }
@@ -2389,9 +3020,9 @@ function ChangePasswordForm() {
         <TextField name="confirmPassword" label="Konfirmasi password" type="password" error={state.errors?.confirmPassword?.[0]} autoComplete="new-password" />
       </div>
       <FormMessage state={state} />
-      <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending} onClick={confirmSubmit("Ganti password akun sekarang?")}>
-        {pending ? "Memperbarui..." : "Ganti password"}
-      </Button>
+      <ConfirmSubmitButton message="Ganti password akun sekarang?" confirmLabel="Ganti password" pending={pending} pendingLabel="Memperbarui...">
+        Ganti password
+      </ConfirmSubmitButton>
     </form>
   )
 }
@@ -2405,6 +3036,67 @@ function MetricCard({ label, value, change, detail, tone }: { label: string; val
       </div>
       <p className="mt-4 text-3xl font-semibold tabular-nums">{value}</p>
       <p className="mt-2 text-sm text-muted-foreground">{detail}</p>
+    </div>
+  )
+}
+
+type ChoiceFormOption = {
+  id: string
+  title: string
+  description: string
+  content: React.ReactNode
+}
+
+function ChoiceFormSwitch({
+  options,
+  emptyMessage,
+}: {
+  options: ChoiceFormOption[]
+  emptyMessage: string
+}) {
+  const [selectedId, setSelectedId] = React.useState<string | null>(null)
+  const selectedOption = options.find((option) => option.id === selectedId)
+
+  if (options.length === 0) {
+    return <PermissionNotice message={emptyMessage} />
+  }
+
+  if (selectedOption) {
+    return (
+      <div className="grid gap-4">
+        <div className="flex flex-col gap-3 border-b border-border pb-4 sm:flex-row sm:items-start sm:justify-between">
+          <div className="min-w-0">
+            <p className="text-sm font-semibold">{selectedOption.title}</p>
+            <p className="mt-1 text-sm leading-6 text-muted-foreground">{selectedOption.description}</p>
+          </div>
+          <Button type="button" variant="outline" size="sm" onClick={() => setSelectedId(null)}>
+            <ChevronRight className="size-3 rotate-180" aria-hidden="true" />
+            Pilihan
+          </Button>
+        </div>
+        {selectedOption.content}
+      </div>
+    )
+  }
+
+  return (
+    <div className="grid gap-3">
+      {options.map((option) => (
+        <button
+          key={option.id}
+          type="button"
+          onClick={() => setSelectedId(option.id)}
+          className="group rounded-md border border-border bg-card p-4 text-left outline-none transition hover:border-primary/50 hover:bg-accent/60 focus-visible:border-ring focus-visible:ring-2 focus-visible:ring-ring/25"
+        >
+          <span className="flex items-start justify-between gap-3">
+            <span className="min-w-0">
+              <span className="block text-sm font-semibold text-foreground">{option.title}</span>
+              <span className="mt-1 block text-sm leading-6 text-muted-foreground">{option.description}</span>
+            </span>
+            <ChevronRight className="mt-1 size-4 shrink-0 text-muted-foreground transition group-hover:translate-x-0.5 group-hover:text-primary" aria-hidden="true" />
+          </span>
+        </button>
+      ))}
     </div>
   )
 }
@@ -2635,7 +3327,7 @@ function ResponsiveVisitsTable({
         />
       ) : null}
       <div className="hidden overflow-x-auto md:block">
-        <table className="w-full min-w-[760px] text-left text-sm">
+        <table className="w-full min-w-190 text-left text-sm">
           <thead className="border-b border-border text-xs text-muted-foreground">
             <tr>
               <th className="py-3 pr-4 font-medium">ID</th>
@@ -2643,7 +3335,8 @@ function ResponsiveVisitsTable({
               <th className="py-3 pr-4 font-medium">Layanan</th>
               <th className="py-3 pr-4 font-medium">Keluhan</th>
               <th className="py-3 pr-4 font-medium">Jam</th>
-              <th className="py-3 font-medium">Status</th>
+              <th className="py-3 pr-4 font-medium">Status</th>
+              <th className="py-3 font-medium">Aksi</th>
             </tr>
           </thead>
           <tbody className="divide-y divide-border">
@@ -2659,8 +3352,11 @@ function ResponsiveVisitsTable({
                 <td className="py-4 pr-4">{visit.service}</td>
                 <td className="max-w-72 py-4 pr-4 leading-6 text-muted-foreground">{visit.complaint}</td>
                 <td className="py-4 pr-4 tabular-nums">{visit.time}</td>
-                <td className="py-4">
+                <td className="py-4 pr-4">
                   <StatusBadge label={visit.status} />
+                </td>
+                <td className="py-4">
+                  <VisitDetailDialog visit={visit} />
                 </td>
               </tr>
             ))}
@@ -2682,6 +3378,7 @@ function ResponsiveVisitsTable({
             </div>
             <p className="mt-3 text-sm">{visit.service}</p>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">{visit.complaint}</p>
+            <VisitDetailDialog visit={visit} />
           </div>
         ))}
       </div>
@@ -2698,6 +3395,40 @@ function ResponsiveVisitsTable({
       ) : null}
       {!compact ? <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} /> : null}
     </div>
+  )
+}
+
+function VisitDetailDialog({ visit }: { visit: VisitListItem }) {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" className="mt-3 md:mt-0" onClick={() => setOpen(true)}>
+        <FileText className="size-3" aria-hidden="true" />
+        Detail
+      </Button>
+      <ModalDialog open={open} onOpenChange={setOpen} title={`Kunjungan ${visit.patient}`} description={`${visit.medicalRecordNumber} - ${visit.service}`}>
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge label={visit.status} />
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">ID {visit.id}</span>
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Jam {visit.time}</span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <PatientDetailItem label="Pasien" value={visit.patient} />
+            <PatientDetailItem label="No. rekam medis" value={visit.medicalRecordNumber} />
+            <PatientDetailItem label="Dokter" value={visit.doctor} />
+            <PatientDetailItem label="Layanan / poli" value={visit.service} />
+          </div>
+
+          <div className="rounded-md border border-border bg-card p-4">
+            <p className="text-xs text-muted-foreground">Keluhan utama</p>
+            <p className="mt-1 text-sm font-medium leading-6">{visit.complaint}</p>
+          </div>
+        </div>
+      </ModalDialog>
+    </>
   )
 }
 
@@ -2800,6 +3531,14 @@ function FormMessage({ state }: { state: { ok?: boolean; message?: string } }) {
       role="status"
     >
       {state.message}
+    </div>
+  )
+}
+
+function DestructiveActionNotice({ message }: { message: string }) {
+  return (
+    <div className="rounded-md border border-destructive/30 bg-destructive/10 p-4 text-sm leading-6 text-destructive" role="note">
+      {message}
     </div>
   )
 }

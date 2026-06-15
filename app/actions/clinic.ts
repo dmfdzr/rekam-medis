@@ -111,6 +111,10 @@ const updatePatientSchema = z.object({
   status: z.enum(PatientStatus, "Status pasien wajib dipilih.").optional().or(z.literal("")),
 })
 
+const deactivatePatientSchema = z.object({
+  patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
+})
+
 const createVisitSchema = z.object({
   patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
   doctorId: z.string().trim().optional(),
@@ -121,6 +125,10 @@ const createVisitSchema = z.object({
 const updateVisitStatusSchema = z.object({
   visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
   status: z.enum(VisitStatus, "Status kunjungan wajib dipilih."),
+})
+
+const cancelVisitSchema = z.object({
+  visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
 })
 
 const upsertVitalSignSchema = z.object({
@@ -167,6 +175,10 @@ const processPrescriptionSchema = z.object({
   prescriptionId: z.string().trim().min(1, "Resep wajib dipilih."),
 })
 
+const cancelPrescriptionSchema = z.object({
+  prescriptionId: z.string().trim().min(1, "Resep wajib dipilih."),
+})
+
 const createMedicineSchema = z.object({
   code: z.string().trim().min(2, "Kode obat wajib diisi."),
   name: z.string().trim().min(2, "Nama obat wajib diisi."),
@@ -190,6 +202,10 @@ const updateMedicineSchema = z.object({
   status: z.enum(MedicineStatus, "Status obat wajib dipilih.").optional().or(z.literal("")),
 })
 
+const deactivateMedicineSchema = z.object({
+  medicineId: z.string().trim().min(1, "Obat wajib dipilih."),
+})
+
 const createMedicalDocumentSchema = z.object({
   patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
   visitId: z.string().trim().optional(),
@@ -206,8 +222,16 @@ const createUserSchema = z.object({
 
 const updateUserSchema = z.object({
   userId: z.string().trim().min(1, "User wajib dipilih."),
+  name: z.string().trim().optional(),
+  email: z.string().trim().optional(),
+  username: z.string().trim().optional(),
+  password: z.string().optional(),
   roleId: z.string().trim().optional(),
   status: z.enum(UserStatus, "Status user wajib dipilih.").optional().or(z.literal("")),
+})
+
+const deactivateUserSchema = z.object({
+  userId: z.string().trim().min(1, "User wajib dipilih."),
 })
 
 const patientMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.REGISTRATION])
@@ -216,6 +240,7 @@ const vitalSignMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole
 const medicalRecordMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.DOCTOR])
 const prescriptionMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.DOCTOR])
 const pharmacyMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.PHARMACIST])
+const prescriptionCancelRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DOCTOR, UserRole.PHARMACIST])
 const medicineMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.PHARMACIST])
 const documentMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE])
 const userMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN])
@@ -274,7 +299,18 @@ function deriveMedicineStatus({
 }
 
 function optionalDecimal(value: string | undefined) {
-  return value && value.length > 0 ? value : null
+  if (!value) {
+    return null
+  }
+
+  const normalizedValue = value.replace(",", ".")
+  const parsed = Number(normalizedValue)
+
+  return Number.isFinite(parsed) && parsed >= 0 ? normalizedValue : null
+}
+
+function isInvalidOptionalDecimal(value: string | undefined) {
+  return Boolean(value) && optionalDecimal(value) === null
 }
 
 function optionalInt(value: string | undefined) {
@@ -301,20 +337,34 @@ function isUniqueConstraintError(error: unknown) {
   return error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002"
 }
 
+function uniqueConstraintTargets(error: unknown) {
+  if (!(error instanceof Prisma.PrismaClientKnownRequestError) || error.code !== "P2002") {
+    return []
+  }
+
+  return Array.isArray(error.meta?.target) ? error.meta.target.map(String) : []
+}
+
 async function generateMedicalRecordNumber() {
   const year = new Date().getFullYear()
-  const startOfYear = new Date(`${year}-01-01T00:00:00.000Z`)
-  const nextYear = new Date(`${year + 1}-01-01T00:00:00.000Z`)
-  const currentCount = await prisma.patient.count({
+  const prefix = `RM-${year}-`
+  const latestPatient = await prisma.patient.findFirst({
     where: {
-      createdAt: {
-        gte: startOfYear,
-        lt: nextYear,
+      medicalRecordNumber: {
+        startsWith: prefix,
       },
     },
+    orderBy: {
+      medicalRecordNumber: "desc",
+    },
+    select: {
+      medicalRecordNumber: true,
+    },
   })
+  const latestSequence = latestPatient?.medicalRecordNumber.split("-").at(-1)
+  const nextSequence = latestSequence ? Number.parseInt(latestSequence, 10) + 1 : 1
 
-  return `RM-${year}-${String(currentCount + 1).padStart(5, "0")}`
+  return `${prefix}${String(Number.isNaN(nextSequence) ? 1 : nextSequence).padStart(5, "0")}`
 }
 
 export async function createPatientAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
@@ -395,6 +445,16 @@ export async function createPatientAction(_state: ClinicFormState, formData: For
       }
     } catch (error) {
       if (isUniqueConstraintError(error)) {
+        const targets = uniqueConstraintTargets(error)
+
+        if (targets.includes("nik")) {
+          return {
+            ok: false,
+            message: "NIK sudah terdaftar pada pasien lain.",
+            errors: { nik: ["NIK sudah terdaftar. Cari pasien terlebih dahulu sebelum membuat data baru."] },
+          }
+        }
+
         continue
       }
 
@@ -496,6 +556,83 @@ export async function updatePatientAction(_state: ClinicFormState, formData: For
   return {
     ok: true,
     message: `Data pasien ${updatedPatient.fullName} berhasil diperbarui.`,
+  }
+}
+
+export async function deactivatePatientAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const user = await getCurrentUser()
+
+  if (!user || !patientMutationRoles.has(user.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk menonaktifkan pasien.",
+    }
+  }
+
+  const parsed = deactivatePatientSchema.safeParse({
+    patientId: formData.get("patientId"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data pasien belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const patient = await prisma.patient.findUnique({
+    where: { id: parsed.data.patientId },
+    select: {
+      id: true,
+      fullName: true,
+      medicalRecordNumber: true,
+      status: true,
+    },
+  })
+
+  if (!patient) {
+    return {
+      ok: false,
+      message: "Pasien tidak ditemukan.",
+      errors: { patientId: ["Pasien tidak ditemukan."] },
+    }
+  }
+
+  if (patient.status === PatientStatus.INACTIVE) {
+    return {
+      ok: true,
+      message: `Pasien ${patient.fullName} sudah nonaktif.`,
+    }
+  }
+
+  const updatedPatient = await prisma.patient.update({
+    where: { id: patient.id },
+    data: { status: PatientStatus.INACTIVE },
+  })
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "DEACTIVATE_PATIENT",
+    entityName: "Patient",
+    entityId: patient.id,
+    beforeData: {
+      fullName: patient.fullName,
+      medicalRecordNumber: patient.medicalRecordNumber,
+      status: patient.status,
+    },
+    afterData: {
+      fullName: updatedPatient.fullName,
+      medicalRecordNumber: updatedPatient.medicalRecordNumber,
+      status: updatedPatient.status,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Pasien ${updatedPatient.fullName} berhasil dinonaktifkan.`,
   }
 }
 
@@ -638,6 +775,92 @@ export async function updateVisitStatusAction(_state: ClinicFormState, formData:
   return {
     ok: true,
     message: `Status kunjungan ${visit.patient.fullName} berhasil diperbarui.`,
+  }
+}
+
+export async function cancelVisitAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const user = await getCurrentUser()
+
+  if (!user || !visitMutationRoles.has(user.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk membatalkan kunjungan.",
+    }
+  }
+
+  const parsed = cancelVisitSchema.safeParse({
+    visitId: formData.get("visitId"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data kunjungan belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const visit = await prisma.visit.findUnique({
+    where: { id: parsed.data.visitId },
+    include: {
+      patient: {
+        select: {
+          fullName: true,
+          medicalRecordNumber: true,
+        },
+      },
+    },
+  })
+
+  if (!visit) {
+    return {
+      ok: false,
+      message: "Kunjungan tidak ditemukan.",
+      errors: { visitId: ["Kunjungan tidak ditemukan."] },
+    }
+  }
+
+  if (visit.status === VisitStatus.COMPLETED) {
+    return {
+      ok: false,
+      message: "Kunjungan yang sudah selesai tidak dapat dibatalkan.",
+    }
+  }
+
+  if (visit.status === VisitStatus.CANCELLED) {
+    return {
+      ok: true,
+      message: `Kunjungan ${visit.patient.fullName} sudah dibatalkan.`,
+    }
+  }
+
+  const updatedVisit = await prisma.visit.update({
+    where: { id: visit.id },
+    data: { status: VisitStatus.CANCELLED },
+  })
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "CANCEL_VISIT",
+    entityName: "Visit",
+    entityId: visit.id,
+    beforeData: {
+      status: visit.status,
+      patientName: visit.patient.fullName,
+      medicalRecordNumber: visit.patient.medicalRecordNumber,
+    },
+    afterData: {
+      status: updatedVisit.status,
+      patientName: visit.patient.fullName,
+      medicalRecordNumber: visit.patient.medicalRecordNumber,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Kunjungan ${visit.patient.fullName} berhasil dibatalkan.`,
   }
 }
 
@@ -789,6 +1012,23 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
   }
 
   const followUpDate = parsed.data.followUpDate ? toDate(parsed.data.followUpDate) : null
+  const treatmentCost = optionalDecimal(parsed.data.treatmentCost)
+
+  if (parsed.data.followUpDate && !followUpDate) {
+    return {
+      ok: false,
+      message: "Tanggal kontrol tidak valid.",
+      errors: { followUpDate: ["Tanggal kontrol tidak valid."] },
+    }
+  }
+
+  if (isInvalidOptionalDecimal(parsed.data.treatmentCost)) {
+    return {
+      ok: false,
+      message: "Biaya tindakan harus berupa angka valid.",
+      errors: { treatmentCost: ["Biaya tindakan harus berupa angka positif atau nol."] },
+    }
+  }
 
   const visit = await prisma.visit.findUnique({
     where: { id: parsed.data.visitId },
@@ -882,7 +1122,7 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
           medicalRecordId: medicalRecord.id,
           code: optionalString(parsed.data.treatmentCode),
           name: parsed.data.treatmentName,
-          cost: optionalDecimal(parsed.data.treatmentCost),
+          cost: treatmentCost,
           note: optionalString(parsed.data.treatmentNote),
           performerId: user.id,
         },
@@ -1176,6 +1416,100 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
   }
 }
 
+export async function cancelPrescriptionAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const user = await getCurrentUser()
+
+  if (!user || !prescriptionCancelRoles.has(user.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk membatalkan resep.",
+    }
+  }
+
+  const parsed = cancelPrescriptionSchema.safeParse({
+    prescriptionId: formData.get("prescriptionId"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data resep belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const prescription = await prisma.prescription.findUnique({
+    where: { id: parsed.data.prescriptionId },
+    include: {
+      medicalRecord: {
+        include: {
+          visit: {
+            include: {
+              patient: {
+                select: {
+                  fullName: true,
+                  medicalRecordNumber: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  if (!prescription) {
+    return {
+      ok: false,
+      message: "Resep tidak ditemukan.",
+      errors: { prescriptionId: ["Resep tidak ditemukan."] },
+    }
+  }
+
+  if (prescription.status === PrescriptionStatus.PROCESSED) {
+    return {
+      ok: false,
+      message: "Resep yang sudah diproses tidak dapat dibatalkan lewat aksi ini.",
+    }
+  }
+
+  if (prescription.status === PrescriptionStatus.CANCELLED) {
+    return {
+      ok: true,
+      message: `Resep ${prescription.medicalRecord.visit.patient.fullName} sudah dibatalkan.`,
+    }
+  }
+
+  const updatedPrescription = await prisma.prescription.update({
+    where: { id: prescription.id },
+    data: { status: PrescriptionStatus.CANCELLED },
+  })
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "CANCEL_PRESCRIPTION",
+    entityName: "Prescription",
+    entityId: prescription.id,
+    beforeData: {
+      status: prescription.status,
+      patientName: prescription.medicalRecord.visit.patient.fullName,
+      medicalRecordNumber: prescription.medicalRecord.visit.patient.medicalRecordNumber,
+    },
+    afterData: {
+      status: updatedPrescription.status,
+      patientName: prescription.medicalRecord.visit.patient.fullName,
+      medicalRecordNumber: prescription.medicalRecord.visit.patient.medicalRecordNumber,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Resep ${prescription.medicalRecord.visit.patient.fullName} berhasil dibatalkan.`,
+  }
+}
+
 export async function createMedicineAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
   const user = await getCurrentUser()
 
@@ -1208,11 +1542,20 @@ export async function createMedicineAction(_state: ClinicFormState, formData: Fo
   const stock = requiredPositiveInt(parsed.data.stock)
   const minimumStock = requiredPositiveInt(parsed.data.minimumStock)
   const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : null
+  const price = optionalDecimal(parsed.data.price)
 
   if (stock === null || minimumStock === null) {
     return {
       ok: false,
       message: "Stok dan stok minimum harus berupa angka.",
+    }
+  }
+
+  if (isInvalidOptionalDecimal(parsed.data.price)) {
+    return {
+      ok: false,
+      message: "Harga obat harus berupa angka valid.",
+      errors: { price: ["Harga obat harus berupa angka positif atau nol."] },
     }
   }
 
@@ -1233,7 +1576,7 @@ export async function createMedicineAction(_state: ClinicFormState, formData: Fo
         unit: parsed.data.unit,
         stock,
         minimumStock,
-        price: optionalDecimal(parsed.data.price),
+        price,
         expirationDate,
         status: deriveMedicineStatus({
           stock,
@@ -1342,6 +1685,7 @@ export async function updateMedicineAction(_state: ClinicFormState, formData: Fo
   const nextMinimumStock = minimumStock ?? medicine.minimumStock
   const explicitStatus = parsed.data.status || null
   const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : undefined
+  const price = optionalDecimal(parsed.data.price)
 
   if (parsed.data.expirationDate && !expirationDate) {
     return {
@@ -1351,13 +1695,21 @@ export async function updateMedicineAction(_state: ClinicFormState, formData: Fo
     }
   }
 
+  if (isInvalidOptionalDecimal(parsed.data.price)) {
+    return {
+      ok: false,
+      message: "Harga obat harus berupa angka valid.",
+      errors: { price: ["Harga obat harus berupa angka positif atau nol."] },
+    }
+  }
+
   const updateData = {
     ...(parsed.data.name ? { name: parsed.data.name } : {}),
     ...(parsed.data.category ? { category: parsed.data.category } : {}),
     ...(parsed.data.unit ? { unit: parsed.data.unit } : {}),
     ...(stock !== null ? { stock } : {}),
     ...(minimumStock !== null ? { minimumStock } : {}),
-    ...(parsed.data.price ? { price: optionalDecimal(parsed.data.price) } : {}),
+    ...(parsed.data.price ? { price } : {}),
     ...(expirationDate !== undefined ? { expirationDate } : {}),
     status: deriveMedicineStatus({
       stock: nextStock,
@@ -1398,6 +1750,77 @@ export async function updateMedicineAction(_state: ClinicFormState, formData: Fo
   return {
     ok: true,
     message: `Obat ${updatedMedicine.name} berhasil diperbarui.`,
+  }
+}
+
+export async function deactivateMedicineAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const user = await getCurrentUser()
+
+  if (!user || !medicineMutationRoles.has(user.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk menonaktifkan obat.",
+    }
+  }
+
+  const parsed = deactivateMedicineSchema.safeParse({
+    medicineId: formData.get("medicineId"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data obat belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const medicine = await prisma.medicine.findUnique({
+    where: { id: parsed.data.medicineId },
+  })
+
+  if (!medicine) {
+    return {
+      ok: false,
+      message: "Obat tidak ditemukan.",
+      errors: { medicineId: ["Obat tidak ditemukan."] },
+    }
+  }
+
+  if (medicine.status === MedicineStatus.INACTIVE) {
+    return {
+      ok: true,
+      message: `Obat ${medicine.name} sudah nonaktif.`,
+    }
+  }
+
+  const updatedMedicine = await prisma.medicine.update({
+    where: { id: medicine.id },
+    data: { status: MedicineStatus.INACTIVE },
+  })
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "DEACTIVATE_MEDICINE",
+    entityName: "Medicine",
+    entityId: medicine.id,
+    beforeData: {
+      code: medicine.code,
+      name: medicine.name,
+      status: medicine.status,
+    },
+    afterData: {
+      code: updatedMedicine.code,
+      name: updatedMedicine.name,
+      status: updatedMedicine.status,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Obat ${updatedMedicine.name} berhasil dinonaktifkan.`,
   }
 }
 
@@ -1447,7 +1870,7 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
     return {
       ok: false,
       message: "Ukuran file terlalu besar.",
-      errors: { file: ["Maksimal ukuran file adalah 2 MB untuk MVP."] },
+      errors: { file: ["Maksimal ukuran file adalah 2 MB."] },
     }
   }
 
@@ -1599,6 +2022,10 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
 
   const parsed = updateUserSchema.safeParse({
     userId: formData.get("userId"),
+    name: formData.get("name"),
+    email: formData.get("email"),
+    username: formData.get("username"),
+    password: formData.get("password"),
     roleId: formData.get("roleId"),
     status: formData.get("status"),
   })
@@ -1608,6 +2035,43 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
       ok: false,
       message: "Data user belum valid.",
       errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const nextName = optionalString(parsed.data.name)
+  const nextEmail = optionalString(parsed.data.email)?.toLowerCase() ?? null
+  const nextUsername = optionalString(parsed.data.username)?.toLowerCase() ?? null
+  const nextPassword = optionalString(parsed.data.password)
+
+  if (nextName && nextName.length < 2) {
+    return {
+      ok: false,
+      message: "Nama user minimal 2 karakter.",
+      errors: { name: ["Nama user minimal 2 karakter."] },
+    }
+  }
+
+  if (nextEmail && !z.email().safeParse(nextEmail).success) {
+    return {
+      ok: false,
+      message: "Email tidak valid.",
+      errors: { email: ["Email tidak valid."] },
+    }
+  }
+
+  if (nextUsername && nextUsername.length < 3) {
+    return {
+      ok: false,
+      message: "Username minimal 3 karakter.",
+      errors: { username: ["Username minimal 3 karakter."] },
+    }
+  }
+
+  if (nextPassword && nextPassword.length < 8) {
+    return {
+      ok: false,
+      message: "Password baru minimal 8 karakter.",
+      errors: { password: ["Password baru minimal 8 karakter."] },
     }
   }
 
@@ -1629,6 +2093,36 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
       ok: false,
       message: "User tidak ditemukan.",
       errors: { userId: ["User tidak ditemukan."] },
+    }
+  }
+
+  if (nextEmail && nextEmail !== user.email.toLowerCase()) {
+    const existingEmail = await prisma.user.findUnique({
+      where: { email: nextEmail },
+      select: { id: true },
+    })
+
+    if (existingEmail && existingEmail.id !== user.id) {
+      return {
+        ok: false,
+        message: "Email sudah digunakan user lain.",
+        errors: { email: ["Email sudah digunakan user lain."] },
+      }
+    }
+  }
+
+  if (nextUsername && nextUsername !== user.username.toLowerCase()) {
+    const existingUsername = await prisma.user.findUnique({
+      where: { username: nextUsername },
+      select: { id: true },
+    })
+
+    if (existingUsername && existingUsername.id !== user.id) {
+      return {
+        ok: false,
+        message: "Username sudah digunakan user lain.",
+        errors: { username: ["Username sudah digunakan user lain."] },
+      }
     }
   }
 
@@ -1655,7 +2149,11 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
     }
   }
 
-  const updateData = {
+  const updateData: Prisma.UserUpdateInput = {
+    ...(nextName ? { name: nextName } : {}),
+    ...(nextEmail ? { email: nextEmail } : {}),
+    ...(nextUsername ? { username: nextUsername } : {}),
+    ...(nextPassword ? { passwordHash: await hashPassword(nextPassword) } : {}),
     ...(nextRole ? { roleId: nextRole.id } : {}),
     ...(parsed.data.status ? { status: parsed.data.status } : {}),
   }
@@ -1663,13 +2161,120 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
   if (Object.keys(updateData).length === 0) {
     return {
       ok: false,
-      message: "Pilih role atau status yang ingin diubah.",
+      message: "Isi minimal satu field yang ingin diubah.",
     }
   }
 
-  const updatedUser = await prisma.user.update({
-    where: { id: user.id },
-    data: updateData,
+  try {
+    const updatedUser = await prisma.$transaction(async (tx) => {
+      const updated = await tx.user.update({
+        where: { id: user.id },
+        data: updateData,
+        include: {
+          role: {
+            select: {
+              key: true,
+              name: true,
+            },
+          },
+        },
+      })
+
+      if (nextPassword && user.id !== actor.id) {
+        await tx.session.updateMany({
+          where: {
+            userId: user.id,
+            revokedAt: null,
+          },
+          data: {
+            revokedAt: new Date(),
+          },
+        })
+      }
+
+      return updated
+    })
+
+    await writeAuditLog({
+      userId: actor.id,
+      action: "UPDATE_USER",
+      entityName: "User",
+      entityId: user.id,
+      beforeData: {
+        name: user.name,
+        email: user.email,
+        username: user.username,
+        role: user.role.key,
+        status: user.status,
+      },
+      afterData: {
+        name: updatedUser.name,
+        email: updatedUser.email,
+        username: updatedUser.username,
+        role: updatedUser.role.key,
+        status: updatedUser.status,
+        passwordChanged: Boolean(nextPassword),
+        revokedSessions: Boolean(nextPassword && user.id !== actor.id),
+      },
+    })
+
+    revalidatePath("/")
+
+    return {
+      ok: true,
+      message: `User ${updatedUser.name} berhasil diperbarui.`,
+    }
+  } catch (error) {
+    if (isUniqueConstraintError(error)) {
+      return {
+        ok: false,
+        message: "Email atau username sudah digunakan user lain.",
+        errors: {
+          email: ["Periksa email, mungkin sudah digunakan."],
+          username: ["Periksa username, mungkin sudah digunakan."],
+        },
+      }
+    }
+
+    return {
+      ok: false,
+      message: "User gagal diperbarui.",
+    }
+  }
+}
+
+export async function deactivateUserAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const actor = await getCurrentUser()
+
+  if (!actor || !userMutationRoles.has(actor.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk menonaktifkan user.",
+    }
+  }
+
+  const parsed = deactivateUserSchema.safeParse({
+    userId: formData.get("userId"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data user belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  if (parsed.data.userId === actor.id) {
+    return {
+      ok: false,
+      message: "Anda tidak dapat menonaktifkan akun yang sedang digunakan.",
+      errors: { userId: ["Pilih user lain untuk dinonaktifkan."] },
+    }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: parsed.data.userId },
     include: {
       role: {
         select: {
@@ -1680,9 +2285,51 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
     },
   })
 
+  if (!user) {
+    return {
+      ok: false,
+      message: "User tidak ditemukan.",
+      errors: { userId: ["User tidak ditemukan."] },
+    }
+  }
+
+  if (user.status === UserStatus.INACTIVE) {
+    return {
+      ok: true,
+      message: `User ${user.name} sudah nonaktif.`,
+    }
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedUser = await tx.user.update({
+      where: { id: user.id },
+      data: { status: UserStatus.INACTIVE },
+      include: {
+        role: {
+          select: {
+            key: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    await tx.session.updateMany({
+      where: {
+        userId: user.id,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    })
+
+    return updatedUser
+  })
+
   await writeAuditLog({
     userId: actor.id,
-    action: "UPDATE_USER",
+    action: "DEACTIVATE_USER",
     entityName: "User",
     entityId: user.id,
     beforeData: {
@@ -1691,9 +2338,9 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
       status: user.status,
     },
     afterData: {
-      username: updatedUser.username,
-      role: updatedUser.role.key,
-      status: updatedUser.status,
+      username: result.username,
+      role: result.role.key,
+      status: result.status,
     },
   })
 
@@ -1701,6 +2348,6 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
 
   return {
     ok: true,
-    message: `User ${updatedUser.name} berhasil diperbarui.`,
+    message: `User ${result.name} berhasil dinonaktifkan dan sesi aktifnya dicabut.`,
   }
 }
