@@ -84,7 +84,7 @@ App berjalan di `http://localhost:3000`.
 Semua akun awal memakai password:
 
 ```text
-rekammedis123
+[username]123
 ```
 
 Username:
