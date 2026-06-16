@@ -379,11 +379,11 @@ export function MedRecordApp({
   }
 
   return (
-    <div className="min-h-dvh bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.10),transparent_28rem),linear-gradient(180deg,var(--background),color-mix(in_oklch,var(--muted),var(--background)_60%))] text-foreground">
-      <div className="flex min-h-dvh">
+    <div className="h-dvh overflow-hidden bg-[radial-gradient(circle_at_top_left,rgba(14,165,233,0.10),transparent_28rem),linear-gradient(180deg,var(--background),color-mix(in_oklch,var(--muted),var(--background)_60%))] text-foreground">
+      <div className="flex h-full min-h-0">
         <aside
           className={cn(
-            "hidden shrink-0 border-r border-border/80 bg-sidebar/90 p-4 text-sidebar-foreground backdrop-blur transition-[width] duration-200 lg:block",
+            "hidden h-dvh shrink-0 border-r border-border/80 bg-sidebar/90 p-4 text-sidebar-foreground backdrop-blur transition-[width] duration-200 lg:block",
             sidebarCollapsed ? "w-20" : "w-72",
           )}
         >
@@ -420,8 +420,8 @@ export function MedRecordApp({
           </aside>
         </div>
 
-        <main className="min-w-0 flex-1 overflow-x-hidden">
-          <header className="sticky top-0 z-30 border-b border-border/80 bg-background/88 px-4 py-3 backdrop-blur md:px-6">
+        <main className="flex min-w-0 flex-1 flex-col overflow-hidden">
+          <header className="z-30 shrink-0 border-b border-border/80 bg-background/88 px-4 py-3 backdrop-blur md:px-6">
             <div className="flex items-center gap-3">
               <Button
                 type="button"
@@ -466,7 +466,7 @@ export function MedRecordApp({
             </div>
           </header>
 
-          <div className="px-4 py-5 md:px-6 lg:px-8">
+          <div className="min-h-0 flex-1 overflow-y-auto overflow-x-hidden px-4 py-5 md:px-6 lg:px-8">
             <PageHeader
               meta={meta}
               filtersOpen={filtersOpen}
