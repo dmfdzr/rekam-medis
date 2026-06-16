@@ -70,7 +70,47 @@ export function DocumentsSection({
           />
         ) : (
           <>
-            <div className="grid gap-3">
+            <div className="hidden overflow-x-auto lg:block">
+              <table className="w-full min-w-[760px] text-left text-sm">
+                <thead className="border-b border-border text-xs text-muted-foreground">
+                  <tr>
+                    <th className="py-3 pr-4 font-medium">Dokumen</th>
+                    <th className="py-3 pr-4 font-medium">No. RM</th>
+                    <th className="py-3 pr-4 font-medium">Pasien</th>
+                    <th className="py-3 pr-4 font-medium">Kunjungan</th>
+                    <th className="py-3 pr-4 font-medium">Tipe</th>
+                    <th className="py-3 pr-4 font-medium">Pencatat</th>
+                    <th className="py-3 font-medium">Aksi</th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-border">
+                  {controls.paginatedItems.map((document) => (
+                    <tr key={document.id} className="align-top">
+                      <td className="max-w-[16rem] py-4 pr-4 font-medium leading-6">{document.fileName}</td>
+                      <td className="py-4 pr-4 tabular-nums">{document.medicalRecordNumber}</td>
+                      <td className="py-4 pr-4">{document.patient}</td>
+                      <td className="max-w-[15rem] py-4 pr-4 text-muted-foreground">{document.visit}</td>
+                      <td className="py-4 pr-4">
+                        <StatusBadge label={document.type} />
+                      </td>
+                      <td className="py-4 pr-4 text-muted-foreground">
+                        <span className="block">{document.uploadedBy}</span>
+                        <span className="mt-1 block text-xs">{document.uploadedAt}</span>
+                      </td>
+                      <td className="py-4">
+                        <Button asChild variant="outline" size="sm" className="w-fit">
+                          <a href={document.fileUrl} target="_blank" rel="noreferrer">
+                            <Download className="size-3" aria-hidden="true" />
+                            Buka
+                          </a>
+                        </Button>
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+            <div className="grid gap-3 lg:hidden">
               {controls.paginatedItems.map((document) => (
                 <div key={document.id} className="rounded-md border border-border bg-card p-4">
                   <div className="flex flex-wrap items-start justify-between gap-3">
@@ -82,22 +122,28 @@ export function DocumentsSection({
                     </div>
                     <StatusBadge label={document.type} />
                   </div>
-                  <p className="mt-3 text-sm text-muted-foreground">{document.visit}</p>
+                  <div className="mt-3 grid gap-2 text-sm">
+                    <p>
+                      <span className="text-muted-foreground">Kunjungan: </span>
+                      {document.visit}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Pencatat: </span>
+                      {document.uploadedBy} - {document.uploadedAt}
+                    </p>
+                  </div>
                   <Button asChild variant="outline" size="sm" className="mt-3 w-fit">
                     <a href={document.fileUrl} target="_blank" rel="noreferrer">
                       <Download className="size-3" aria-hidden="true" />
                       Buka / generate
                     </a>
                   </Button>
-                  <p className="mt-3 text-xs text-muted-foreground">
-                    {document.uploadedBy} - {document.uploadedAt}
-                  </p>
                 </div>
               ))}
             </div>
-            <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
           </>
         )}
+        <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
       </Panel>
       <FilterModal
         open={filtersOpen}

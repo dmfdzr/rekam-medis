@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Admin Workflow', () => {
   test('Admin should be able to view audit logs and reports', async ({ page }) => {
     // Login as admin
-    await page.goto('/');
+    await page.goto('/login');
     await page.getByLabel('Email atau username').fill('admin');
     await page.locator('input[name="password"]').fill('admin123');
     await page.getByRole('button', { name: 'Masuk' }).click();
@@ -12,6 +12,24 @@ test.describe('Admin Workflow', () => {
     await page.getByRole('button', { name: 'Audit Log' }).click();
     await expect(page.getByRole('heading', { name: 'Audit Log' })).toBeVisible();
     await expect(page.getByRole('heading', { name: 'Aktivitas penting' })).toBeVisible();
+    await expect(page.getByText('Total aktivitas')).toBeVisible();
+    await expect(page.getByText('Sensitif', { exact: true }).first()).toBeVisible();
+
+    if (!(await page.getByText('Belum ada audit log').isVisible())) {
+      await page.getByRole('button', { name: 'Filter' }).click();
+      await expect(page.getByRole('heading', { name: 'Filter audit log' })).toBeVisible();
+      await expect(page.getByLabel('Risiko')).toBeVisible();
+      await expect(page.getByLabel('Entity')).toBeVisible();
+      await expect(page.getByLabel('Action')).toBeVisible();
+      await page.getByRole('button', { name: 'Terapkan' }).click();
+
+      await page.getByRole('button', { name: 'Detail audit' }).first().click();
+      const auditDialog = page.getByRole('dialog');
+      await expect(auditDialog.getByText('IP address')).toBeVisible();
+      await expect(auditDialog.getByText('User agent')).toBeVisible();
+      await expect(auditDialog.getByText('Data sebelum')).toBeVisible();
+      await page.getByRole('button', { name: 'Tutup dialog' }).click();
+    }
 
     await page.getByRole('button', { name: 'Laporan' }).click();
     await expect(page.getByRole('heading', { name: 'Laporan', exact: true })).toBeVisible();
@@ -29,7 +47,7 @@ test.describe('Admin Workflow', () => {
   });
 
   test('Admin should be able to create and generate a medical document', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/login');
     await page.getByLabel('Email atau username').fill('admin');
     await page.locator('input[name="password"]').fill('admin123');
     await page.getByRole('button', { name: 'Masuk' }).click();
@@ -69,7 +87,7 @@ test.describe('Admin Workflow', () => {
     await page.getByRole('button', { name: 'Tutup dialog' }).click();
 
     const generatedPagePromise = page.waitForEvent('popup');
-    await page.getByRole('link', { name: 'Buka / generate' }).first().click();
+    await page.getByRole('link', { name: /Buka/ }).first().click();
     const generatedPage = await generatedPagePromise;
     await expect(generatedPage.getByText('Data Pasien')).toBeVisible({ timeout: 15000 });
     await expect(generatedPage.getByText('MedNote').first()).toBeVisible();

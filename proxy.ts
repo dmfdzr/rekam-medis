@@ -1,7 +1,7 @@
 import { NextResponse, type NextRequest } from "next/server"
 
 const sessionCookieName = "medrecord_session"
-const publicRoutes = new Set(["/login"])
+const publicRoutes = new Set(["/", "/login"])
 
 export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl
@@ -13,7 +13,7 @@ export function proxy(request: NextRequest) {
   }
 
   if (hasSessionCookie && isPublicRoute) {
-    return NextResponse.redirect(new URL("/", request.url))
+    return NextResponse.redirect(new URL("/app", request.url))
   }
 
   return NextResponse.next()

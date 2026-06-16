@@ -265,6 +265,17 @@ const updateUserSchema = z.object({
   status: z.enum(UserStatus, "Status user wajib dipilih.").optional().or(z.literal("")),
 })
 
+const resetUserPasswordSchema = z
+  .object({
+    userId: z.string().trim().min(1, "User wajib dipilih."),
+    password: z.string().min(8, "Password baru minimal 8 karakter."),
+    confirmPassword: z.string().min(1, "Konfirmasi password wajib diisi."),
+  })
+  .refine((data) => data.password === data.confirmPassword, {
+    message: "Konfirmasi password tidak sama.",
+    path: ["confirmPassword"],
+  })
+
 const deactivateUserSchema = z.object({
   userId: z.string().trim().min(1, "User wajib dipilih."),
 })
@@ -2292,6 +2303,114 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
       ok: false,
       message: "User gagal diperbarui.",
     }
+  }
+}
+
+export async function resetUserPasswordAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const actor = await getCurrentUser()
+
+  if (!actor || !userMutationRoles.has(actor.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk reset password user.",
+    }
+  }
+
+  const parsed = resetUserPasswordSchema.safeParse({
+    userId: formData.get("userId"),
+    password: formData.get("password"),
+    confirmPassword: formData.get("confirmPassword"),
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data reset password belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  if (parsed.data.userId === actor.id) {
+    return {
+      ok: false,
+      message: "Gunakan Pengaturan Akun untuk mengganti password akun yang sedang digunakan.",
+      errors: { userId: ["Pilih user lain atau gunakan Pengaturan Akun."] },
+    }
+  }
+
+  const user = await prisma.user.findUnique({
+    where: { id: parsed.data.userId },
+    include: {
+      role: {
+        select: {
+          key: true,
+          name: true,
+        },
+      },
+    },
+  })
+
+  if (!user) {
+    return {
+      ok: false,
+      message: "User tidak ditemukan.",
+      errors: { userId: ["User tidak ditemukan."] },
+    }
+  }
+
+  const result = await prisma.$transaction(async (tx) => {
+    const updatedUser = await tx.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash: await hashPassword(parsed.data.password),
+      },
+      include: {
+        role: {
+          select: {
+            key: true,
+            name: true,
+          },
+        },
+      },
+    })
+
+    const revokedSessions = await tx.session.updateMany({
+      where: {
+        userId: user.id,
+        revokedAt: null,
+      },
+      data: {
+        revokedAt: new Date(),
+      },
+    })
+
+    return { updatedUser, revokedSessions }
+  })
+
+  await writeAuditLog({
+    userId: actor.id,
+    action: "RESET_USER_PASSWORD",
+    entityName: "User",
+    entityId: user.id,
+    beforeData: {
+      username: user.username,
+      role: user.role.key,
+      status: user.status,
+    },
+    afterData: {
+      username: result.updatedUser.username,
+      role: result.updatedUser.role.key,
+      status: result.updatedUser.status,
+      passwordReset: true,
+      revokedSessions: result.revokedSessions.count,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Password ${result.updatedUser.name} berhasil direset dan sesi aktifnya dicabut.`,
   }
 }
 

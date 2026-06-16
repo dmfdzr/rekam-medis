@@ -3,7 +3,7 @@ import { test, expect } from '@playwright/test';
 test.describe('Clinical Workflow', () => {
   test('Nurse should be able to record vitals', async ({ page }) => {
     // Login as nurse
-    await page.goto('/');
+    await page.goto('/login');
     await page.getByLabel('Email atau username').fill('perawat');
     await page.locator('input[name="password"]').fill('perawat123');
     await page.getByRole('button', { name: 'Masuk' }).click();
@@ -31,7 +31,7 @@ test.describe('Clinical Workflow', () => {
 
   test('Doctor should be able to record medical record', async ({ page }) => {
     // Login as doctor
-    await page.goto('/');
+    await page.goto('/login');
     await page.getByLabel('Email atau username').fill('dokter');
     await page.locator('input[name="password"]').fill('dokter123');
     await page.getByRole('button', { name: 'Masuk' }).click();
@@ -56,7 +56,7 @@ test.describe('Clinical Workflow', () => {
   });
 
   test('Doctor should be able to inspect medical record history detail', async ({ page }) => {
-    await page.goto('/');
+    await page.goto('/login');
     await page.getByLabel('Email atau username').fill('dokter');
     await page.locator('input[name="password"]').fill('dokter123');
     await page.getByRole('button', { name: 'Masuk' }).click();

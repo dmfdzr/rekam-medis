@@ -127,6 +127,7 @@
     }
   html {
     @apply font-sans;
+    scroll-behavior: smooth;
     }
   button,
   input,
@@ -172,5 +173,58 @@
   input[type="date"]::-webkit-calendar-picker-indicator:hover {
     background-color: color-mix(in oklch, var(--muted), var(--foreground) 8%);
     opacity: 1;
+  }
+}
+
+@layer utilities {
+  .route-content-transition {
+    animation: route-content-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .route-transition-indicator {
+    position: fixed;
+    inset: 0 auto auto 0;
+    z-index: 80;
+    height: 0.1875rem;
+    width: 100%;
+    transform-origin: left;
+    background: linear-gradient(90deg, var(--primary), color-mix(in oklch, var(--primary), white 32%));
+    animation: route-progress 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes route-content-enter {
+    from {
+      opacity: 0;
+      transform: translateY(0.75rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  @keyframes route-progress {
+    0% {
+      opacity: 0;
+      transform: scaleX(0);
+    }
+    16% {
+      opacity: 1;
+    }
+    76% {
+      opacity: 1;
+      transform: scaleX(0.88);
+    }
+    100% {
+      opacity: 0;
+      transform: scaleX(1);
+    }
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .route-content-transition,
+    .route-transition-indicator {
+      animation: none;
+    }
   }
 }

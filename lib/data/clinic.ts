@@ -110,14 +110,39 @@ function getMedicineDisplayStatus(medicine: { status: keyof typeof medicineStatu
   return medicineStatusLabels[medicine.status]
 }
 
+function getMedicineOperationalSignal(medicine: { status: keyof typeof medicineStatusLabels; stock: number; minimumStock: number; expirationDate: Date | null }) {
+  const displayStatus = getMedicineDisplayStatus(medicine)
+  const today = startOfToday()
+  const nextThirtyDays = new Date(today)
+  nextThirtyDays.setDate(today.getDate() + 30)
+  const expiringSoon = Boolean(medicine.expirationDate && medicine.expirationDate >= today && medicine.expirationDate <= nextThirtyDays)
+  const canUseForPrescription = displayStatus !== medicineStatusLabels.INACTIVE && displayStatus !== medicineStatusLabels.EXPIRED && medicine.stock > 0
+  const stockGap = medicine.stock - medicine.minimumStock
+
+  return {
+    displayStatus,
+    canUseForPrescription,
+    expiringSoon,
+    stockGap,
+    riskLevel:
+      displayStatus === medicineStatusLabels.INACTIVE || displayStatus === medicineStatusLabels.EXPIRED
+        ? "Kritis"
+        : medicine.stock <= medicine.minimumStock || expiringSoon
+          ? "Perhatian"
+          : "Aman",
+    usageStatus: canUseForPrescription ? "Bisa dipakai resep" : "Tidak bisa dipakai resep",
+    stockSignal: stockGap < 0 ? `Kurang ${Math.abs(stockGap)} dari minimum` : stockGap === 0 ? "Tepat di batas minimum" : `Sisa ${stockGap} di atas minimum`,
+  }
+}
+
 function summarizeJson(value: unknown) {
   if (!value) {
     return "-"
   }
 
-  const text = JSON.stringify(value)
+  const text = JSON.stringify(value, null, 2)
 
-  return text.length > 220 ? `${text.slice(0, 220)}...` : text
+  return text.length > 1200 ? `${text.slice(0, 1200)}...` : text
 }
 
 export async function getDashboardSummary() {
@@ -679,16 +704,27 @@ export async function getMedicineList() {
   })
 
   return medicines.map((medicine) => ({
-    id: medicine.id,
-    code: medicine.code,
-    name: medicine.name,
-    category: medicine.category,
-    unit: medicine.unit,
-    stock: medicine.stock,
-    min: medicine.minimumStock,
-    price: medicine.price?.toString() ?? "",
-    expires: medicine.expirationDate ? medicine.expirationDate.toISOString().slice(0, 10) : "-",
-    status: getMedicineDisplayStatus(medicine),
+    ...(() => {
+      const operationalSignal = getMedicineOperationalSignal(medicine)
+
+      return {
+        id: medicine.id,
+        code: medicine.code,
+        name: medicine.name,
+        category: medicine.category,
+        unit: medicine.unit,
+        stock: medicine.stock,
+        min: medicine.minimumStock,
+        price: medicine.price?.toString() ?? "",
+        expires: medicine.expirationDate ? medicine.expirationDate.toISOString().slice(0, 10) : "-",
+        status: operationalSignal.displayStatus,
+        canUseForPrescription: operationalSignal.canUseForPrescription,
+        expiringSoon: operationalSignal.expiringSoon,
+        riskLevel: operationalSignal.riskLevel,
+        usageStatus: operationalSignal.usageStatus,
+        stockSignal: operationalSignal.stockSignal,
+      }
+    })(),
   }))
 }
 
@@ -1064,6 +1100,8 @@ export async function getAuditLogList() {
     entity: log.entityName,
     entityId: log.entityId ?? "-",
     time: `${dateFormatter.format(log.createdAt)} ${timeFormatter.format(log.createdAt)}`,
+    ipAddress: log.ipAddress ?? "-",
+    userAgent: log.userAgent ?? "-",
     risk:
       log.action.includes("MEDICAL_RECORD") ||
       log.action.includes("PRESCRIPTION") ||

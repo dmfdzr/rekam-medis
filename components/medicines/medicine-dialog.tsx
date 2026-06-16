@@ -22,6 +22,7 @@ export function MedicineDetailDialog({ medicine }: { medicine: MedicineListItem 
         <div className="grid gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge label={medicine.status} />
+            <StatusBadge label={medicine.riskLevel} />
             <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Satuan {medicine.unit}</span>
             <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Kedaluwarsa {medicine.expires}</span>
           </div>
@@ -31,6 +32,8 @@ export function MedicineDetailDialog({ medicine }: { medicine: MedicineListItem 
             <PatientDetailItem label="Kategori" value={medicine.category} />
             <PatientDetailItem label="Stok tersedia" value={`${medicine.stock} ${medicine.unit}`} />
             <PatientDetailItem label="Stok minimum" value={`${medicine.min} ${medicine.unit}`} />
+            <PatientDetailItem label="Sinyal stok" value={medicine.stockSignal} />
+            <PatientDetailItem label="Status resep" value={medicine.usageStatus} />
             <PatientDetailItem label="Harga" value={medicine.price || "-"} />
             <PatientDetailItem label="Status" value={medicine.status} />
           </div>
@@ -39,4 +42,3 @@ export function MedicineDetailDialog({ medicine }: { medicine: MedicineListItem 
     </>
   )
 }
-

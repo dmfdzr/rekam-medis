@@ -3,6 +3,7 @@ import { Geist_Mono, Outfit } from "next/font/google"
 
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
+import { PageTransition } from "@/components/page-transition"
 import { cn } from "@/lib/utils";
 
 const outfit = Outfit({subsets:['latin'],variable:'--font-sans'})
@@ -34,7 +35,9 @@ export default function RootLayout({
       className={cn("antialiased", fontMono.variable, "font-sans", outfit.variable)}
     >
       <body>
-        <ThemeProvider>{children}</ThemeProvider>
+        <ThemeProvider>
+          <PageTransition>{children}</PageTransition>
+        </ThemeProvider>
       </body>
     </html>
   )

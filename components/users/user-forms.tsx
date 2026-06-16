@@ -1,7 +1,7 @@
 "use client"
 
 import { type UserListItem, type RoleOptionItem } from "@/lib/data/clinic"
-import { createUserAction, updateUserAction, deactivateUserAction, type ClinicFormState } from "@/app/actions/clinic"
+import { createUserAction, updateUserAction, resetUserPasswordAction, deactivateUserAction, type ClinicFormState } from "@/app/actions/clinic"
 
 import * as React from "react"
 
@@ -81,8 +81,6 @@ export function UpdateUserForm({ userList, roleOptions }: { userList: UserListIt
           <TextField name="name" label="Nama baru" error={state.errors?.name?.[0]} autoComplete="name" />
           <TextField name="email" label="Email baru" type="email" error={state.errors?.email?.[0]} autoComplete="email" />
           <TextField name="username" label="Username baru" error={state.errors?.username?.[0]} autoComplete="username" />
-          <TextField name="password" label="Password baru" type="password" error={state.errors?.password?.[0]} autoComplete="new-password" showPasswordToggle />
-          <p className="text-xs text-muted-foreground">Kosongkan jika password tidak diubah.</p>
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">Role baru</span>
             <select
@@ -119,6 +117,50 @@ export function UpdateUserForm({ userList, roleOptions }: { userList: UserListIt
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
         {pending ? "Memperbarui..." : "Update user"}
       </Button>
+    </form>
+  )
+}
+
+export function ResetUserPasswordForm({ userList }: { userList: UserListItem[] }) {
+  const [state, formAction, pending] = React.useActionState(resetUserPasswordAction, initialClinicFormState)
+  const resettableUsers = userList.filter((user) => user.status !== "Nonaktif")
+
+  if (resettableUsers.length === 0) {
+    return <EmptyState title="Tidak ada user aktif" detail="User aktif akan muncul di sini jika perlu reset password." />
+  }
+
+  return (
+    <form action={formAction} className="grid gap-4" noValidate>
+      <div className="grid gap-3">
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">User</span>
+          <select
+            name="userId"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.userId)}
+          >
+            <option value="">Pilih user</option>
+            {resettableUsers.map((user) => (
+              <option key={user.id} value={user.id}>
+                {user.name} - {user.username} - {user.role}
+              </option>
+            ))}
+          </select>
+          <FieldError message={state.errors?.userId?.[0]} />
+        </label>
+        <TextField name="password" label="Password baru" type="password" error={state.errors?.password?.[0]} autoComplete="new-password" showPasswordToggle />
+        <TextField name="confirmPassword" label="Konfirmasi password" type="password" error={state.errors?.confirmPassword?.[0]} autoComplete="new-password" showPasswordToggle />
+      </div>
+      <DestructiveActionNotice message="Reset password akan mencabut sesi aktif user target. User perlu login ulang memakai password baru." />
+      <FormMessage state={state} />
+      <ConfirmSubmitButton
+        message="Reset password user ini dan cabut sesi aktifnya?"
+        confirmLabel="Reset password"
+        pending={pending}
+        pendingLabel="Mereset..."
+      >
+        Reset password
+      </ConfirmSubmitButton>
     </form>
   )
 }
@@ -163,4 +205,3 @@ export function DeactivateUserForm({ userList }: { userList: UserListItem[] }) {
     </form>
   )
 }
-

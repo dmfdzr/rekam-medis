@@ -10,7 +10,7 @@ import { useListControls } from "@/lib/hooks"
 import { EmptyState, StatusBadge } from "@/components/shared/feedback"
 import { Panel, ModalDialog, ChoiceFormSwitch, type ChoiceFormOption } from "@/components/shared/layout"
 import { ListToolbar, FilterModal, PaginationControls } from "@/components/shared/list-controls"
-import { CreateUserForm, UpdateUserForm, DeactivateUserForm } from "./user-forms"
+import { CreateUserForm, UpdateUserForm, ResetUserPasswordForm, DeactivateUserForm } from "./user-forms"
 
 export function UsersSection({
   role,
@@ -41,8 +41,14 @@ export function UsersSection({
         {
           id: "update-user",
           title: "Update user",
-          description: "Ubah profil akun, password, role, atau status user sesuai kebutuhan operasional.",
+          description: "Ubah profil akun, role, atau status user sesuai kebutuhan operasional.",
           content: <UpdateUserForm userList={userList} roleOptions={roleOptions} />,
+        },
+        {
+          id: "reset-user-password",
+          title: "Reset password",
+          description: "Atur password baru untuk user aktif dan cabut sesi yang sedang berjalan.",
+          content: <ResetUserPasswordForm userList={userList} />,
         },
         {
           id: "deactivate-user",
@@ -113,4 +119,3 @@ export function UsersSection({
     </div>
   )
 }
-

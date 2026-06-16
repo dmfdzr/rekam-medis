@@ -9,7 +9,7 @@ import { Download } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import { TextField } from "@/components/shared/forms"
-import { EmptyState } from "@/components/shared/feedback"
+import { EmptyState, InlineErrorState, LoadingState } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
 
@@ -39,6 +39,8 @@ export function ReportDetailTable({
   rows: string[][]
   emptyDetail: string
 }) {
+  const tableMinWidth = columns.length >= 4 ? "min-w-[640px]" : columns.length === 3 ? "min-w-[520px]" : "min-w-[360px]"
+
   return (
     <Panel title={title} description={description}>
       {rows.length === 0 ? (
@@ -46,7 +48,7 @@ export function ReportDetailTable({
       ) : (
         <>
           <div className="hidden overflow-x-auto lg:block">
-            <table className="w-full min-w-[210px] text-left text-sm">
+            <table className={cn("w-full text-left text-sm", tableMinWidth)}>
               <thead className="border-b border-border text-xs text-muted-foreground">
                 <tr>
                   {columns.map((column) => (
@@ -165,43 +167,47 @@ export function ReportsSection({
 
   return (
     <div className="grid gap-5">
-      <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
-        {reports.map((report) => (
-          <MetricCard key={report.label} label={report.label} value={report.value} change={report.trend} detail={report.period} tone="text-primary" />
-        ))}
-      </div>
+      {reports.length === 0 ? (
+        <EmptyState title="Laporan tidak tersedia" detail="Role aktif tidak memiliki akses ke ringkasan laporan pada halaman ini." />
+      ) : (
+        <div className="grid gap-3 sm:grid-cols-2 xl:grid-cols-4">
+          {reports.map((report) => (
+            <MetricCard key={report.label} label={report.label} value={report.value} change={report.trend} detail={report.period} tone="text-primary" />
+          ))}
+        </div>
+      )}
       <Panel title="Export laporan" description="Filter tanggal wajib untuk menjaga query laporan tetap cepat saat database membesar.">
-        <div className="flex flex-col gap-3 sm:flex-row">
+        <div className="flex flex-col gap-3 xl:flex-row xl:items-start">
           {dateRangeError ? (
             <>
-              <Button size="lg" disabled>
+              <Button size="lg" className="w-full sm:w-fit" disabled>
                 <Download className="size-4" aria-hidden="true" />
                 Export PDF
               </Button>
-              <Button size="lg" variant="outline" disabled>
+              <Button size="lg" variant="outline" className="w-full sm:w-fit" disabled>
                 <Download className="size-4" aria-hidden="true" />
                 Export CSV ringkasan
               </Button>
-              <Button size="lg" variant="outline" disabled>
+              <Button size="lg" variant="outline" className="w-full sm:w-fit" disabled>
                 <Download className="size-4" aria-hidden="true" />
                 Export Excel
               </Button>
             </>
           ) : (
             <>
-              <Button asChild size="lg">
+              <Button asChild size="lg" className="w-full sm:w-fit">
                 <a href={pdfExportHref}>
                   <Download className="size-4" aria-hidden="true" />
                   Export PDF
                 </a>
               </Button>
-              <Button asChild size="lg" variant="outline">
+              <Button asChild size="lg" variant="outline" className="w-full sm:w-fit">
                 <a href={csvExportHref}>
                   <Download className="size-4" aria-hidden="true" />
                   Export CSV ringkasan
                 </a>
               </Button>
-              <Button asChild size="lg" variant="outline">
+              <Button asChild size="lg" variant="outline" className="w-full sm:w-fit">
                 <a href={spreadsheetExportHref}>
                   <Download className="size-4" aria-hidden="true" />
                   Export Excel
@@ -209,7 +215,7 @@ export function ReportsSection({
               </Button>
             </>
           )}
-          <div className="rounded-md border border-cyan-200 bg-cyan-50 p-3 text-sm leading-6 text-cyan-950 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-100">
+          <div className="min-w-0 rounded-md border border-cyan-200 bg-cyan-50 p-3 text-sm leading-6 text-cyan-950 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-100 xl:flex-1">
             {dateRangeError ? dateRangeError : startDate || endDate ? `Filter aktif: ${startDate || "awal"} sampai ${endDate || "hari ini"}.` : "Gunakan tombol Filter untuk membatasi laporan berdasarkan tanggal."}
           </div>
         </div>
@@ -257,10 +263,9 @@ export function ReportsSection({
           <TextField name="startDate" label="Tanggal mulai" type="date" value={startDate} onValueChange={setStartDate} />
           <TextField name="endDate" label="Tanggal akhir" type="date" value={endDate} onValueChange={setEndDate} />
         </div>
+        {isLoading ? <LoadingState title="Memuat laporan" detail="Filter tanggal sedang diterapkan ke ringkasan dan detail laporan." /> : null}
         {error || dateRangeError ? (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-            {error || dateRangeError}
-          </div>
+          <InlineErrorState title="Laporan tidak dapat dimuat" detail={error || dateRangeError} />
         ) : null}
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" size="lg" onClick={resetReportFilter}>

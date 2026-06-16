@@ -85,7 +85,7 @@ export async function loginAction(_state: LoginFormState, formData: FormData): P
     }
   }
 
-  redirect("/")
+  redirect("/app")
 }
 
 export async function logoutAction() {

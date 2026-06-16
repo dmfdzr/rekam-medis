@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
-  await page.goto('/');
+  await page.goto('/login');
   await page.getByLabel('Email atau username').fill('pendaftaran');
   await page.locator('input[name="password"]').fill('pendaftaran123');
   await page.getByRole('button', { name: 'Masuk' }).click();

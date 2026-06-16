@@ -32,7 +32,7 @@ export function ConfirmSubmitButton({
 
   return (
     <>
-      <Button type="button" variant={variant} size="lg" className="w-full sm:w-fit" disabled={disabled || pending} onClick={() => setOpen(true)}>
+      <Button type="button" variant={variant} size="lg" className="w-full sm:w-fit" disabled={disabled || pending} aria-busy={pending} onClick={() => setOpen(true)}>
         {pending ? pendingLabel : children}
       </Button>
       <button ref={submitButtonRef} type="submit" name={name} value={value} className="hidden" tabIndex={-1} aria-hidden="true" />
@@ -61,6 +61,7 @@ export function ConfirmSubmitButton({
                 variant={isDestructive ? "destructive" : "default"}
                 className="w-full sm:w-auto"
                 disabled={pending}
+                aria-busy={pending}
                 onClick={() => {
                   if (submitButtonRef.current) {
                     submitButtonRef.current.click()

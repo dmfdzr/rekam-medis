@@ -139,9 +139,9 @@ function SidebarContent({
   user?: AppUser
 }) {
   return (
-    <div className={cn("flex h-full flex-col", collapsed ? "items-center gap-4" : "gap-0")}>
-      <div className={cn("flex w-full shrink-0 items-start justify-between gap-3 pb-4", collapsed ? "justify-center" : "")}>
-        <div className="flex min-w-0 items-center gap-3">
+    <div className="flex h-full flex-col gap-0">
+      <div className={cn("flex h-11 w-full shrink-0 items-center justify-between gap-3", collapsed ? "justify-center" : "")}>
+        <div className={cn("flex min-w-0 items-center gap-3", collapsed ? "justify-center" : "")}>
           <Image src="/assets/health.png" alt="MedNote Logo" width={32} height={32} className="size-8 shrink-0 bg-transparent" />
           <div className={cn("min-w-0", collapsed ? "sr-only" : "")}>
             <p className="truncate text-sm font-semibold">MedNote</p>
@@ -158,8 +158,8 @@ function SidebarContent({
       <nav
         aria-label="Navigasi utama"
         className={cn(
-          "min-h-0 flex-1 overflow-y-auto pb-2",
-          collapsed ? "grid w-full justify-items-center gap-1" : "grid w-full content-start gap-1",
+          "mt-4 min-h-0 flex-1 overflow-y-auto pb-2",
+          collapsed ? "grid w-full content-start justify-items-center gap-1.5" : "grid w-full content-start gap-1",
         )}
       >
         {navigation.map((item) => {
@@ -173,14 +173,14 @@ function SidebarContent({
               title={collapsed ? item.label : undefined}
               onClick={() => onNavigate(item.id)}
               className={cn(
-                "flex min-h-11 items-center rounded-md text-left text-sm transition",
-                collapsed ? "w-11 justify-center px-0" : "w-full gap-3 px-3 py-2",
+                "flex h-11 items-center rounded-md text-left text-sm transition",
+                collapsed ? "size-11 justify-center p-0" : "w-full gap-3 px-3",
                 selected
                   ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm"
                   : "text-sidebar-foreground hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
               )}
             >
-              <Icon className="size-4" aria-hidden="true" />
+              <Icon className="size-4 shrink-0" aria-hidden="true" />
               <span className={cn("truncate", collapsed ? "sr-only" : "")}>{item.label}</span>
             </button>
           )

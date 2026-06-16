@@ -53,24 +53,12 @@ export function MedicinesSection({
     : []
   const medicineStatuses = React.useMemo(() => getUniqueOptions(medicines, (medicine) => medicine.status), [medicines])
   const medicineInsights = React.useMemo(() => {
-    const today = new Date()
-    today.setHours(0, 0, 0, 0)
-    const nextThirtyDays = new Date(today)
-    nextThirtyDays.setDate(today.getDate() + 30)
-
     return {
       total: medicines.length,
       lowStock: medicines.filter((medicine) => medicine.status === "Stok rendah").length,
       expired: medicines.filter((medicine) => medicine.status === "Kedaluwarsa").length,
-      expiringSoon: medicines.filter((medicine) => {
-        if (medicine.expires === "-" || medicine.status === "Kedaluwarsa") {
-          return false
-        }
-
-        const expiresAt = new Date(medicine.expires)
-
-        return !Number.isNaN(expiresAt.getTime()) && expiresAt >= today && expiresAt <= nextThirtyDays
-      }).length,
+      expiringSoon: medicines.filter((medicine) => medicine.expiringSoon).length,
+      blockedForPrescription: medicines.filter((medicine) => !medicine.canUseForPrescription).length,
     }
   }, [medicines])
   const searchSelector = React.useCallback(
@@ -86,7 +74,7 @@ export function MedicinesSection({
 
   return (
     <div className="grid gap-5">
-      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-5">
         <div className="rounded-md border border-border bg-card p-4">
           <p className="text-xs text-muted-foreground">Total obat</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums">{medicineInsights.total}</p>
@@ -102,6 +90,10 @@ export function MedicinesSection({
         <div className="rounded-md border border-amber-400/30 bg-amber-50 p-4 dark:bg-amber-400/10">
           <p className="text-xs text-amber-800 dark:text-amber-200">Hampir kedaluwarsa</p>
           <p className="mt-1 text-2xl font-semibold tabular-nums text-amber-900 dark:text-amber-100">{medicineInsights.expiringSoon}</p>
+        </div>
+        <div className="rounded-md border border-border bg-card p-4">
+          <p className="text-xs text-muted-foreground">Tidak bisa diresepkan</p>
+          <p className="mt-1 text-2xl font-semibold tabular-nums">{medicineInsights.blockedForPrescription}</p>
         </div>
       </div>
       <Panel title="Daftar obat dan inventori" description="Manajemen stok dan harga obat. Obat aktif bisa dipilih dokter untuk resep.">
@@ -146,6 +138,7 @@ export function MedicinesSection({
                       <td className="py-4 pr-4">
                         <div className="grid gap-2">
                           <StatusBadge label={medicine.status} />
+                          <span className="text-xs text-muted-foreground">{medicine.usageStatus}</span>
                           {medicine.expires !== "-" ? <span className="text-xs text-muted-foreground">Exp. {medicine.expires}</span> : null}
                         </div>
                       </td>
@@ -175,6 +168,10 @@ export function MedicinesSection({
                     <p>
                       <span className="text-muted-foreground">Stok: </span>
                       {medicine.stock} {medicine.unit} (Min. {medicine.min})
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Resep: </span>
+                      {medicine.usageStatus}
                     </p>
                     <p>
                       <span className="text-muted-foreground">Harga: </span>
@@ -216,4 +213,3 @@ export function MedicinesSection({
     </div>
   )
 }
-

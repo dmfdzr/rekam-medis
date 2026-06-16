@@ -40,6 +40,8 @@ export function CreateMedicineForm() {
 export function UpdateMedicineForm({ medicines }: { medicines: MedicineListItem[] }) {
   const [state, formAction, pending] = React.useActionState(updateMedicineAction, initialClinicFormState)
   useRefreshOnSuccess(state)
+  const [selectedMedicineId, setSelectedMedicineId] = React.useState("")
+  const selectedMedicine = medicines.find((medicine) => medicine.id === selectedMedicineId)
 
   if (medicines.length === 0) {
     return <EmptyState title="Belum ada obat" detail="Tambahkan master obat terlebih dahulu sebelum memperbarui inventori." />
@@ -52,6 +54,8 @@ export function UpdateMedicineForm({ medicines }: { medicines: MedicineListItem[
           <span className="text-sm font-medium">Obat</span>
           <select
             name="medicineId"
+            value={selectedMedicineId}
+            onChange={(event) => setSelectedMedicineId(event.target.value)}
             className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
             aria-invalid={Boolean(state.errors?.medicineId)}
           >
@@ -64,6 +68,26 @@ export function UpdateMedicineForm({ medicines }: { medicines: MedicineListItem[
           </select>
           <FieldError message={state.errors?.medicineId?.[0]} />
         </label>
+        {selectedMedicine ? (
+          <div className="grid gap-2 rounded-md border border-border bg-card p-3 text-sm sm:grid-cols-2">
+            <p>
+              <span className="text-muted-foreground">Status: </span>
+              {selectedMedicine.status} - {selectedMedicine.usageStatus}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Stok: </span>
+              {selectedMedicine.stock} {selectedMedicine.unit} (Min. {selectedMedicine.min})
+            </p>
+            <p>
+              <span className="text-muted-foreground">Sinyal: </span>
+              {selectedMedicine.stockSignal}
+            </p>
+            <p>
+              <span className="text-muted-foreground">Exp: </span>
+              {selectedMedicine.expires}
+            </p>
+          </div>
+        ) : null}
         <div className="grid gap-3 sm:grid-cols-2">
           <TextField name="name" label="Nama obat" error={state.errors?.name?.[0]} />
           <TextField name="category" label="Kategori" error={state.errors?.category?.[0]} />
@@ -138,4 +162,3 @@ export function DeactivateMedicineForm({ medicines }: { medicines: MedicineListI
     </form>
   )
 }
-

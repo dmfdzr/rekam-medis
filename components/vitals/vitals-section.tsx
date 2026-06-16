@@ -122,17 +122,20 @@ export function VitalsSection({
   composerOpen: boolean
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const activeVisit = clinicalWorklist[0]
   const canInput = role === "admin" || role === "nurse"
 
   return (
     <div className="grid gap-5">
-      <Panel title="Pasien aktif" description="Ringkasan pasien sebelum input tanda vital.">
-        {activeVisit ? (
-          <>
-            <VisitSummaryCard visit={activeVisit} />
-            <VitalSignGrid visit={activeVisit} />
-          </>
+      <Panel title="Daftar pasien aktif" description="Ringkasan kunjungan dan tanda vital pasien yang masih berada dalam alur layanan.">
+        {clinicalWorklist.length > 0 ? (
+          <div className="grid gap-4 xl:grid-cols-2">
+            {clinicalWorklist.map((visit) => (
+              <div key={visit.id} className="rounded-md border border-border bg-background p-3">
+                <VisitSummaryCard visit={visit} />
+                <VitalSignGrid visit={visit} />
+              </div>
+            ))}
+          </div>
         ) : (
           <EmptyState title="Tidak ada kunjungan aktif" detail="Kunjungan dengan status menunggu, tanda vital, atau pemeriksaan akan muncul di sini." />
         )}
@@ -143,4 +146,3 @@ export function VitalsSection({
     </div>
   )
 }
-
