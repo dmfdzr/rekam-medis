@@ -13,9 +13,166 @@ import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { ListToolbar } from "@/components/shared/list-controls"
-import { FileText, Download } from "lucide-react"
+import { Download, FileText } from "lucide-react"
 
 const initialClinicFormState: ClinicFormState = {}
+
+function DetailItem({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words text-sm leading-6">{value}</p>
+    </div>
+  )
+}
+
+function DetailList({
+  title,
+  items,
+  renderItem,
+}: {
+  title: string
+  items: readonly unknown[]
+  renderItem: (item: never) => React.ReactNode
+}) {
+  return (
+    <div className="rounded-md border border-border bg-card p-4">
+      <p className="text-sm font-semibold">{title}</p>
+      {items.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">Tidak ada data.</p>
+      ) : (
+        <div className="mt-3 grid gap-2">{items.map((item, index) => <React.Fragment key={index}>{renderItem(item as never)}</React.Fragment>)}</div>
+      )}
+    </div>
+  )
+}
+
+export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHistoryItem }) {
+  const [open, setOpen] = React.useState(false)
+
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <FileText className="size-3" aria-hidden="true" />
+        Detail rekam medis
+      </Button>
+      <ModalDialog open={open} onOpenChange={setOpen} title={`Rekam medis ${record.patient}`} description={`${record.medicalRecordNumber} - ${record.visitDate} ${record.visitTime}`}>
+        <div className="grid gap-4">
+          <div className="flex flex-wrap items-center gap-2">
+            <StatusBadge label={record.status} />
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">{record.service}</span>
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Finalisasi {record.finalizedAt}</span>
+          </div>
+
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailItem label="Pasien" value={record.patient} />
+            <DetailItem label="No. RM" value={record.medicalRecordNumber} />
+            <DetailItem label="Profil pasien" value={record.patientMeta} />
+            <DetailItem label="Alergi" value={record.allergies} />
+            <DetailItem label="Telepon" value={record.patientPhone} />
+            <DetailItem label="Alamat" value={record.patientAddress} />
+            <DetailItem label="Dokter" value={record.doctor} />
+            <DetailItem label="Keluhan utama" value={record.chiefComplaint} />
+          </div>
+
+          {record.vitalSignDetail ? (
+            <div className="grid gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-2">
+              <DetailItem label="Tekanan darah" value={`${record.vitalSignDetail.bloodPressure} mmHg`} />
+              <DetailItem label="Suhu tubuh" value={`${record.vitalSignDetail.temperature} C`} />
+              <DetailItem label="Berat badan" value={`${record.vitalSignDetail.weight} kg`} />
+              <DetailItem label="Tinggi badan" value={`${record.vitalSignDetail.height} cm`} />
+              <DetailItem label="Nadi" value={`${record.vitalSignDetail.pulse} x/menit`} />
+              <DetailItem label="Respirasi" value={`${record.vitalSignDetail.respiration} x/menit`} />
+              <DetailItem label="Saturasi oksigen" value={`${record.vitalSignDetail.oxygenSaturation}%`} />
+              <DetailItem label="Catatan perawat" value={record.vitalSignDetail.nurseNote} />
+            </div>
+          ) : null}
+
+          <div className="grid gap-3">
+            <DetailItem label="Subjective" value={record.subjective} />
+            <DetailItem label="Objective" value={record.objective} />
+            <DetailItem label="Assessment" value={record.assessment} />
+            <DetailItem label="Plan" value={record.plan} />
+            <DetailItem label="Pemeriksaan fisik" value={record.physicalExam} />
+            <DetailItem label="Catatan dokter" value={record.doctorNote} />
+            <DetailItem label="Rencana kontrol" value={record.followUpDate} />
+          </div>
+
+          <DetailList
+            title="Diagnosa"
+            items={record.diagnosisItems}
+            renderItem={(diagnosis: MedicalRecordHistoryItem["diagnosisItems"][number]) => (
+              <div className="rounded-md bg-muted p-3 text-sm leading-6">
+                <p className="font-medium">
+                  {diagnosis.type} - {diagnosis.code} - {diagnosis.name}
+                </p>
+                <p className="text-muted-foreground">{diagnosis.note}</p>
+              </div>
+            )}
+          />
+
+          <DetailList
+            title="Tindakan"
+            items={record.treatmentItems}
+            renderItem={(treatment: MedicalRecordHistoryItem["treatmentItems"][number]) => (
+              <div className="rounded-md bg-muted p-3 text-sm leading-6">
+                <p className="font-medium">
+                  {treatment.code} - {treatment.name}
+                </p>
+                <p className="text-muted-foreground">
+                  Biaya {treatment.cost} - {treatment.note}
+                </p>
+              </div>
+            )}
+          />
+
+          <DetailList
+            title="Resep"
+            items={record.prescriptionItems}
+            renderItem={(prescription: MedicalRecordHistoryItem["prescriptionItems"][number]) => (
+              <div className="rounded-md bg-muted p-3 text-sm leading-6">
+                <p className="font-medium">
+                  {prescription.medicine} - {prescription.quantity}
+                </p>
+                <p className="text-muted-foreground">
+                  {prescription.dosage} - {prescription.usageRule} - {prescription.note}
+                </p>
+              </div>
+            )}
+          />
+
+          <DetailList
+            title="Dokumen pendukung"
+            items={record.documentItems}
+            renderItem={(document: MedicalRecordHistoryItem["documentItems"][number]) => (
+              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted p-3 text-sm">
+                <div>
+                  <p className="font-medium">{document.fileName}</p>
+                  <p className="text-muted-foreground">
+                    {document.type} - {document.uploadedAt}
+                  </p>
+                </div>
+                <Button asChild variant="outline" size="sm">
+                  <a href={document.fileUrl} target="_blank" rel="noreferrer">
+                    <Download className="size-3" aria-hidden="true" />
+                    Buka
+                  </a>
+                </Button>
+              </div>
+            )}
+          />
+
+          <Button asChild size="lg" className="w-full sm:w-fit">
+            <a href={record.documentUrl} target="_blank" rel="noreferrer">
+              <Download className="size-4" aria-hidden="true" />
+              Generate dokumen rekam medis
+            </a>
+          </Button>
+        </div>
+      </ModalDialog>
+    </>
+  )
+}
 
 export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWorklistItem[] }) {
   const [state, formAction, pending] = React.useActionState(saveMedicalRecordAction, initialClinicFormState)
@@ -170,21 +327,37 @@ export function MedicalRecordTimeline({ medicalRecordHistory }: { medicalRecordH
                     <p className="mt-1 text-muted-foreground">{record.prescriptions}</p>
                   </div>
                 ) : null}
-                {record.documents ? (
+                {record.documentItems.length > 0 ? (
                   <div className="sm:col-span-2">
                     <p className="font-medium">Dokumen Pendukung</p>
                     <div className="mt-2 flex flex-wrap gap-2">
-                      <Button type="button" variant="outline" size="sm">
-                        <FileText className="size-3" aria-hidden="true" />
-                        {record.documents}
+                      <Button asChild variant="outline" size="sm">
+                        <a href={record.documentItems[0]?.fileUrl ?? record.documentUrl} target="_blank" rel="noreferrer">
+                          <FileText className="size-3" aria-hidden="true" />
+                          {record.documents}
+                        </a>
                       </Button>
-                      <Button type="button" variant="outline" size="sm">
-                        <Download className="size-3" aria-hidden="true" />
-                        Unduh
+                      <Button asChild variant="outline" size="sm">
+                        <a href={record.documentUrl} target="_blank" rel="noreferrer">
+                          <Download className="size-3" aria-hidden="true" />
+                          Generate rekam medis
+                        </a>
                       </Button>
                     </div>
                   </div>
-                ) : null}
+                ) : (
+                  <div className="sm:col-span-2">
+                    <Button asChild variant="outline" size="sm">
+                      <a href={record.documentUrl} target="_blank" rel="noreferrer">
+                        <FileText className="size-3" aria-hidden="true" />
+                        Generate dokumen rekam medis
+                      </a>
+                    </Button>
+                  </div>
+                )}
+              </div>
+              <div className="mt-4 flex flex-wrap gap-2">
+                <MedicalRecordDetailDialog record={record} />
               </div>
             </div>
           </div>
@@ -227,4 +400,3 @@ export function MedicalRecordsSection({
     </div>
   )
 }
-

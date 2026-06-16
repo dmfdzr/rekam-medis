@@ -452,6 +452,8 @@ export async function getMedicalRecordHistory() {
               medicalRecordNumber: true,
               birthDate: true,
               gender: true,
+              address: true,
+              phone: true,
               allergies: true,
             },
           },
@@ -460,8 +462,10 @@ export async function getMedicalRecordHistory() {
             orderBy: { uploadedAt: "desc" },
             take: 3,
             select: {
+              id: true,
               fileName: true,
               type: true,
+              uploadedAt: true,
             },
           },
         },
@@ -479,6 +483,7 @@ export async function getMedicalRecordHistory() {
               medicine: {
                 select: {
                   name: true,
+                  unit: true,
                 },
               },
             },
@@ -496,8 +501,11 @@ export async function getMedicalRecordHistory() {
       patient: record.visit.patient.fullName,
       medicalRecordNumber: record.visit.patient.medicalRecordNumber,
       patientMeta: `${genderLabels[record.visit.patient.gender]}, ${calculateAge(record.visit.patient.birthDate)}`,
+      patientAddress: record.visit.patient.address ?? "-",
+      patientPhone: record.visit.patient.phone ?? "-",
       allergies: record.visit.patient.allergies ?? "Tidak ada",
       visitDate: dateFormatter.format(record.visit.visitDate),
+      visitTime: timeFormatter.format(record.visit.visitDate),
       service: record.visit.service,
       doctor: record.doctor?.name ?? "Belum ditentukan",
       status: medicalRecordStatusLabels[record.status],
@@ -506,13 +514,59 @@ export async function getMedicalRecordHistory() {
       objective: record.objective ?? "-",
       assessment: record.assessment ?? primaryDiagnosis?.name ?? "-",
       plan: record.plan ?? "-",
+      physicalExam: record.physicalExam ?? "-",
+      doctorNote: record.doctorNote ?? "-",
+      followUpDate: record.followUpDate ? dateFormatter.format(record.followUpDate) : "-",
       diagnosis: primaryDiagnosis?.name ?? record.diagnoses[0]?.name ?? "-",
+      diagnosisItems: record.diagnoses.map((diagnosis) => ({
+        id: diagnosis.id,
+        code: diagnosis.code ?? "-",
+        name: diagnosis.name,
+        type: diagnosis.type === "PRIMARY" ? "Utama" : "Tambahan",
+        note: diagnosis.note ?? "-",
+      })),
       treatments: record.treatments.map((treatment) => treatment.name).join(", ") || "-",
+      treatmentItems: record.treatments.map((treatment) => ({
+        id: treatment.id,
+        code: treatment.code ?? "-",
+        name: treatment.name,
+        cost: treatment.cost?.toString() ?? "-",
+        note: treatment.note ?? "-",
+      })),
       prescriptions: record.prescription?.items.map((item) => `${item.medicine.name} (${item.quantity})`).join(", ") ?? "-",
+      prescriptionItems:
+        record.prescription?.items.map((item) => ({
+          id: item.id,
+          medicine: item.medicine.name,
+          dosage: item.dosage,
+          usageRule: item.usageRule,
+          quantity: `${item.quantity} ${item.medicine.unit}`,
+          note: item.note ?? "-",
+        })) ?? [],
       vitalSign: record.visit.vitalSign
         ? `${record.visit.vitalSign.bloodPressure ?? "-"} mmHg, ${record.visit.vitalSign.temperature?.toString() ?? "-"} C`
         : "-",
+      vitalSignDetail: record.visit.vitalSign
+        ? {
+            bloodPressure: record.visit.vitalSign.bloodPressure ?? "-",
+            temperature: record.visit.vitalSign.temperature?.toString() ?? "-",
+            weight: record.visit.vitalSign.weight?.toString() ?? "-",
+            height: record.visit.vitalSign.height?.toString() ?? "-",
+            pulse: record.visit.vitalSign.pulse?.toString() ?? "-",
+            respiration: record.visit.vitalSign.respiration?.toString() ?? "-",
+            oxygenSaturation: record.visit.vitalSign.oxygenSaturation?.toString() ?? "-",
+            nurseNote: record.visit.vitalSign.nurseNote ?? "-",
+          }
+        : null,
       documents: record.visit.documents.map((document) => `${documentTypeLabels[document.type]}: ${document.fileName}`).join(", ") || "-",
+      documentItems: record.visit.documents.map((document) => ({
+        id: document.id,
+        type: documentTypeLabels[document.type],
+        fileName: document.fileName,
+        uploadedAt: dateFormatter.format(document.uploadedAt),
+        fileUrl: `/documents/${document.id}`,
+      })),
+      documentUrl: `/medical-records/${record.id}/document`,
       finalizedAt: record.finalizedAt ? dateFormatter.format(record.finalizedAt) : "-",
     }
   })
@@ -553,6 +607,9 @@ export async function getPrescriptionList() {
             select: {
               name: true,
               stock: true,
+              unit: true,
+              status: true,
+              expirationDate: true,
             },
           },
         },
@@ -566,9 +623,51 @@ export async function getPrescriptionList() {
     medicalRecordNumber: prescription.medicalRecord.visit.patient.medicalRecordNumber,
     doctor: prescription.doctor?.name ?? "Belum ditentukan",
     pharmacist: prescription.pharmacist?.name ?? "-",
-    items: prescription.items.map((item) => `${item.medicine.name} (${item.quantity})`).join(", ") || "-",
+    items: prescription.items.map((item) => `${item.medicine.name} (${item.quantity} ${item.medicine.unit})`).join(", ") || "-",
+    itemDetails: prescription.items.map((item) => {
+      const medicineStatus = getMedicineDisplayStatus({
+        status: item.medicine.status,
+        stock: item.medicine.stock,
+        minimumStock: 0,
+        expirationDate: item.medicine.expirationDate,
+      })
+      const isExpired = medicineStatus === medicineStatusLabels.EXPIRED
+      const isInactive = medicineStatus === medicineStatusLabels.INACTIVE
+      const isInsufficient = item.medicine.stock < item.quantity
+
+      return {
+        id: item.id,
+        medicine: item.medicine.name,
+        dosage: item.dosage,
+        usageRule: item.usageRule,
+        quantity: item.quantity,
+        unit: item.medicine.unit,
+        requested: `${item.quantity} ${item.medicine.unit}`,
+        stock: `${item.medicine.stock} ${item.medicine.unit}`,
+        remainingAfterProcess: `${Math.max(item.medicine.stock - item.quantity, 0)} ${item.medicine.unit}`,
+        note: item.note ?? "-",
+        status: isInactive ? "Obat nonaktif" : isExpired ? "Kedaluwarsa" : isInsufficient ? "Stok kurang" : "Stok cukup",
+        canProcess: !isInactive && !isExpired && !isInsufficient,
+      }
+    }),
     status: prescriptionStatusLabels[prescription.status],
-    stock: prescription.items.some((item) => item.medicine.stock < item.quantity) ? "Stok kurang" : "Cukup",
+    stock: prescription.items.some((item) => item.medicine.status === "INACTIVE")
+      ? "Obat nonaktif"
+      : prescription.items.some((item) => item.medicine.status === "EXPIRED" || (item.medicine.expirationDate && item.medicine.expirationDate < startOfToday()))
+        ? "Kedaluwarsa"
+        : prescription.items.some((item) => item.medicine.stock < item.quantity)
+          ? "Stok kurang"
+          : "Cukup",
+    canProcess:
+      (prescription.status === "PENDING" || prescription.status === "VALIDATING_STOCK") &&
+      prescription.items.length > 0 &&
+      prescription.items.every(
+        (item) =>
+          item.medicine.status !== "INACTIVE" &&
+          item.medicine.status !== "EXPIRED" &&
+          (!item.medicine.expirationDate || item.medicine.expirationDate >= startOfToday()) &&
+          item.medicine.stock >= item.quantity,
+      ),
     createdAt: dateFormatter.format(prescription.createdAt),
   }))
 }

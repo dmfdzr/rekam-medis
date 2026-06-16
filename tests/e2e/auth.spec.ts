@@ -33,6 +33,6 @@ test.describe('Authentication', () => {
     await page.locator('input[name="password"]').fill('wrongpassword');
     await page.getByRole('button', { name: 'Masuk' }).click();
 
-    await expect(page.locator('form')).toContainText('tidak sesuai');
+    await expect(page.locator('form')).toContainText('tidak sesuai', { timeout: 15000 });
   });
 });

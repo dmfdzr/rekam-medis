@@ -6,7 +6,7 @@ import { createMedicalDocumentAction, type ClinicFormState } from "@/app/actions
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { FieldError, FormMessage } from "@/components/shared/forms"
+import { FieldError, FormMessage, TextAreaField, TextField } from "@/components/shared/forms"
 import { EmptyState } from "@/components/shared/feedback"
 import { Button } from "@/components/ui/button"
 
@@ -54,23 +54,23 @@ export function MedicalDocumentForm({ documentOptions }: { documentOptions: Docu
           <option value="OTHER">Lainnya</option>
         </select>
       </label>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">File dokumen</span>
-        <input
-          name="file"
-          type="file"
-          accept="application/pdf,image/jpeg,image/png,image/webp"
-          className="min-h-11 rounded-md border border-input bg-background px-3 py-2 text-sm file:mr-3 file:rounded-md file:border-0 file:bg-muted file:px-3 file:py-1.5 file:text-xs file:font-medium focus:border-ring focus:ring-2 focus:ring-ring/25 focus:outline-none"
-          aria-invalid={Boolean(state.errors?.file)}
-        />
-        <p className="text-xs text-muted-foreground">PDF, JPG, PNG, atau WebP. Maksimal 2 MB.</p>
-        <FieldError message={state.errors?.file?.[0]} />
-      </label>
+      <TextField
+        name="documentName"
+        label="Nama dokumen"
+        error={state.errors?.documentName?.[0]}
+        placeholder="Contoh: Ringkasan kunjungan, hasil lab luar, surat kontrol"
+      />
+      <TextAreaField
+        name="referenceNote"
+        label="Catatan referensi"
+        error={state.errors?.referenceNote?.[0]}
+        placeholder="Isi nomor referensi, lokasi arsip fisik, atau catatan sumber dokumen eksternal."
+      />
+      <FieldError message={state.errors?.file?.[0]} />
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
-        {pending ? "Mengunggah..." : "Upload dokumen"}
+        {pending ? "Menyimpan..." : "Simpan dokumen"}
       </Button>
     </form>
   )
 }
-

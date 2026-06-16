@@ -55,18 +55,18 @@ export function DocumentsSection({
 
   return (
     <div className="grid gap-5">
-      <Panel title="Dokumen terbaru" description="Akses dokumen mengikuti permission pasien dan kunjungan.">
+      <Panel title="Dokumen terbaru" description="Dokumen sistem dibuat saat dibuka, sedangkan dokumen eksternal dicatat sebagai referensi.">
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}
-          searchPlaceholder="Cari pasien, RM, nama file, tipe, uploader"
+          searchPlaceholder="Cari pasien, RM, nama dokumen, tipe, pencatat"
           resultCount={controls.totalItems}
           totalCount={documents.length}
         />
         {controls.paginatedItems.length === 0 ? (
           <EmptyState
             title={documents.length === 0 ? "Belum ada dokumen" : "Dokumen tidak ditemukan"}
-            detail={documents.length === 0 ? "Dokumen medis yang diupload akan tampil dengan pasien, tipe, uploader, dan akses file." : "Ubah kata kunci atau filter tipe dokumen."}
+            detail={documents.length === 0 ? "Dokumen medis akan tampil dengan pasien, tipe, pencatat, dan akses generate." : "Ubah kata kunci atau filter tipe dokumen."}
           />
         ) : (
           <>
@@ -86,7 +86,7 @@ export function DocumentsSection({
                   <Button asChild variant="outline" size="sm" className="mt-3 w-fit">
                     <a href={document.fileUrl} target="_blank" rel="noreferrer">
                       <Download className="size-3" aria-hidden="true" />
-                      Buka dokumen
+                      Buka / generate
                     </a>
                   </Button>
                   <p className="mt-3 text-xs text-muted-foreground">
@@ -109,10 +109,9 @@ export function DocumentsSection({
         onFilterChange={controls.setFilterValue}
         filterOptions={documentTypes}
       />
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola dokumen" description="File disimpan aman dan hanya dapat dibuka oleh role yang berwenang.">
-        {canCreate ? <MedicalDocumentForm documentOptions={documentOptions} /> : <PermissionNotice message="Upload dokumen dibatasi untuk admin, dokter, dan perawat." />}
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola dokumen" description="Simpan metadata dokumen; isi dokumen sistem dibuat otomatis saat dibuka.">
+        {canCreate ? <MedicalDocumentForm documentOptions={documentOptions} /> : <PermissionNotice message="Kelola dokumen dibatasi untuk admin, dokter, dan perawat." />}
       </ModalDialog>
     </div>
   )
 }
-

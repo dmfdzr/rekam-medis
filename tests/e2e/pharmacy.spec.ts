@@ -15,9 +15,17 @@ test.describe('Pharmacy Workflow', () => {
     if (await page.getByText('Belum ada resep').isVisible()) {
       await expect(page.getByText('Resep dokter akan tampil')).toBeVisible();
     } else {
+      await page.getByRole('button', { name: 'Detail' }).first().click();
+      const detailDialog = page.getByRole('dialog');
+      await expect(detailDialog.getByText('Item obat')).toBeVisible();
+      await expect(detailDialog.getByText(/Diminta:/).first()).toBeVisible();
+      await expect(detailDialog.getByText(/Stok:/).first()).toBeVisible();
+      await page.getByRole('button', { name: 'Tutup dialog' }).click();
+
       await page.getByRole('button', { name: 'Kelola resep' }).click();
       await page.getByRole('button', { name: 'Proses resep' }).click();
       await expect(page.locator('select[name="prescriptionId"]')).toBeVisible();
+      await expect(page.getByText(/sisa setelah proses/i).first()).toBeVisible();
     }
   });
 });

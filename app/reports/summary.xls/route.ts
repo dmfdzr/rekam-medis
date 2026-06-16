@@ -1,6 +1,6 @@
 import { NextResponse } from "next/server"
 
-import { auditReportAccess, escapeHtml, forbiddenReportResponse, getAuthorizedReportBundle } from "@/lib/reports/export"
+import { auditReportAccess, escapeHtml, getAuthorizedReportContext, reportExportFileName } from "@/lib/reports/export"
 
 function buildRows(rows: string[][]) {
   return rows
@@ -23,21 +23,23 @@ function buildSection(title: string, headers: string[], rows: string[][]) {
 }
 
 export async function GET(request: Request) {
-  const bundle = await getAuthorizedReportBundle(request)
+  const context = await getAuthorizedReportContext(request)
 
-  if (!bundle) {
-    return forbiddenReportResponse()
+  if (!context.ok) {
+    return context.response
   }
 
-  await auditReportAccess(request, "excel")
+  await auditReportAccess(request, "excel", context)
 
-  const { reports, details } = bundle
+  const { reports, details } = context.bundle
   const workbook = `<!doctype html>
 <html>
   <head>
     <meta charset="utf-8" />
   </head>
   <body>
+    <h1>MedNote - Laporan</h1>
+    <p>Periode: ${escapeHtml(context.dateOptions.periodLabel)}</p>
     ${buildSection(
       "Ringkasan",
       ["Laporan", "Periode", "Nilai", "Trend"],
@@ -68,7 +70,7 @@ export async function GET(request: Request) {
 
   return new NextResponse(workbook, {
     headers: {
-      "content-disposition": 'attachment; filename="medrecord-report-summary.xls"',
+      "content-disposition": `attachment; filename="${reportExportFileName("excel", context.dateOptions.periodSlug)}"`,
       "content-type": "application/vnd.ms-excel; charset=utf-8",
     },
   })

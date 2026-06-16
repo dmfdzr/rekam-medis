@@ -63,6 +63,8 @@ export function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOpti
 export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: PrescriptionListItem[] }) {
   const [state, formAction, pending] = React.useActionState(processPrescriptionAction, initialClinicFormState)
   const pendingPrescriptions = prescriptions.filter((prescription) => prescription.status === "Pending" || prescription.status === "Validasi stok")
+  const [selectedPrescriptionId, setSelectedPrescriptionId] = React.useState(pendingPrescriptions[0]?.id ?? "")
+  const selectedPrescription = pendingPrescriptions.find((prescription) => prescription.id === selectedPrescriptionId)
 
   if (pendingPrescriptions.length === 0) {
     return <EmptyState title="Tidak ada resep pending" detail="Resep yang belum diproses akan muncul untuk divalidasi stok oleh apoteker." />
@@ -72,7 +74,12 @@ export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Pres
     <form action={formAction} className="grid gap-4" noValidate>
       <label className="grid gap-1.5">
         <span className="text-sm font-medium">Resep</span>
-        <select name="prescriptionId" className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
+        <select
+          name="prescriptionId"
+          value={selectedPrescriptionId}
+          onChange={(event) => setSelectedPrescriptionId(event.target.value)}
+          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+        >
           {pendingPrescriptions.map((prescription) => (
             <option key={prescription.id} value={prescription.id}>
               {prescription.medicalRecordNumber} - {prescription.patient} - {prescription.items}
@@ -80,8 +87,50 @@ export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Pres
           ))}
         </select>
       </label>
+      {selectedPrescription ? (
+        <div className="grid gap-3 rounded-md border border-border bg-card p-4">
+          <div className="flex flex-wrap items-center justify-between gap-2">
+            <div>
+              <p className="text-sm font-semibold">{selectedPrescription.patient}</p>
+              <p className="mt-1 text-xs text-muted-foreground">
+                {selectedPrescription.medicalRecordNumber} - {selectedPrescription.doctor}
+              </p>
+            </div>
+            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Stok {selectedPrescription.stock}</span>
+          </div>
+          <div className="grid gap-2">
+            {selectedPrescription.itemDetails.map((item) => (
+              <div key={item.id} className="rounded-md bg-muted p-3 text-sm leading-6">
+                <div className="flex flex-wrap items-start justify-between gap-2">
+                  <div>
+                    <p className="font-medium">{item.medicine}</p>
+                    <p className="text-muted-foreground">
+                      {item.dosage} - {item.usageRule}
+                    </p>
+                  </div>
+                  <span className="rounded-md bg-background px-2 py-1 text-xs text-muted-foreground">{item.status}</span>
+                </div>
+                <p className="mt-2 text-muted-foreground">
+                  Diminta {item.requested}, stok {item.stock}, sisa setelah proses {item.remainingAfterProcess}.
+                </p>
+              </div>
+            ))}
+          </div>
+          {!selectedPrescription.canProcess ? (
+            <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
+              Resep ini belum bisa diproses. Periksa stok, status obat, atau tanggal kedaluwarsa sebelum melanjutkan.
+            </div>
+          ) : null}
+        </div>
+      ) : null}
       <FormMessage state={state} />
-      <ConfirmSubmitButton message="Proses resep ini dan kurangi stok obat?" confirmLabel="Proses resep" pending={pending} pendingLabel="Memproses...">
+      <ConfirmSubmitButton
+        message="Proses resep ini dan kurangi stok obat?"
+        confirmLabel="Proses resep"
+        pending={pending}
+        pendingLabel="Memproses..."
+        disabled={!selectedPrescription?.canProcess}
+      >
         Proses resep
       </ConfirmSubmitButton>
     </form>
@@ -128,4 +177,3 @@ export function CancelPrescriptionForm({ prescriptions }: { prescriptions: Presc
     </form>
   )
 }
-

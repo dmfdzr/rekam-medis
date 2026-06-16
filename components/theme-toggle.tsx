@@ -15,12 +15,12 @@ export function ThemeToggle({ className }: { className?: string }) {
       variant="outline"
       size="icon-lg"
       className={className}
-      aria-label={isDark ? "Aktifkan light mode" : "Aktifkan dark mode"}
-      title={isDark ? "Light mode" : "Dark mode"}
+      aria-label="Ganti tema"
+      title="Ganti tema"
       onClick={() => setTheme(isDark ? "light" : "dark")}
     >
-      {isDark ? <Sun className="size-4" aria-hidden="true" /> : <Moon className="size-4" aria-hidden="true" />}
+      <Sun className="hidden size-4 dark:block" aria-hidden="true" />
+      <Moon className="size-4 dark:hidden" aria-hidden="true" />
     </Button>
   )
 }
-

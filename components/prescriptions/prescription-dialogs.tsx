@@ -11,7 +11,6 @@ import { PatientDetailItem } from "@/components/patients/patient-dialog"
 
 export function PrescriptionDetailDialog({ prescription }: { prescription: PrescriptionListItem }) {
   const [open, setOpen] = React.useState(false)
-  const medicineItems = prescription.items === "-" ? [] : prescription.items.split(",").map((item) => item.trim())
 
   return (
     <>
@@ -35,13 +34,27 @@ export function PrescriptionDetailDialog({ prescription }: { prescription: Presc
 
           <div className="rounded-md border border-border bg-card p-4">
             <p className="text-sm font-semibold">Item obat</p>
-            {medicineItems.length === 0 ? (
+            {prescription.itemDetails.length === 0 ? (
               <p className="mt-2 text-sm text-muted-foreground">Belum ada item obat.</p>
             ) : (
               <div className="mt-3 grid gap-2">
-                {medicineItems.map((item) => (
-                  <div key={item} className="rounded-md bg-muted px-3 py-2 text-sm leading-6">
-                    {item}
+                {prescription.itemDetails.map((item) => (
+                  <div key={item.id} className="rounded-md bg-muted px-3 py-2 text-sm leading-6">
+                    <div className="flex flex-wrap items-start justify-between gap-2">
+                      <div>
+                        <p className="font-medium">{item.medicine}</p>
+                        <p className="text-muted-foreground">
+                          {item.dosage} - {item.usageRule}
+                        </p>
+                      </div>
+                      <StatusBadge label={item.status} />
+                    </div>
+                    <div className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-3">
+                      <p>Diminta: {item.requested}</p>
+                      <p>Stok: {item.stock}</p>
+                      <p>Sisa setelah proses: {item.remainingAfterProcess}</p>
+                    </div>
+                    {item.note !== "-" ? <p className="mt-1 text-muted-foreground">Catatan: {item.note}</p> : null}
                   </div>
                 ))}
               </div>
@@ -52,4 +65,3 @@ export function PrescriptionDetailDialog({ prescription }: { prescription: Presc
     </>
   )
 }
-

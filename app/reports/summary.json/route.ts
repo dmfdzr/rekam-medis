@@ -1,15 +1,15 @@
 import { NextResponse } from "next/server"
 
-import { auditReportAccess, forbiddenReportResponse, getAuthorizedReportBundle } from "@/lib/reports/export"
+import { auditReportAccess, getAuthorizedReportContext } from "@/lib/reports/export"
 
 export async function GET(request: Request) {
-  const bundle = await getAuthorizedReportBundle(request)
+  const context = await getAuthorizedReportContext(request)
 
-  if (!bundle) {
-    return forbiddenReportResponse()
+  if (!context.ok) {
+    return context.response
   }
 
-  await auditReportAccess(request, "json")
+  await auditReportAccess(request, "json", context)
 
-  return NextResponse.json(bundle)
+  return NextResponse.json(context.bundle)
 }

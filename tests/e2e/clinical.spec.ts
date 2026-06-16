@@ -54,4 +54,31 @@ test.describe('Clinical Workflow', () => {
       await expect(page.getByText('berhasil disimpan')).toBeVisible({ timeout: 15000 });
     }
   });
+
+  test('Doctor should be able to inspect medical record history detail', async ({ page }) => {
+    await page.goto('/');
+    await page.getByLabel('Email atau username').fill('dokter');
+    await page.locator('input[name="password"]').fill('dokter123');
+    await page.getByRole('button', { name: 'Masuk' }).click();
+    await expect(page.getByRole('heading', { name: /Dashboard/ })).toBeVisible({ timeout: 15000 });
+
+    await page.getByRole('button', { name: 'Rekam Medis' }).click();
+    await expect(page.getByRole('heading', { name: 'Rekam Medis', exact: true })).toBeVisible();
+
+    if (await page.getByText('Belum ada rekam medis').isVisible()) {
+      await expect(page.getByText('Draft dan finalisasi rekam medis')).toBeVisible();
+      return;
+    }
+
+    await page.getByRole('button', { name: 'Detail rekam medis' }).first().click();
+    const detailDialog = page.getByRole('dialog');
+    await expect(detailDialog.getByText('Subjective')).toBeVisible();
+    await expect(detailDialog.getByText('Diagnosa', { exact: true })).toBeVisible();
+    await expect(detailDialog.getByText('Tindakan', { exact: true })).toBeVisible();
+
+    const generatedPagePromise = page.waitForEvent('popup');
+    await detailDialog.getByRole('link', { name: 'Generate dokumen rekam medis' }).click();
+    const generatedPage = await generatedPagePromise;
+    await expect(generatedPage.getByRole('heading', { name: 'Rekam Medis Pasien' })).toBeVisible({ timeout: 15000 });
+  });
 });

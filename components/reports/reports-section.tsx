@@ -123,8 +123,14 @@ export function ReportsSection({
   const csvExportHref = `/reports/summary.csv${exportSuffix}`
   const spreadsheetExportHref = `/reports/summary.xls${exportSuffix}`
   const pdfExportHref = `/reports/summary.pdf${exportSuffix}`
+  const dateRangeError = startDate && endDate && endDate < startDate ? "Tanggal akhir tidak boleh lebih awal dari tanggal mulai." : ""
 
   async function applyReportFilter() {
+    if (dateRangeError) {
+      setError(dateRangeError)
+      return
+    }
+
     setIsLoading(true)
     setError("")
 
@@ -132,7 +138,8 @@ export function ReportsSection({
       const response = await fetch(`/reports/summary.json${exportQuery.size > 0 ? `?${exportQuery.toString()}` : ""}`)
 
       if (!response.ok) {
-        setError("Laporan gagal dimuat. Periksa akses atau coba ulangi.")
+        const payload = (await response.json().catch(() => null)) as { message?: string } | null
+        setError(payload?.message ?? "Laporan gagal dimuat. Periksa akses atau coba ulangi.")
         return
       }
 
@@ -165,26 +172,45 @@ export function ReportsSection({
       </div>
       <Panel title="Export laporan" description="Filter tanggal wajib untuk menjaga query laporan tetap cepat saat database membesar.">
         <div className="flex flex-col gap-3 sm:flex-row">
-          <Button asChild size="lg">
-            <a href={pdfExportHref}>
-              <Download className="size-4" aria-hidden="true" />
-              Export PDF
-            </a>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <a href={csvExportHref}>
-              <Download className="size-4" aria-hidden="true" />
-              Export CSV ringkasan
-            </a>
-          </Button>
-          <Button asChild size="lg" variant="outline">
-            <a href={spreadsheetExportHref}>
-              <Download className="size-4" aria-hidden="true" />
-              Export Excel
-            </a>
-          </Button>
+          {dateRangeError ? (
+            <>
+              <Button size="lg" disabled>
+                <Download className="size-4" aria-hidden="true" />
+                Export PDF
+              </Button>
+              <Button size="lg" variant="outline" disabled>
+                <Download className="size-4" aria-hidden="true" />
+                Export CSV ringkasan
+              </Button>
+              <Button size="lg" variant="outline" disabled>
+                <Download className="size-4" aria-hidden="true" />
+                Export Excel
+              </Button>
+            </>
+          ) : (
+            <>
+              <Button asChild size="lg">
+                <a href={pdfExportHref}>
+                  <Download className="size-4" aria-hidden="true" />
+                  Export PDF
+                </a>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <a href={csvExportHref}>
+                  <Download className="size-4" aria-hidden="true" />
+                  Export CSV ringkasan
+                </a>
+              </Button>
+              <Button asChild size="lg" variant="outline">
+                <a href={spreadsheetExportHref}>
+                  <Download className="size-4" aria-hidden="true" />
+                  Export Excel
+                </a>
+              </Button>
+            </>
+          )}
           <div className="rounded-md border border-cyan-200 bg-cyan-50 p-3 text-sm leading-6 text-cyan-950 dark:border-cyan-400/20 dark:bg-cyan-400/10 dark:text-cyan-100">
-            {startDate || endDate ? `Filter aktif: ${startDate || "awal"} sampai ${endDate || "hari ini"}.` : "Gunakan tombol Filter untuk membatasi laporan berdasarkan tanggal."}
+            {dateRangeError ? dateRangeError : startDate || endDate ? `Filter aktif: ${startDate || "awal"} sampai ${endDate || "hari ini"}.` : "Gunakan tombol Filter untuk membatasi laporan berdasarkan tanggal."}
           </div>
         </div>
       </Panel>
@@ -231,9 +257,9 @@ export function ReportsSection({
           <TextField name="startDate" label="Tanggal mulai" type="date" value={startDate} onValueChange={setStartDate} />
           <TextField name="endDate" label="Tanggal akhir" type="date" value={endDate} onValueChange={setEndDate} />
         </div>
-        {error ? (
+        {error || dateRangeError ? (
           <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-            {error}
+            {error || dateRangeError}
           </div>
         ) : null}
         <div className="flex justify-end gap-2 border-t border-border pt-4">
@@ -248,4 +274,3 @@ export function ReportsSection({
     </div>
   )
 }
-

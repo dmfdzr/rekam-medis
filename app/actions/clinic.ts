@@ -243,6 +243,8 @@ const createMedicalDocumentSchema = z.object({
   patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
   visitId: z.string().trim().optional(),
   type: z.enum(DocumentType, "Tipe dokumen wajib dipilih."),
+  documentName: z.string().trim().min(2, "Nama dokumen minimal 2 karakter.").max(120, "Nama dokumen maksimal 120 karakter."),
+  referenceNote: z.string().trim().max(500, "Catatan referensi maksimal 500 karakter.").optional(),
 })
 
 const createUserSchema = z.object({
@@ -280,13 +282,6 @@ const userMutationRoles = new Set<UserRole>([UserRole.ADMIN])
 
 function optionalString(value: string | undefined) {
   return value && value.length > 0 ? value : null
-}
-
-const maxMedicalDocumentSize = 2 * 1024 * 1024
-const allowedMedicalDocumentTypes = new Set(["application/pdf", "image/jpeg", "image/png", "image/webp"])
-
-function sanitizeFileName(fileName: string) {
-  return fileName.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 120)
 }
 
 function toDate(value: string) {
@@ -1370,6 +1365,28 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
       return { ok: false as const, message: "Resep belum memiliki item obat." }
     }
 
+    if (prescription.status === PrescriptionStatus.PROCESSED) {
+      return { ok: false as const, message: "Resep sudah diproses dan tidak dapat diproses ulang." }
+    }
+
+    if (prescription.status === PrescriptionStatus.CANCELLED) {
+      return { ok: false as const, message: "Resep sudah dibatalkan dan tidak dapat diproses." }
+    }
+
+    const inactive = prescription.items.find((item) => item.medicine.status === MedicineStatus.INACTIVE)
+
+    if (inactive) {
+      await tx.prescription.update({
+        where: { id: prescription.id },
+        data: { status: PrescriptionStatus.VALIDATING_STOCK },
+      })
+
+      return {
+        ok: false as const,
+        message: `${inactive.medicine.name} tidak aktif dan tidak dapat diproses.`,
+      }
+    }
+
     const expired = prescription.items.find((item) => item.medicine.status === MedicineStatus.EXPIRED || isExpiredDate(item.medicine.expirationDate))
 
     if (expired) {
@@ -1398,6 +1415,8 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
       }
     }
 
+    const stockChanges = []
+
     for (const item of prescription.items) {
       const nextStock = item.medicine.stock - item.quantity
 
@@ -1411,6 +1430,13 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
             expirationDate: item.medicine.expirationDate,
           }),
         },
+      })
+
+      stockChanges.push({
+        medicineName: item.medicine.name,
+        quantity: item.quantity,
+        beforeStock: item.medicine.stock,
+        afterStock: nextStock,
       })
     }
 
@@ -1432,6 +1458,7 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
       ok: true as const,
       prescriptionId: prescription.id,
       patientName: prescription.medicalRecord.visit.patient.fullName,
+      stockChanges,
     }
   })
 
@@ -1452,6 +1479,7 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
     afterData: {
       patientName: result.patientName,
       status: "PROCESSED",
+      stockChanges: result.stockChanges,
     },
   })
 
@@ -1885,6 +1913,8 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
     patientId: formData.get("patientId"),
     visitId: formData.get("visitId"),
     type: formData.get("type"),
+    documentName: formData.get("documentName"),
+    referenceNote: formData.get("referenceNote"),
   })
 
   if (!parsed.success) {
@@ -1892,32 +1922,6 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
       ok: false,
       message: "Data dokumen belum valid.",
       errors: getFieldErrors(parsed.error),
-    }
-  }
-
-  const uploadedFile = formData.get("file")
-
-  if (!(uploadedFile instanceof File) || uploadedFile.size === 0) {
-    return {
-      ok: false,
-      message: "File dokumen wajib dipilih.",
-      errors: { file: ["File dokumen wajib dipilih."] },
-    }
-  }
-
-  if (!allowedMedicalDocumentTypes.has(uploadedFile.type)) {
-    return {
-      ok: false,
-      message: "Format file belum didukung.",
-      errors: { file: ["Gunakan PDF, JPG, PNG, atau WebP."] },
-    }
-  }
-
-  if (uploadedFile.size > maxMedicalDocumentSize) {
-    return {
-      ok: false,
-      message: "Ukuran file terlalu besar.",
-      errors: { file: ["Maksimal ukuran file adalah 2 MB."] },
     }
   }
 
@@ -1934,16 +1938,15 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
     }
   }
 
-  const fileBuffer = Buffer.from(await uploadedFile.arrayBuffer())
-  const fileName = sanitizeFileName(uploadedFile.name || `dokumen-${Date.now()}`)
-  const fileUrl = `data:${uploadedFile.type};base64,${fileBuffer.toString("base64")}`
+  const referenceNote = optionalString(parsed.data.referenceNote)
+  const fileUrl = referenceNote ? `reference:${encodeURIComponent(referenceNote)}` : "generated:medical-document"
 
   const document = await prisma.medicalDocument.create({
     data: {
       patientId: parsed.data.patientId,
       visitId: optionalString(parsed.data.visitId),
       type: parsed.data.type,
-      fileName,
+      fileName: parsed.data.documentName,
       fileUrl,
       uploadedById: user.id,
     },
@@ -1955,17 +1958,19 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
     entityName: "MedicalDocument",
     entityId: document.id,
     afterData: {
-      patientName: patient.fullName,
-      type: document.type,
-      fileName: document.fileName,
-    },
-  })
+        patientName: patient.fullName,
+        type: document.type,
+        fileName: document.fileName,
+        generatedOnDemand: true,
+        hasExternalReference: Boolean(referenceNote),
+      },
+    })
 
   revalidatePath("/")
 
   return {
     ok: true,
-    message: `Dokumen ${document.fileName} untuk ${patient.fullName} berhasil disimpan.`,
+    message: `Metadata dokumen ${document.fileName} untuk ${patient.fullName} berhasil disimpan.`,
   }
 }
 

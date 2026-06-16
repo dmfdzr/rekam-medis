@@ -196,14 +196,14 @@ async function main() {
   })
 
   const visit = await prisma.visit.upsert({
-    where: { id: "visit-demo-001" },
+    where: { id: "visit-initial-001" },
     update: {
       patientId: patient.id,
       doctorId: doctor.id,
       status: VisitStatus.EXAMINATION,
     },
     create: {
-      id: "visit-demo-001",
+      id: "visit-initial-001",
       patientId: patient.id,
       doctorId: doctor.id,
       visitDate: new Date("2026-06-14T09:15:00+07:00"),
@@ -263,7 +263,7 @@ async function main() {
   })
 
   await prisma.diagnosis.upsert({
-    where: { id: "diagnosis-demo-001" },
+    where: { id: "diagnosis-initial-001" },
     update: {
       medicalRecordId: medicalRecord.id,
       code: "J06.9",
@@ -271,7 +271,7 @@ async function main() {
       type: DiagnosisType.PRIMARY,
     },
     create: {
-      id: "diagnosis-demo-001",
+      id: "diagnosis-initial-001",
       medicalRecordId: medicalRecord.id,
       code: "J06.9",
       name: "Infeksi saluran pernapasan akut",
@@ -281,14 +281,14 @@ async function main() {
   })
 
   await prisma.treatment.upsert({
-    where: { id: "treatment-demo-001" },
+    where: { id: "treatment-initial-001" },
     update: {
       medicalRecordId: medicalRecord.id,
       performerId: doctor.id,
       cost: "75000",
     },
     create: {
-      id: "treatment-demo-001",
+      id: "treatment-initial-001",
       medicalRecordId: medicalRecord.id,
       code: "CONS-GP",
       name: "Konsultasi dokter umum",
@@ -376,14 +376,14 @@ async function main() {
   })
 
   await prisma.prescriptionItem.upsert({
-    where: { id: "prescription-item-demo-001" },
+    where: { id: "prescription-item-initial-001" },
     update: {
       prescriptionId: prescription.id,
       medicineId: paracetamol.id,
       quantity: 10,
     },
     create: {
-      id: "prescription-item-demo-001",
+      id: "prescription-item-initial-001",
       prescriptionId: prescription.id,
       medicineId: paracetamol.id,
       dosage: "500mg",
@@ -394,14 +394,14 @@ async function main() {
   })
 
   await prisma.prescriptionItem.upsert({
-    where: { id: "prescription-item-demo-002" },
+    where: { id: "prescription-item-initial-002" },
     update: {
       prescriptionId: prescription.id,
       medicineId: cetirizine.id,
       quantity: 5,
     },
     create: {
-      id: "prescription-item-demo-002",
+      id: "prescription-item-initial-002",
       prescriptionId: prescription.id,
       medicineId: cetirizine.id,
       dosage: "10mg",
@@ -412,19 +412,19 @@ async function main() {
   })
 
   await prisma.medicalDocument.upsert({
-    where: { id: "document-demo-001" },
+    where: { id: "document-initial-001" },
     update: {
       patientId: patient.id,
       visitId: visit.id,
       uploadedById: nurse.id,
     },
     create: {
-      id: "document-demo-001",
+      id: "document-initial-001",
       patientId: patient.id,
       visitId: visit.id,
       type: DocumentType.SUPPORTING_DOCUMENT,
-      fileName: "pemeriksaan-awal-siti-aminah.pdf",
-      fileUrl: "supabase://medical-documents/demo/pemeriksaan-awal-siti-aminah.pdf",
+      fileName: "Ringkasan pemeriksaan awal Siti Aminah",
+      fileUrl: "generated:medical-document",
       uploadedById: nurse.id,
     },
   })
@@ -432,7 +432,7 @@ async function main() {
   await prisma.auditLog.create({
     data: {
       userId: admin.id,
-      action: "SEED_DEMO_DATA",
+      action: "SEED_INITIAL_DATA",
       entityName: "Database",
       afterData: {
         patients: 2,
