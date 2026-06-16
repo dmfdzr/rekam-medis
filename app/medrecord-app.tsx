@@ -139,8 +139,8 @@ function SidebarContent({
   user?: AppUser
 }) {
   return (
-    <div className={cn("flex h-full flex-col", collapsed ? "items-center gap-4" : "gap-5")}>
-      <div className={cn("flex w-full items-start justify-between gap-3", collapsed ? "justify-center" : "")}>
+    <div className={cn("flex h-full flex-col", collapsed ? "items-center gap-4" : "gap-0")}>
+      <div className={cn("flex w-full shrink-0 items-start justify-between gap-3 pb-4", collapsed ? "justify-center" : "")}>
         <div className="flex min-w-0 items-center gap-3">
           <Image src="/assets/health.png" alt="MedNote Logo" width={32} height={32} className="size-8 shrink-0 bg-transparent" />
           <div className={cn("min-w-0", collapsed ? "sr-only" : "")}>
@@ -155,7 +155,13 @@ function SidebarContent({
         ) : null}
       </div>
 
-      <nav aria-label="Navigasi utama" className={cn("grid w-full gap-1", collapsed ? "justify-items-center" : "")}>
+      <nav
+        aria-label="Navigasi utama"
+        className={cn(
+          "min-h-0 flex-1 overflow-y-auto pb-2",
+          collapsed ? "grid w-full justify-items-center gap-1" : "grid w-full content-start gap-1",
+        )}
+      >
         {navigation.map((item) => {
           const Icon = item.icon
           const selected = activeSection === item.id
@@ -182,8 +188,8 @@ function SidebarContent({
       </nav>
 
       {user ? (
-        <div className="mt-auto grid w-full gap-3 border-t border-sidebar-border pt-4">
-          <div className="flex min-w-0 items-center gap-3 rounded-md border border-sidebar-border bg-background/70 p-3">
+        <div className="mt-2 grid w-full shrink-0 gap-3 border-t border-sidebar-border pb-3 pt-4">
+          <div className="flex min-w-0 items-center gap-3 rounded-md border border-sidebar-border bg-background/70 p-2.5">
             <Image src="/assets/health.png" alt="MedNote Logo" width={24} height={24} className="size-6 shrink-0 bg-transparent" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user.name}</p>
@@ -193,7 +199,7 @@ function SidebarContent({
           <LogoutConfirmDialog className="w-full justify-center" />
         </div>
       ) : (
-        <div className="mt-auto" />
+        <div className="shrink-0" />
       )}
     </div>
   )
@@ -399,7 +405,7 @@ export function MedRecordApp({
           />
           <aside
             className={cn(
-              "relative h-full w-[min(22rem,88vw)] border-r border-border bg-sidebar p-4 shadow-2xl transition-transform duration-300 ease-out",
+              "relative h-full w-[min(22rem,90vw)] overflow-hidden border-r border-border bg-sidebar p-4 shadow-2xl transition-transform duration-300 ease-out",
               mobileOpen ? "translate-x-0" : "-translate-x-full",
             )}
           >
@@ -414,7 +420,7 @@ export function MedRecordApp({
           </aside>
         </div>
 
-        <main className="min-w-0 flex-1">
+        <main className="min-w-0 flex-1 overflow-x-hidden">
           <header className="sticky top-0 z-30 border-b border-border/80 bg-background/88 px-4 py-3 backdrop-blur md:px-6">
             <div className="flex items-center gap-3">
               <Button

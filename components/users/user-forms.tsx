@@ -77,7 +77,7 @@ export function UpdateUserForm({ userList, roleOptions }: { userList: UserListIt
           </select>
           <FieldError message={state.errors?.userId?.[0]} />
         </label>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <TextField name="name" label="Nama baru" error={state.errors?.name?.[0]} autoComplete="name" />
           <TextField name="email" label="Email baru" type="email" error={state.errors?.email?.[0]} autoComplete="email" />
           <TextField name="username" label="Username baru" error={state.errors?.username?.[0]} autoComplete="username" />

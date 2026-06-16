@@ -45,7 +45,7 @@ export function AuditLogDetailDialog({ log }: { log: AuditLogListItem }) {
             <PatientDetailItem label="Waktu" value={log.time} />
           </div>
 
-          <div className="grid gap-3 md:grid-cols-2">
+          <div className="grid gap-3 sm:grid-cols-2">
             <AuditPayload title="Data sebelum" value={log.beforeData} />
             <AuditPayload title="Data sesudah" value={log.afterData} />
           </div>

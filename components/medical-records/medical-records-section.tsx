@@ -219,15 +219,15 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
         <TextAreaField name="doctorNote" label="Catatan dokter" defaultValue={selectedVisit?.medicalRecord?.doctorNote} />
         <TextField name="followUpDate" label="Rencana kontrol" type="date" defaultValue={selectedVisit?.medicalRecord?.followUpDate} />
 
-        <div className="grid gap-3 rounded-md border border-border bg-card p-3 md:grid-cols-2">
+        <div className="grid gap-3 rounded-md border border-border bg-card p-3 sm:grid-cols-2">
           <TextField name="diagnosisCode" label="Kode diagnosa" defaultValue={primaryDiagnosis?.code} placeholder="J06.9" />
           <TextField name="diagnosisName" label="Diagnosa utama" defaultValue={primaryDiagnosis?.name} />
-          <div className="md:col-span-2">
+          <div className="sm:col-span-2">
             <TextAreaField name="diagnosisNote" label="Catatan diagnosa" defaultValue={primaryDiagnosis?.note} />
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-md border border-border bg-card p-3 md:grid-cols-2">
+        <div className="grid gap-3 rounded-md border border-border bg-card p-3 sm:grid-cols-2">
           <TextField name="treatmentCode" label="Kode tindakan" defaultValue={latestTreatment?.code} placeholder="CONS-GP" />
           <TextField name="treatmentName" label="Tindakan medis" defaultValue={latestTreatment?.name} />
           <TextField name="treatmentCost" label="Biaya tindakan" defaultValue={latestTreatment?.cost} inputMode="decimal" />

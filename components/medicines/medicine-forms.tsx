@@ -19,7 +19,7 @@ export function CreateMedicineForm() {
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <div className="grid gap-3 md:grid-cols-2">
+      <div className="grid gap-3 sm:grid-cols-2">
         <TextField name="code" label="Kode obat" error={state.errors?.code?.[0]} />
         <TextField name="name" label="Nama obat" error={state.errors?.name?.[0]} />
         <TextField name="category" label="Kategori" error={state.errors?.category?.[0]} />
@@ -64,7 +64,7 @@ export function UpdateMedicineForm({ medicines }: { medicines: MedicineListItem[
           </select>
           <FieldError message={state.errors?.medicineId?.[0]} />
         </label>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <TextField name="name" label="Nama obat" error={state.errors?.name?.[0]} />
           <TextField name="category" label="Kategori" error={state.errors?.category?.[0]} />
           <TextField name="unit" label="Satuan" error={state.errors?.unit?.[0]} placeholder="tablet" />

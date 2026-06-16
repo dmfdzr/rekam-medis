@@ -78,7 +78,7 @@ export function UpdatePatientForm({ patients }: { patients: PatientListItem[] })
           </select>
           <FieldError message={state.errors?.patientId?.[0]} />
         </label>
-        <div className="grid gap-3 md:grid-cols-2">
+        <div className="grid gap-3 sm:grid-cols-2">
           <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} />
           <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
           <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" lettersOnly />

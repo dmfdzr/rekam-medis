@@ -50,7 +50,7 @@ export function ModalDialog({
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-border bg-background p-4 shadow-2xl outline-none sm:w-[min(42rem,calc(100vw-2rem))] sm:p-5"
+          className="fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-0.75rem)] w-[calc(100vw-0.75rem)] max-w-2xl -translate-x-1/2 -translate-y-1/2 gap-3 overflow-y-auto rounded-md border border-border bg-background p-3 shadow-2xl outline-none sm:w-[min(42rem,calc(100vw-2rem))] sm:gap-4 sm:p-5"
           onEscapeKeyDown={(event) => event.preventDefault()}
           onPointerDownOutside={(event) => event.preventDefault()}
         >

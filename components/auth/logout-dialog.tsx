@@ -12,15 +12,15 @@ export function LogoutConfirmDialog({ className }: { className?: string }) {
   return (
     <Dialog.Root>
       <Dialog.Trigger asChild>
-        <Button type="button" variant="outline" size="sm" className={className}>
-          <LogOut className="size-3" aria-hidden="true" />
+        <Button type="button" variant="outline" size="lg" className={className}>
+          <LogOut className="size-4" aria-hidden="true" />
           Logout
         </Button>
       </Dialog.Trigger>
       <Dialog.Portal>
         <Dialog.Overlay className="fixed inset-0 z-50 bg-slate-950/55 backdrop-blur-sm" />
         <Dialog.Content
-          className="fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-1rem)] w-[calc(100vw-1rem)] max-w-96 -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-border bg-background p-4 shadow-2xl outline-none sm:w-[min(24rem,calc(100vw-2rem))] sm:p-5"
+          className="fixed left-1/2 top-1/2 z-50 grid max-h-[calc(100dvh-2rem)] w-[calc(100vw-1.5rem)] max-w-96 -translate-x-1/2 -translate-y-1/2 gap-4 overflow-y-auto rounded-md border border-border bg-background p-4 shadow-2xl outline-none sm:w-[min(24rem,calc(100vw-2rem))] sm:p-5"
           onEscapeKeyDown={(event) => event.preventDefault()}
           onPointerDownOutside={(event) => event.preventDefault()}
         >
@@ -36,7 +36,7 @@ export function LogoutConfirmDialog({ className }: { className?: string }) {
                 </Dialog.Description>
               </div>
             </div>
-            <div className="flex flex-col-reverse gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
+            <div className="flex flex-col gap-2 border-t border-border pt-4 sm:flex-row sm:justify-end">
               <Dialog.Close asChild>
                 <Button type="button" variant="outline" size="lg">
                   Batal

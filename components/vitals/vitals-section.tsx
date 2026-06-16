@@ -84,7 +84,7 @@ export function VitalSignForm({ clinicalWorklist }: { clinicalWorklist: Clinical
         </select>
       </label>
 
-      <div key={selectedVisitId} className="grid gap-3 md:grid-cols-2">
+      <div key={selectedVisitId} className="grid gap-3 sm:grid-cols-2">
         <TextField
           name="bloodPressure"
           label="Tekanan darah"
@@ -99,7 +99,7 @@ export function VitalSignForm({ clinicalWorklist }: { clinicalWorklist: Clinical
         <TextField name="pulse" label="Nadi" type="number" defaultValue={selectedVisit?.vitalSign?.pulse} inputMode="numeric" step="1" min={0} />
         <TextField name="respiration" label="Respirasi" type="number" defaultValue={selectedVisit?.vitalSign?.respiration} inputMode="numeric" step="1" min={0} />
         <TextField name="oxygenSaturation" label="Saturasi oksigen" type="number" defaultValue={selectedVisit?.vitalSign?.oxygenSaturation} inputMode="numeric" step="1" min={0} max={100} />
-        <div className="md:col-span-2">
+        <div className="sm:col-span-2">
           <TextAreaField name="nurseNote" label="Catatan perawat" defaultValue={selectedVisit?.vitalSign?.nurseNote} />
         </div>
       </div>

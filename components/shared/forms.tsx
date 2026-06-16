@@ -125,7 +125,7 @@ export function TextAreaField({
       <textarea
         name={name}
         defaultValue={defaultValue}
-        className="min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+        className="w-full min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
         placeholder={placeholder ?? `Isi ${label.toLowerCase()}`}
         aria-invalid={Boolean(error)}
       />
