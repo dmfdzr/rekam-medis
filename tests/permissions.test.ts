@@ -39,9 +39,9 @@ describe("role access", () => {
     }
   })
 
-  it("allows Super Admin to access every protected feature", () => {
+  it("allows Admin to access every protected feature", () => {
     for (const permission of Object.keys(permissions) as PermissionKey[]) {
-      assert.equal(canAccess("SUPER_ADMIN", permission), true, `SUPER_ADMIN must access ${permission}`)
+      assert.equal(canAccess("ADMIN", permission), true, `ADMIN must access ${permission}`)
     }
   })
 

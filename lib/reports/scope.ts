@@ -18,7 +18,7 @@ function normalizeRole(role: string) {
 export function getAllowedReportSections(role: string) {
   const normalizedRole = normalizeRole(role)
 
-  if (normalizedRole === "SUPER_ADMIN" || normalizedRole === "ADMIN") {
+  if (normalizedRole === "ADMIN") {
     return allReportSections
   }
 

@@ -1038,3 +1038,5 @@ export type ReportDetails = Awaited<ReturnType<typeof getReportDetails>>
 export type AuditLogListItem = Awaited<ReturnType<typeof getAuditLogList>>[number]
 export type UserListItem = Awaited<ReturnType<typeof getUserList>>[number]
 export type RoleOptionItem = Awaited<ReturnType<typeof getRoleOptions>>[number]
+
+export type AppUser = { id: string; name: string; email: string; username: string; role: string; roleName: string; };

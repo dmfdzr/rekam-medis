@@ -22,7 +22,6 @@ const reportBundle: Parameters<typeof scopeReportBundleForRole>[1] = {
 describe("report role scoping", () => {
   it("allows admin roles to view every report section", () => {
     assert.deepEqual(getAllowedReportSections("ADMIN"), ["diagnoses", "treatments", "medicineUsage", "stockReport"])
-    assert.deepEqual(getAllowedReportSections("SUPER_ADMIN"), ["diagnoses", "treatments", "medicineUsage", "stockReport"])
   })
 
   it("limits doctors to clinical reports", () => {

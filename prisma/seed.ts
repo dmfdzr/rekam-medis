@@ -27,11 +27,7 @@ const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 const roles = [
-  {
-    key: UserRole.SUPER_ADMIN,
-    name: "Super Admin",
-    description: "Akses penuh seluruh sistem, konfigurasi, dan audit log.",
-  },
+
   {
     key: UserRole.ADMIN,
     name: "Admin Klinik",
@@ -65,36 +61,39 @@ const users = [
     email: "admin@medrecord.local",
     username: "admin",
     role: UserRole.ADMIN,
+    password: "admin123",
   },
   {
     name: "Ardi Santoso",
     email: "pendaftaran@medrecord.local",
     username: "pendaftaran",
     role: UserRole.REGISTRATION,
+    password: "pendaftaran123",
   },
   {
     name: "dr. Raka Mahendra",
     email: "dokter@medrecord.local",
     username: "dokter",
     role: UserRole.DOCTOR,
+    password: "dokter123",
   },
   {
     name: "Maya Lestari",
     email: "perawat@medrecord.local",
     username: "perawat",
     role: UserRole.NURSE,
+    password: "perawat123",
   },
   {
     name: "Dewi Kurnia",
     email: "apoteker@medrecord.local",
     username: "apoteker",
     role: UserRole.PHARMACIST,
+    password: "apoteker123",
   },
 ]
 
 async function main() {
-  const passwordHash = await bcrypt.hash("rekammedis123", 12)
-
   for (const role of roles) {
     await prisma.role.upsert({
       where: { key: role.key },
@@ -107,6 +106,7 @@ async function main() {
   }
 
   for (const user of users) {
+    const passwordHash = await bcrypt.hash(user.password, 12)
     const role = await prisma.role.findUniqueOrThrow({
       where: { key: user.role },
       select: { id: true },
@@ -118,6 +118,7 @@ async function main() {
         name: user.name,
         username: user.username,
         roleId: role.id,
+        passwordHash,
       },
       create: {
         name: user.name,

@@ -21,8 +21,8 @@ export default async function LoginPage() {
       <div className="mx-auto grid min-h-[calc(100dvh-3rem)] w-full max-w-6xl items-center gap-8 lg:grid-cols-[1.05fr_0.95fr]">
         <section className="hidden lg:block">
           <div className="max-w-xl">
-            <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-sm text-muted-foreground shadow-sm">
-              <Image src="/assets/health.png" alt="MedNote Logo" width={18} height={18} className="size-4.5" />
+            <div className="inline-flex items-center gap-2 rounded-md px-3 py-2 text-sm text-muted-foreground">
+              <Image src="/assets/health.png" alt="MedNote Logo" width={18} height={18} className="size-4.5 bg-transparent" />
               Rekam medis elektronik klinik
             </div>
             <h1 className="mt-6 text-4xl font-semibold tracking-normal text-balance xl:text-5xl">
@@ -49,7 +49,7 @@ export default async function LoginPage() {
 
         <section className="mx-auto w-full max-w-md rounded-md border border-border bg-background/88 p-5 shadow-xl backdrop-blur md:p-6">
           <div className="mb-6">
-            <Image src="/assets/health.png" alt="MedNote Logo" width={40} height={40} className="size-10" />
+            <Image src="/assets/health.png" alt="MedNote Logo" width={40} height={40} className="size-10 bg-transparent" />
             <h2 className="mt-5 text-2xl font-semibold tracking-normal">Masuk ke MedNote</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
               Gunakan akun yang diberikan administrator klinik untuk mengakses aplikasi.

@@ -11,20 +11,20 @@ export type PermissionKey =
   | "reports"
   | "audit"
 
-export type UserRoleKey = "SUPER_ADMIN" | "ADMIN" | "REGISTRATION" | "DOCTOR" | "NURSE" | "PHARMACIST"
+export type UserRoleKey = "ADMIN" | "REGISTRATION" | "DOCTOR" | "NURSE" | "PHARMACIST"
 
 export const permissions: Record<PermissionKey, UserRoleKey[]> = {
-  dashboard: ["SUPER_ADMIN", "ADMIN", "REGISTRATION", "DOCTOR", "NURSE", "PHARMACIST"],
-  users: ["SUPER_ADMIN", "ADMIN"],
-  patients: ["SUPER_ADMIN", "ADMIN", "REGISTRATION", "DOCTOR", "NURSE"],
-  visits: ["SUPER_ADMIN", "ADMIN", "REGISTRATION", "DOCTOR", "NURSE"],
-  vitals: ["SUPER_ADMIN", "ADMIN", "DOCTOR", "NURSE"],
-  records: ["SUPER_ADMIN", "ADMIN", "DOCTOR"],
-  prescriptions: ["SUPER_ADMIN", "ADMIN", "DOCTOR", "PHARMACIST"],
-  medicines: ["SUPER_ADMIN", "ADMIN", "DOCTOR", "PHARMACIST"],
-  documents: ["SUPER_ADMIN", "ADMIN", "DOCTOR", "NURSE"],
-  reports: ["SUPER_ADMIN", "ADMIN", "DOCTOR", "PHARMACIST"],
-  audit: ["SUPER_ADMIN", "ADMIN"],
+  dashboard: ["ADMIN", "REGISTRATION", "DOCTOR", "NURSE", "PHARMACIST"],
+  users: ["ADMIN"],
+  patients: ["ADMIN", "REGISTRATION", "DOCTOR", "NURSE"],
+  visits: ["ADMIN", "REGISTRATION", "DOCTOR", "NURSE"],
+  vitals: ["ADMIN", "DOCTOR", "NURSE"],
+  records: ["ADMIN", "DOCTOR"],
+  prescriptions: ["ADMIN", "DOCTOR", "PHARMACIST"],
+  medicines: ["ADMIN", "DOCTOR", "PHARMACIST"],
+  documents: ["ADMIN", "DOCTOR", "NURSE"],
+  reports: ["ADMIN", "DOCTOR", "PHARMACIST"],
+  audit: ["ADMIN"],
 }
 
 export function canAccess(role: string, permission: PermissionKey) {

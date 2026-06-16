@@ -21,7 +21,6 @@ import {
 import { prisma } from "@/lib/prisma"
 
 const UserRole = {
-  SUPER_ADMIN: "SUPER_ADMIN",
   ADMIN: "ADMIN",
   REGISTRATION: "REGISTRATION",
   DOCTOR: "DOCTOR",
@@ -268,16 +267,16 @@ const deactivateUserSchema = z.object({
   userId: z.string().trim().min(1, "User wajib dipilih."),
 })
 
-const patientMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.REGISTRATION])
-const visitMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.REGISTRATION])
-const vitalSignMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.NURSE])
-const medicalRecordMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.DOCTOR])
-const prescriptionMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.DOCTOR])
-const pharmacyMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.PHARMACIST])
-const prescriptionCancelRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DOCTOR, UserRole.PHARMACIST])
-const medicineMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.PHARMACIST])
-const documentMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE])
-const userMutationRoles = new Set<UserRole>([UserRole.SUPER_ADMIN, UserRole.ADMIN])
+const patientMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.REGISTRATION])
+const visitMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.REGISTRATION])
+const vitalSignMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.NURSE])
+const medicalRecordMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.DOCTOR])
+const prescriptionMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.DOCTOR])
+const pharmacyMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.PHARMACIST])
+const prescriptionCancelRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.DOCTOR, UserRole.PHARMACIST])
+const medicineMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.PHARMACIST])
+const documentMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE])
+const userMutationRoles = new Set<UserRole>([UserRole.ADMIN])
 
 function optionalString(value: string | undefined) {
   return value && value.length > 0 ? value : null
@@ -2399,3 +2398,6 @@ export async function deactivateUserAction(_state: ClinicFormState, formData: Fo
     message: `User ${result.name} berhasil dinonaktifkan dan sesi aktifnya dicabut.`,
   }
 }
+
+
+

@@ -345,3 +345,5 @@ export const workflowSteps = [
   { title: "Pemeriksaan dokter", detail: "SOAP, diagnosa, tindakan, resep, lalu finalisasi.", icon: ClipboardCheck },
   { title: "Resep & laporan", detail: "Apotek proses resep, sistem siap hitung stok dan laporan.", icon: FileText },
 ]
+
+export type AppUser = { id: string; name: string; email: string; username: string; role: string; roleName: string; }
