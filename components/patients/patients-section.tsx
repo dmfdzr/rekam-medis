@@ -74,7 +74,7 @@ export function PatientsSection({
                       <td className="py-4 pr-4">
                         <p className="font-medium">{patient.name}</p>
                         <p className="mt-1 text-xs text-muted-foreground">
-                          {patient.gender}, {patient.age} - {patient.nik}
+                          {patient.gender} - {patient.nik}
                         </p>
                         <PatientDetailDialog patient={patient} />
                       </td>
@@ -99,7 +99,7 @@ export function PatientsSection({
                     <div className="min-w-0">
                       <p className="font-medium">{patient.name}</p>
                       <p className="mt-1 text-xs text-muted-foreground">
-                        {patient.medicalRecordNumber} - {patient.gender}, {patient.age}
+                        {patient.medicalRecordNumber} - {patient.gender}
                       </p>
                     </div>
                     <StatusBadge label={patient.status} />

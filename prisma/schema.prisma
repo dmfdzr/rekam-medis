@@ -21,7 +21,9 @@ enum UserStatus {
 enum Gender {
   MALE
   FEMALE
-  OTHER
+  UNDETERMINED
+  UNKNOWN
+  NOT_FILLED
 }
 
 enum PatientStatus {

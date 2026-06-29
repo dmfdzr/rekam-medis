@@ -33,7 +33,9 @@ export function CreatePatientForm() {
             <option value="">Pilih jenis kelamin</option>
             <option value="FEMALE">Perempuan</option>
             <option value="MALE">Laki-laki</option>
-            <option value="OTHER">Lainnya</option>
+            <option value="UNDETERMINED">Tidak dapat ditentukan</option>
+            <option value="UNKNOWN">Tidak diketahui</option>
+            <option value="NOT_FILLED">Tidak mengisi</option>
           </select>
           <FieldError message={state.errors?.gender?.[0]} />
         </label>

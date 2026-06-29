@@ -16,7 +16,9 @@ const timeFormatter = new Intl.DateTimeFormat("id-ID", {
 const genderLabels = {
   MALE: "Laki-laki",
   FEMALE: "Perempuan",
-  OTHER: "Lainnya",
+  UNDETERMINED: "Tidak dapat ditentukan",
+  UNKNOWN: "Tidak diketahui",
+  NOT_FILLED: "Tidak mengisi",
 } as const
 
 const patientStatusLabels = {

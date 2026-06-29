@@ -37,7 +37,9 @@ const UserStatus = {
 const Gender = {
   MALE: "MALE",
   FEMALE: "FEMALE",
-  OTHER: "OTHER",
+  UNDETERMINED: "UNDETERMINED",
+  UNKNOWN: "UNKNOWN",
+  NOT_FILLED: "NOT_FILLED",
 } as const
 
 const PatientStatus = {
