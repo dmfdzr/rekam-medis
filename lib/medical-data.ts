@@ -9,7 +9,6 @@ import {
   HeartPulse,
   KeyRound,
   LayoutDashboard,
-  Pill,
   ShieldCheck,
   Stethoscope,
   Upload,
@@ -32,7 +31,6 @@ export type SectionKey =
   | "vitals"
   | "records"
   | "prescriptions"
-  | "medicines"
   | "documents"
   | "reports"
   | "users"
@@ -73,9 +71,8 @@ const navigation: NavigationItem[] = [
   { id: "patients", label: "Pasien", icon: UserRound },
   { id: "visits", label: "Kunjungan", icon: CalendarDays },
   { id: "vitals", label: "Tanda Vital", icon: Activity },
-  { id: "records", label: "Rekam Medis", icon: Stethoscope },
   { id: "prescriptions", label: "Resep", icon: ClipboardList },
-  { id: "medicines", label: "Obat", icon: Pill },
+  { id: "records", label: "Rekam Medis", icon: Stethoscope },
   { id: "documents", label: "Dokumen Medis", icon: Upload },
   { id: "reports", label: "Laporan", icon: BarChart3 },
   { id: "users", label: "Manajemen User", icon: Users },
@@ -91,7 +88,6 @@ const roleAccess: Record<RoleKey, SectionKey[]> = {
     "vitals",
     "records",
     "prescriptions",
-    "medicines",
     "documents",
     "reports",
     "users",
@@ -99,7 +95,7 @@ const roleAccess: Record<RoleKey, SectionKey[]> = {
     "settings",
   ],
   admin: ["dashboard", "patients", "visits", "settings"],
-  doctor: ["dashboard", "vitals", "records", "prescriptions", "medicines", "documents", "reports", "settings"],
+  doctor: ["dashboard", "vitals", "records", "prescriptions", "documents", "reports", "settings"],
 }
 
 export function getNavigationForRole(role: RoleKey) {

@@ -4,7 +4,6 @@ import {
   DocumentType,
   Gender,
   MedicalRecordStatus,
-  MedicineStatus,
   PatientStatus,
   PrescriptionStatus,
   PrismaClient,
@@ -281,68 +280,6 @@ async function main() {
     },
   })
 
-  const paracetamol = await prisma.medicine.upsert({
-    where: { code: "MED-001" },
-    update: {
-      name: "Paracetamol 500mg",
-      stock: 240,
-      minimumStock: 80,
-      status: MedicineStatus.ACTIVE,
-    },
-    create: {
-      code: "MED-001",
-      name: "Paracetamol 500mg",
-      category: "Analgesik",
-      unit: "tablet",
-      stock: 240,
-      minimumStock: 80,
-      price: "1500",
-      expirationDate: new Date("2027-02-12"),
-      status: MedicineStatus.ACTIVE,
-    },
-  })
-
-  const cetirizine = await prisma.medicine.upsert({
-    where: { code: "MED-014" },
-    update: {
-      name: "Cetirizine 10mg",
-      stock: 74,
-      minimumStock: 60,
-      status: MedicineStatus.ACTIVE,
-    },
-    create: {
-      code: "MED-014",
-      name: "Cetirizine 10mg",
-      category: "Antihistamin",
-      unit: "tablet",
-      stock: 74,
-      minimumStock: 60,
-      price: "2200",
-      expirationDate: new Date("2026-12-18"),
-      status: MedicineStatus.ACTIVE,
-    },
-  })
-
-  await prisma.medicine.upsert({
-    where: { code: "MED-021" },
-    update: {
-      stock: 18,
-      minimumStock: 30,
-      status: MedicineStatus.LOW_STOCK,
-    },
-    create: {
-      code: "MED-021",
-      name: "Zinc syrup",
-      category: "Suplemen",
-      unit: "botol",
-      stock: 18,
-      minimumStock: 30,
-      price: "28000",
-      expirationDate: new Date("2026-09-04"),
-      status: MedicineStatus.LOW_STOCK,
-    },
-  })
-
   const prescription = await prisma.prescription.upsert({
     where: { medicalRecordId: medicalRecord.id },
     update: {
@@ -362,13 +299,13 @@ async function main() {
     where: { id: "prescription-item-initial-001" },
     update: {
       prescriptionId: prescription.id,
-      medicineId: paracetamol.id,
+      medicineName: "Paracetamol 500mg",
       quantity: 10,
     },
     create: {
       id: "prescription-item-initial-001",
       prescriptionId: prescription.id,
-      medicineId: paracetamol.id,
+      medicineName: "Paracetamol 500mg",
       dosage: "500mg",
       usageRule: "3x sehari setelah makan bila demam",
       quantity: 10,
@@ -380,13 +317,13 @@ async function main() {
     where: { id: "prescription-item-initial-002" },
     update: {
       prescriptionId: prescription.id,
-      medicineId: cetirizine.id,
+      medicineName: "Cetirizine 10mg",
       quantity: 5,
     },
     create: {
       id: "prescription-item-initial-002",
       prescriptionId: prescription.id,
-      medicineId: cetirizine.id,
+      medicineName: "Cetirizine 10mg",
       dosage: "10mg",
       usageRule: "1x sehari malam hari",
       quantity: 5,
@@ -421,8 +358,7 @@ async function main() {
         patients: 2,
         visits: 1,
         medicalRecords: 1,
-        medicines: 3,
-      },
+        },
     },
   })
 }

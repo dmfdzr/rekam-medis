@@ -10,7 +10,6 @@ import type {
   AuditLogListItem,
   DashboardSummary,
   DocumentFormOptions,
-  MedicineListItem,
   MedicalDocumentListItem,
   MedicalRecordHistoryItem,
   PatientListItem,
@@ -41,15 +40,14 @@ import { VisitsSection } from "@/components/visits/visits-section"
 import { VitalsSection } from "@/components/vitals/vitals-section"
 import { MedicalRecordsSection } from "@/components/medical-records/medical-records-section"
 import { PrescriptionsSection } from "@/components/prescriptions/prescriptions-section"
-import { MedicinesSection } from "@/components/medicines/medicines-section"
 import { DocumentsSection } from "@/components/documents/documents-section"
 import { ReportsSection } from "@/components/reports/reports-section"
 import { UsersSection } from "@/components/users/users-section"
 import { AuditSection } from "@/components/users/audit-section"
 import { SettingsSection } from "@/components/settings/settings-section"
 
-const filterableSections = new Set<SectionKey>(["patients", "visits", "prescriptions", "medicines", "documents", "reports", "users", "audit"])
-const composerSections = new Set<SectionKey>(["patients", "visits", "vitals", "records", "prescriptions", "medicines", "documents", "users"])
+const filterableSections = new Set<SectionKey>(["patients", "visits", "prescriptions", "documents", "reports", "users", "audit"])
+const composerSections = new Set<SectionKey>(["patients", "visits", "vitals", "records", "prescriptions", "documents", "users"])
 
 function mapUserRoleToAppRole(role: string): RoleKey {
   const roleMap: Record<string, RoleKey> = {
@@ -90,11 +88,6 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
     title: "Resep",
     description: "Kelola resep dari dokter, validasi stok, dan proses obat ke pasien.",
     action: "Kelola resep",
-  },
-  medicines: {
-    title: "Obat",
-    description: "Pantau stok, batas minimum, kategori, dan obat yang mendekati kedaluwarsa.",
-    action: "Kelola obat",
   },
   documents: {
     title: "Dokumen Medis",
@@ -256,7 +249,6 @@ function SectionRenderer({
   clinicalWorklist,
   medicalRecordHistory,
   prescriptions,
-  medicines,
   prescriptionOptions,
   documents,
   documentOptions,
@@ -280,7 +272,6 @@ function SectionRenderer({
   clinicalWorklist: ClinicalWorklistItem[]
   medicalRecordHistory: MedicalRecordHistoryItem[]
   prescriptions: PrescriptionListItem[]
-  medicines: MedicineListItem[]
   prescriptionOptions: PrescriptionFormOptions
   documents: MedicalDocumentListItem[]
   documentOptions: DocumentFormOptions
@@ -292,7 +283,7 @@ function SectionRenderer({
 }) {
   switch (section) {
     case "dashboard":
-      return <DashboardSection role={role} visits={visits} medicines={medicines} dashboardSummary={dashboardSummary} />
+      return <DashboardSection role={role} visits={visits} dashboardSummary={dashboardSummary} />
     case "patients":
       return <PatientsSection patients={patients} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "visits":
@@ -303,8 +294,6 @@ function SectionRenderer({
       return <MedicalRecordsSection role={role} clinicalWorklist={clinicalWorklist} medicalRecordHistory={medicalRecordHistory} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "prescriptions":
       return <PrescriptionsSection role={role} prescriptions={prescriptions} prescriptionOptions={prescriptionOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
-    case "medicines":
-      return <MedicinesSection role={role} medicines={medicines} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "documents":
       return <DocumentsSection role={role} documents={documents} documentOptions={documentOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "reports":
@@ -329,7 +318,6 @@ export function MedRecordApp({
   clinicalWorklist,
   medicalRecordHistory,
   prescriptions,
-  medicines,
   prescriptionOptions,
   documents,
   documentOptions,
@@ -347,7 +335,6 @@ export function MedRecordApp({
   clinicalWorklist: ClinicalWorklistItem[]
   medicalRecordHistory: MedicalRecordHistoryItem[]
   prescriptions: PrescriptionListItem[]
-  medicines: MedicineListItem[]
   prescriptionOptions: PrescriptionFormOptions
   documents: MedicalDocumentListItem[]
   documentOptions: DocumentFormOptions
@@ -488,7 +475,6 @@ export function MedRecordApp({
               clinicalWorklist={clinicalWorklist}
               medicalRecordHistory={medicalRecordHistory}
               prescriptions={prescriptions}
-              medicines={medicines}
               prescriptionOptions={prescriptionOptions}
               documents={documents}
               documentOptions={documentOptions}

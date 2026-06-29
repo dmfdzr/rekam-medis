@@ -6,7 +6,6 @@ export type PermissionKey =
   | "vitals"
   | "records"
   | "prescriptions"
-  | "medicines"
   | "documents"
   | "reports"
   | "audit"
@@ -21,7 +20,6 @@ export const permissions: Record<PermissionKey, UserRoleKey[]> = {
   vitals: ["MASTER", "DOCTOR"],
   records: ["MASTER", "DOCTOR"],
   prescriptions: ["MASTER", "DOCTOR"],
-  medicines: ["MASTER", "DOCTOR"],
   documents: ["MASTER", "DOCTOR"],
   reports: ["MASTER", "DOCTOR"],
   audit: ["MASTER"],

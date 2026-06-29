@@ -22,7 +22,6 @@ export function PrescriptionDetailDialog({ prescription }: { prescription: Presc
         <div className="grid gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge label={prescription.status} />
-            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Stok {prescription.stock}</span>
           </div>
 
           <div className="grid gap-3 sm:grid-cols-2">
@@ -47,12 +46,9 @@ export function PrescriptionDetailDialog({ prescription }: { prescription: Presc
                           {item.dosage} - {item.usageRule}
                         </p>
                       </div>
-                      <StatusBadge label={item.status} />
                     </div>
-                    <div className="mt-2 grid gap-1 text-muted-foreground sm:grid-cols-3">
-                      <p>Diminta: {item.requested}</p>
-                      <p>Stok: {item.stock}</p>
-                      <p>Sisa setelah proses: {item.remainingAfterProcess}</p>
+                    <div className="mt-2 grid gap-1 text-muted-foreground">
+                      <p>Jumlah: {item.quantity}</p>
                     </div>
                     {item.note !== "-" ? <p className="mt-1 text-muted-foreground">Catatan: {item.note}</p> : null}
                   </div>

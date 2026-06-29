@@ -123,16 +123,7 @@ export async function GET(request: Request, context: { params: Promise<{ documen
               },
               prescription: {
                 include: {
-                  items: {
-                    include: {
-                      medicine: {
-                        select: {
-                          name: true,
-                          unit: true,
-                        },
-                      },
-                    },
-                  },
+                  items: true,
                 },
               },
             },
@@ -150,7 +141,7 @@ export async function GET(request: Request, context: { params: Promise<{ documen
   const record = document.visit?.medicalRecord
   const vitalSign = document.visit?.vitalSign
   const prescriptionItems =
-    record?.prescription?.items.map((item) => `${item.medicine.name} ${item.quantity} ${item.medicine.unit} - ${item.dosage} - ${item.usageRule}`).join("; ") ?? "-"
+    record?.prescription?.items.map((item) => `${item.medicineName} ${item.quantity} ${""} - ${item.dosage} - ${item.usageRule}`).join("; ") ?? "-"
 
   const html = `<!doctype html>
 <html lang="id">

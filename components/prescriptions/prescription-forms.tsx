@@ -17,8 +17,8 @@ export function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOpti
   const [state, formAction, pending] = React.useActionState(addPrescriptionItemAction, initialClinicFormState)
   useRefreshOnSuccess(state)
 
-  if (prescriptionOptions.records.length === 0 || prescriptionOptions.medicines.length === 0) {
-    return <EmptyState title="Belum siap membuat resep" detail="Pastikan ada rekam medis dan master obat aktif sebelum membuat resep." />
+  if (prescriptionOptions.records.length === 0) {
+    return <EmptyState title="Belum siap membuat resep" detail="Pastikan ada rekam medis sebelum membuat resep." />
   }
 
   return (
@@ -34,20 +34,11 @@ export function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOpti
         </select>
       </label>
       <TextField
-        name="medicineQuery"
-        label="Obat"
-        placeholder="Ketik kode atau nama obat"
-        error={state.errors?.medicineQuery?.[0] ?? state.errors?.medicineId?.[0]}
-        list="medicine-options"
+        name="medicineName"
+        label="Nama obat"
+        placeholder="Ketik nama obat"
+        error={state.errors?.medicineName?.[0]}
       />
-      <datalist id="medicine-options">
-        {prescriptionOptions.medicines.map((medicine) => (
-          <option key={medicine.id} value={`${medicine.code} - ${medicine.name}`}>
-            {medicine.stock} {medicine.unit}
-          </option>
-        ))}
-      </datalist>
-      <p className="-mt-2 text-xs leading-5 text-muted-foreground">Ketik kode atau nama obat, lalu pilih saran agar resep tetap tersambung ke stok farmasi.</p>
       <TextField name="dosage" label="Dosis" placeholder="500mg" error={state.errors?.dosage?.[0]} />
       <TextField name="usageRule" label="Aturan pakai" placeholder="3x sehari setelah makan" error={state.errors?.usageRule?.[0]} />
       <TextField name="quantity" label="Jumlah" inputMode="numeric" error={state.errors?.quantity?.[0]} />
@@ -62,12 +53,12 @@ export function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOpti
 
 export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: PrescriptionListItem[] }) {
   const [state, formAction, pending] = React.useActionState(processPrescriptionAction, initialClinicFormState)
-  const pendingPrescriptions = prescriptions.filter((prescription) => prescription.status === "Pending" || prescription.status === "Validasi stok")
+  const pendingPrescriptions = prescriptions.filter((prescription) => prescription.status === "Pending")
   const [selectedPrescriptionId, setSelectedPrescriptionId] = React.useState(pendingPrescriptions[0]?.id ?? "")
   const selectedPrescription = pendingPrescriptions.find((prescription) => prescription.id === selectedPrescriptionId)
 
   if (pendingPrescriptions.length === 0) {
-    return <EmptyState title="Tidak ada resep pending" detail="Resep yang belum diproses akan muncul untuk divalidasi stok oleh apoteker." />
+    return <EmptyState title="Tidak ada resep pending" detail="Resep yang belum diproses akan muncul untuk divalidasi oleh apoteker." />
   }
 
   return (
@@ -96,7 +87,6 @@ export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Pres
                 {selectedPrescription.medicalRecordNumber} - {selectedPrescription.doctor}
               </p>
             </div>
-            <span className="rounded-md bg-muted px-2 py-1 text-xs text-muted-foreground">Stok {selectedPrescription.stock}</span>
           </div>
           <div className="grid gap-2">
             {selectedPrescription.itemDetails.map((item) => (
@@ -108,24 +98,23 @@ export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Pres
                       {item.dosage} - {item.usageRule}
                     </p>
                   </div>
-                  <span className="rounded-md bg-background px-2 py-1 text-xs text-muted-foreground">{item.status}</span>
                 </div>
                 <p className="mt-2 text-muted-foreground">
-                  Diminta {item.requested}, stok {item.stock}, sisa setelah proses {item.remainingAfterProcess}.
+                  Jumlah: {item.quantity}
                 </p>
               </div>
             ))}
           </div>
           {!selectedPrescription.canProcess ? (
             <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
-              Resep ini belum bisa diproses. Periksa stok, status obat, atau tanggal kedaluwarsa sebelum melanjutkan.
+              Resep ini belum bisa diproses. Pastikan ada item obat sebelum melanjutkan.
             </div>
           ) : null}
         </div>
       ) : null}
       <FormMessage state={state} />
       <ConfirmSubmitButton
-        message="Proses resep ini dan kurangi stok obat?"
+        message="Proses resep ini?"
         confirmLabel="Proses resep"
         pending={pending}
         pendingLabel="Memproses..."
@@ -139,10 +128,10 @@ export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Pres
 
 export function CancelPrescriptionForm({ prescriptions }: { prescriptions: PrescriptionListItem[] }) {
   const [state, formAction, pending] = React.useActionState(cancelPrescriptionAction, initialClinicFormState)
-  const cancellablePrescriptions = prescriptions.filter((prescription) => prescription.status === "Pending" || prescription.status === "Validasi stok")
+  const cancellablePrescriptions = prescriptions.filter((prescription) => prescription.status === "Pending")
 
   if (cancellablePrescriptions.length === 0) {
-    return <EmptyState title="Tidak ada resep yang bisa dibatalkan" detail="Resep pending atau validasi stok akan muncul di sini." />
+    return <EmptyState title="Tidak ada resep yang bisa dibatalkan" detail="Resep pending akan muncul di sini." />
   }
 
   return (
@@ -163,7 +152,7 @@ export function CancelPrescriptionForm({ prescriptions }: { prescriptions: Presc
         </select>
         <FieldError message={state.errors?.prescriptionId?.[0]} />
       </label>
-      <DestructiveActionNotice message="Resep yang sudah diproses tidak bisa dibatalkan dari aksi ini karena stok sudah berubah. Resep pending akan ditandai dibatalkan." />
+      <DestructiveActionNotice message="Resep yang sudah diproses tidak bisa dibatalkan dari aksi ini. Resep pending akan ditandai dibatalkan." />
       <FormMessage state={state} />
       <ConfirmSubmitButton
         message="Batalkan resep ini? Catatan resep tetap tersimpan di riwayat pasien."

@@ -8,7 +8,6 @@ import {
   getAuditLogList,
   getDashboardSummary,
   getDocumentFormOptions,
-  getMedicineList,
   getMedicalRecordHistory,
   getMedicalDocumentList,
   getPatientList,
@@ -30,7 +29,6 @@ const emptyVisitOptions = {
 
 const emptyPrescriptionOptions = {
   records: [],
-  medicines: [],
 }
 
 const emptyDocumentOptions = {
@@ -50,8 +48,7 @@ export default async function Page() {
   const canViewVitals = canAccess(user.role, "vitals")
   const canViewRecords = canAccess(user.role, "records")
   const canViewPrescriptions = canAccess(user.role, "prescriptions")
-  const canViewMedicines = canAccess(user.role, "medicines")
-  const canViewDocuments = canAccess(user.role, "documents")
+    const canViewDocuments = canAccess(user.role, "documents")
   const canViewReports = canAccess(user.role, "reports")
   const canViewAudit = canAccess(user.role, "audit")
   const canViewUsers = canAccess(user.role, "users")
@@ -64,7 +61,6 @@ export default async function Page() {
     clinicalWorklist,
     medicalRecordHistory,
     prescriptions,
-    medicines,
     prescriptionOptions,
     documents,
     documentOptions,
@@ -81,12 +77,11 @@ export default async function Page() {
     canViewVitals || canViewRecords ? getClinicalWorklist() : [],
     canViewRecords ? getMedicalRecordHistory() : [],
     canViewPrescriptions ? getPrescriptionList() : [],
-    canViewMedicines ? getMedicineList() : [],
     canViewPrescriptions ? getPrescriptionFormOptions() : emptyPrescriptionOptions,
     canViewDocuments ? getMedicalDocumentList() : [],
     canViewDocuments ? getDocumentFormOptions() : emptyDocumentOptions,
     canViewReports ? getReportSummary() : [],
-    canViewReports ? getReportDetails() : { diagnoses: [], treatments: [], medicineUsage: [], stockReport: [] },
+    canViewReports ? getReportDetails() : { diagnoses: [], treatments: [] },
     canViewAudit ? getAuditLogList() : [],
     canViewUsers ? getUserList() : [],
     canViewUsers ? getRoleOptions() : [],
@@ -102,7 +97,6 @@ export default async function Page() {
       clinicalWorklist={clinicalWorklist}
       medicalRecordHistory={medicalRecordHistory}
       prescriptions={prescriptions}
-      medicines={medicines}
       prescriptionOptions={prescriptionOptions}
       documents={documents}
       documentOptions={documentOptions}

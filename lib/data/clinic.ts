@@ -43,16 +43,8 @@ const medicalRecordStatusLabels = {
 
 const prescriptionStatusLabels = {
   PENDING: "Pending",
-  VALIDATING_STOCK: "Validasi stok",
   PROCESSED: "Diproses",
   CANCELLED: "Dibatalkan",
-} as const
-
-const medicineStatusLabels = {
-  ACTIVE: "Aman",
-  INACTIVE: "Nonaktif",
-  LOW_STOCK: "Stok rendah",
-  EXPIRED: "Kedaluwarsa",
 } as const
 
 const documentTypeLabels = {
@@ -102,47 +94,6 @@ function startOfToday() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
-function getMedicineDisplayStatus(medicine: { status: keyof typeof medicineStatusLabels; stock: number; minimumStock: number; expirationDate: Date | null }) {
-  if (medicine.status === "INACTIVE") {
-    return medicineStatusLabels.INACTIVE
-  }
-
-  if (medicine.status === "EXPIRED" || (medicine.expirationDate && medicine.expirationDate < startOfToday())) {
-    return medicineStatusLabels.EXPIRED
-  }
-
-  if (medicine.stock <= medicine.minimumStock) {
-    return medicineStatusLabels.LOW_STOCK
-  }
-
-  return medicineStatusLabels[medicine.status]
-}
-
-function getMedicineOperationalSignal(medicine: { status: keyof typeof medicineStatusLabels; stock: number; minimumStock: number; expirationDate: Date | null }) {
-  const displayStatus = getMedicineDisplayStatus(medicine)
-  const today = startOfToday()
-  const nextThirtyDays = new Date(today)
-  nextThirtyDays.setDate(today.getDate() + 30)
-  const expiringSoon = Boolean(medicine.expirationDate && medicine.expirationDate >= today && medicine.expirationDate <= nextThirtyDays)
-  const canUseForPrescription = displayStatus !== medicineStatusLabels.INACTIVE && displayStatus !== medicineStatusLabels.EXPIRED && medicine.stock > 0
-  const stockGap = medicine.stock - medicine.minimumStock
-
-  return {
-    displayStatus,
-    canUseForPrescription,
-    expiringSoon,
-    stockGap,
-    riskLevel:
-      displayStatus === medicineStatusLabels.INACTIVE || displayStatus === medicineStatusLabels.EXPIRED
-        ? "Kritis"
-        : medicine.stock <= medicine.minimumStock || expiringSoon
-          ? "Perhatian"
-          : "Aman",
-    usageStatus: canUseForPrescription ? "Bisa dipakai resep" : "Tidak bisa dipakai resep",
-    stockSignal: stockGap < 0 ? `Kurang ${Math.abs(stockGap)} dari minimum` : stockGap === 0 ? "Tepat di batas minimum" : `Sisa ${stockGap} di atas minimum`,
-  }
-}
-
 function summarizeJson(value: unknown) {
   if (!value) {
     return "-"
@@ -159,7 +110,7 @@ export async function getDashboardSummary() {
   const nextDay = new Date(startOfDay)
   nextDay.setDate(nextDay.getDate() + 1)
 
-  const [todayVisits, activePatients, pendingPrescriptions, lowStockMedicines, visitStatusGroups] = await Promise.all([
+  const [todayVisits, activePatients, pendingPrescriptions, visitStatusGroups] = await Promise.all([
     prisma.visit.count({
       where: {
         visitDate: {
@@ -175,14 +126,7 @@ export async function getDashboardSummary() {
     }),
     prisma.prescription.count({
       where: {
-        status: {
-          in: ["PENDING", "VALIDATING_STOCK"],
-        },
-      },
-    }),
-    prisma.medicine.count({
-      where: {
-        OR: [{ status: "LOW_STOCK" }, { stock: { lte: prisma.medicine.fields.minimumStock } }],
+        status: "PENDING",
       },
     }),
     prisma.visit.groupBy({
@@ -206,7 +150,6 @@ export async function getDashboardSummary() {
       { label: "Kunjungan hari ini", value: String(todayVisits), change: "Realtime", detail: "Hari berjalan", tone: "text-sky-700 dark:text-sky-300" },
       { label: "Pasien aktif", value: String(activePatients), change: "Total", detail: "Data pasien aktif", tone: "text-teal-700 dark:text-teal-300" },
       { label: "Resep pending", value: String(pendingPrescriptions), change: "Farmasi", detail: "Menunggu proses", tone: "text-violet-700 dark:text-violet-300" },
-      { label: "Stok rendah", value: String(lowStockMedicines), change: "Inventori", detail: "Perlu dicek", tone: "text-amber-700 dark:text-amber-300" },
     ],
     queue,
   }
@@ -529,16 +472,7 @@ export async function getMedicalRecordHistory() {
       },
       prescription: {
         include: {
-          items: {
-            include: {
-              medicine: {
-                select: {
-                  name: true,
-                  unit: true,
-                },
-              },
-            },
-          },
+          items: true,
         },
       },
     },
@@ -584,14 +518,14 @@ export async function getMedicalRecordHistory() {
         cost: treatment.cost?.toString() ?? "-",
         note: treatment.note ?? "-",
       })),
-      prescriptions: record.prescription?.items.map((item) => `${item.medicine.name} (${item.quantity})`).join(", ") ?? "-",
+      prescriptions: record.prescription?.items.map((item) => `${item.medicineName} (${item.quantity})`).join(", ") ?? "-",
       prescriptionItems:
         record.prescription?.items.map((item) => ({
           id: item.id,
-          medicine: item.medicine.name,
+          medicine: item.medicineName,
           dosage: item.dosage,
           usageRule: item.usageRule,
-          quantity: `${item.quantity} ${item.medicine.unit}`,
+          quantity: String(item.quantity),
           note: item.note ?? "-",
         })) ?? [],
       vitalSign: record.visit.vitalSign
@@ -652,19 +586,7 @@ export async function getPrescriptionList() {
           name: true,
         },
       },
-      items: {
-        include: {
-          medicine: {
-            select: {
-              name: true,
-              stock: true,
-              unit: true,
-              status: true,
-              expirationDate: true,
-            },
-          },
-        },
-      },
+      items: true,
     },
   })
 
@@ -674,143 +596,50 @@ export async function getPrescriptionList() {
     medicalRecordNumber: prescription.medicalRecord.visit.patient.medicalRecordNumber,
     doctor: prescription.doctor?.name ?? "Belum ditentukan",
     pharmacist: prescription.pharmacist?.name ?? "-",
-    items: prescription.items.map((item) => `${item.medicine.name} (${item.quantity} ${item.medicine.unit})`).join(", ") || "-",
-    itemDetails: prescription.items.map((item) => {
-      const medicineStatus = getMedicineDisplayStatus({
-        status: item.medicine.status,
-        stock: item.medicine.stock,
-        minimumStock: 0,
-        expirationDate: item.medicine.expirationDate,
-      })
-      const isExpired = medicineStatus === medicineStatusLabels.EXPIRED
-      const isInactive = medicineStatus === medicineStatusLabels.INACTIVE
-      const isInsufficient = item.medicine.stock < item.quantity
-
-      return {
-        id: item.id,
-        medicine: item.medicine.name,
-        dosage: item.dosage,
-        usageRule: item.usageRule,
-        quantity: item.quantity,
-        unit: item.medicine.unit,
-        requested: `${item.quantity} ${item.medicine.unit}`,
-        stock: `${item.medicine.stock} ${item.medicine.unit}`,
-        remainingAfterProcess: `${Math.max(item.medicine.stock - item.quantity, 0)} ${item.medicine.unit}`,
-        note: item.note ?? "-",
-        status: isInactive ? "Obat nonaktif" : isExpired ? "Kedaluwarsa" : isInsufficient ? "Stok kurang" : "Stok cukup",
-        canProcess: !isInactive && !isExpired && !isInsufficient,
-      }
-    }),
+    items: prescription.items.map((item) => `${item.medicineName} (${item.quantity})`).join(", ") || "-",
+    itemDetails: prescription.items.map((item) => ({
+      id: item.id,
+      medicine: item.medicineName,
+      dosage: item.dosage,
+      usageRule: item.usageRule,
+      quantity: item.quantity,
+      note: item.note ?? "-",
+    })),
     status: prescriptionStatusLabels[prescription.status],
-    stock: prescription.items.some((item) => item.medicine.status === "INACTIVE")
-      ? "Obat nonaktif"
-      : prescription.items.some((item) => item.medicine.status === "EXPIRED" || (item.medicine.expirationDate && item.medicine.expirationDate < startOfToday()))
-        ? "Kedaluwarsa"
-        : prescription.items.some((item) => item.medicine.stock < item.quantity)
-          ? "Stok kurang"
-          : "Cukup",
     canProcess:
-      (prescription.status === "PENDING" || prescription.status === "VALIDATING_STOCK") &&
-      prescription.items.length > 0 &&
-      prescription.items.every(
-        (item) =>
-          item.medicine.status !== "INACTIVE" &&
-          item.medicine.status !== "EXPIRED" &&
-          (!item.medicine.expirationDate || item.medicine.expirationDate >= startOfToday()) &&
-          item.medicine.stock >= item.quantity,
-      ),
+      prescription.status === "PENDING" &&
+      prescription.items.length > 0,
     createdAt: dateFormatter.format(prescription.createdAt),
   }))
 }
 
-export async function getMedicineList() {
-  const medicines = await prisma.medicine.findMany({
-    orderBy: { name: "asc" },
-    take: 100,
-  })
-
-  return medicines.map((medicine) => ({
-    ...(() => {
-      const operationalSignal = getMedicineOperationalSignal(medicine)
-
-      return {
-        id: medicine.id,
-        code: medicine.code,
-        name: medicine.name,
-        category: medicine.category,
-        unit: medicine.unit,
-        stock: medicine.stock,
-        min: medicine.minimumStock,
-        price: medicine.price?.toString() ?? "",
-        expires: medicine.expirationDate ? medicine.expirationDate.toISOString().slice(0, 10) : "-",
-        status: operationalSignal.displayStatus,
-        canUseForPrescription: operationalSignal.canUseForPrescription,
-        expiringSoon: operationalSignal.expiringSoon,
-        riskLevel: operationalSignal.riskLevel,
-        usageStatus: operationalSignal.usageStatus,
-        stockSignal: operationalSignal.stockSignal,
-      }
-    })(),
-  }))
-}
-
 export async function getPrescriptionFormOptions() {
-  const [records, medicines] = await Promise.all([
-    prisma.medicalRecord.findMany({
-      where: {
-        status: {
-          in: ["DRAFT", "FINAL"],
-        },
+  const records = await prisma.medicalRecord.findMany({
+    where: {
+      status: {
+        in: ["DRAFT", "FINAL"],
       },
-      orderBy: { updatedAt: "desc" },
-      take: 50,
-      include: {
-        visit: {
-          include: {
-            patient: {
-              select: {
-                fullName: true,
-                medicalRecordNumber: true,
-              },
+    },
+    orderBy: { updatedAt: "desc" },
+    take: 50,
+    include: {
+      visit: {
+        include: {
+          patient: {
+            select: {
+              fullName: true,
+              medicalRecordNumber: true,
             },
           },
         },
       },
-    }),
-    prisma.medicine.findMany({
-      where: {
-        status: {
-          notIn: ["INACTIVE", "EXPIRED"],
-        },
-        stock: {
-          gt: 0,
-        },
-        OR: [{ expirationDate: null }, { expirationDate: { gte: startOfToday() } }],
-      },
-      orderBy: { name: "asc" },
-      take: 100,
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        stock: true,
-        unit: true,
-      },
-    }),
-  ])
+    },
+  })
 
   return {
     records: records.map((record) => ({
       id: record.id,
       label: `${record.visit.patient.medicalRecordNumber} - ${record.visit.patient.fullName} - ${record.visit.service}`,
-    })),
-    medicines: medicines.map((medicine) => ({
-      id: medicine.id,
-      code: medicine.code,
-      name: medicine.name,
-      stock: medicine.stock,
-      unit: medicine.unit,
-      label: `${medicine.code} - ${medicine.name} (${medicine.stock} ${medicine.unit})`,
     })),
   }
 }
@@ -908,7 +737,7 @@ export async function getReportSummary(options: { startDate?: string | null; end
   const { start, end } = buildDateRangeFilter(options.startDate, options.endDate)
   const period = `${dateFormatter.format(start)} - ${dateFormatter.format(new Date(end.getTime() - 1))}`
 
-  const [visitsInRange, newPatients, diagnosisGroup, medicineUsage, lowStock] = await Promise.all([
+  const [visitsInRange, newPatients, diagnosisGroup] = await Promise.all([
     prisma.visit.count({
       where: {
         visitDate: {
@@ -941,52 +770,18 @@ export async function getReportSummary(options: { startDate?: string | null; end
       orderBy: { _count: { name: "desc" } },
       take: 1,
     }),
-    prisma.prescriptionItem.groupBy({
-      by: ["medicineId"],
-      where: {
-        prescription: {
-          status: "PROCESSED",
-          processedAt: {
-            gte: start,
-            lt: end,
-          },
-        },
-      },
-      _sum: { quantity: true },
-      orderBy: { _sum: { quantity: "desc" } },
-      take: 1,
-    }),
-    prisma.medicine.count({
-      where: {
-        OR: [{ status: "LOW_STOCK" }, { stock: { lte: prisma.medicine.fields.minimumStock } }],
-      },
-    }),
   ])
-
-  const topMedicine = medicineUsage[0]
-    ? await prisma.medicine.findUnique({
-        where: { id: medicineUsage[0].medicineId },
-        select: { name: true },
-      })
-    : null
 
   return [
     { label: "Kunjungan", period, value: String(visitsInRange), trend: "Range" },
     { label: "Pasien baru", period, value: String(newPatients), trend: "Range" },
     { label: "Diagnosa terbanyak", period, value: diagnosisGroup[0]?.name ?? "-", trend: diagnosisGroup[0]?._count.name ? `${diagnosisGroup[0]._count.name} kasus` : "-" },
-    {
-      label: "Penggunaan obat",
-      period,
-      value: topMedicine?.name ?? "-",
-      trend: topMedicine ? `${topMedicine.name}` : "-",
-    },
-    { label: "Obat stok rendah", period: "Inventori", value: String(lowStock), trend: "Butuh cek" },
   ]
 }
 
 export async function getReportDetails(options: { startDate?: string | null; endDate?: string | null } = {}) {
   const { start, end } = buildDateRangeFilter(options.startDate, options.endDate)
-  const [diagnoses, treatments, medicineUsage, stockReport] = await Promise.all([
+  const [diagnoses, treatments] = await Promise.all([
     prisma.diagnosis.groupBy({
       by: ["name"],
       where: {
@@ -1020,53 +815,7 @@ export async function getReportDetails(options: { startDate?: string | null; end
       orderBy: { _count: { name: "desc" } },
       take: 8,
     }),
-    prisma.prescriptionItem.groupBy({
-      by: ["medicineId"],
-      where: {
-        prescription: {
-          status: "PROCESSED",
-          processedAt: {
-            gte: start,
-            lt: end,
-          },
-        },
-      },
-      _sum: { quantity: true },
-      orderBy: { _sum: { quantity: "desc" } },
-      take: 8,
-    }),
-    prisma.medicine.findMany({
-      where: {
-        OR: [{ status: { in: ["LOW_STOCK", "EXPIRED"] } }, { stock: { lte: prisma.medicine.fields.minimumStock } }, { expirationDate: { lt: startOfToday() } }],
-      },
-      orderBy: [{ status: "desc" }, { stock: "asc" }, { name: "asc" }],
-      take: 12,
-      select: {
-        id: true,
-        code: true,
-        name: true,
-        stock: true,
-        minimumStock: true,
-        unit: true,
-        status: true,
-        expirationDate: true,
-      },
-    }),
   ])
-
-  const medicineIds = medicineUsage.map((item) => item.medicineId)
-  const medicines = medicineIds.length
-    ? await prisma.medicine.findMany({
-        where: { id: { in: medicineIds } },
-        select: {
-          id: true,
-          code: true,
-          name: true,
-          unit: true,
-        },
-      })
-    : []
-  const medicineById = new Map(medicines.map((medicine) => [medicine.id, medicine]))
 
   return {
     diagnoses: diagnoses.map((diagnosis) => ({
@@ -1077,25 +826,6 @@ export async function getReportDetails(options: { startDate?: string | null; end
       name: treatment.name,
       count: treatment._count.name,
       totalCost: treatment._sum.cost?.toString() ?? "0",
-    })),
-    medicineUsage: medicineUsage.map((item) => {
-      const medicine = medicineById.get(item.medicineId)
-
-      return {
-        code: medicine?.code ?? "-",
-        name: medicine?.name ?? "Obat tidak ditemukan",
-        quantity: item._sum.quantity ?? 0,
-        unit: medicine?.unit ?? "-",
-      }
-    }),
-    stockReport: stockReport.map((medicine) => ({
-      code: medicine.code,
-      name: medicine.name,
-      stock: medicine.stock,
-      minimumStock: medicine.minimumStock,
-      unit: medicine.unit,
-      expires: medicine.expirationDate ? medicine.expirationDate.toISOString().slice(0, 10) : "-",
-      status: getMedicineDisplayStatus(medicine),
     })),
   }
 }
@@ -1192,7 +922,6 @@ export type VisitFormOptions = Awaited<ReturnType<typeof getVisitFormOptions>>
 export type ClinicalWorklistItem = Awaited<ReturnType<typeof getClinicalWorklist>>[number]
 export type MedicalRecordHistoryItem = Awaited<ReturnType<typeof getMedicalRecordHistory>>[number]
 export type PrescriptionListItem = Awaited<ReturnType<typeof getPrescriptionList>>[number]
-export type MedicineListItem = Awaited<ReturnType<typeof getMedicineList>>[number]
 export type PrescriptionFormOptions = Awaited<ReturnType<typeof getPrescriptionFormOptions>>
 export type MedicalDocumentListItem = Awaited<ReturnType<typeof getMedicalDocumentList>>[number]
 export type DocumentFormOptions = Awaited<ReturnType<typeof getDocumentFormOptions>>

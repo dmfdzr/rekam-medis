@@ -75,19 +75,9 @@ const DiagnosisType = {
 
 const PrescriptionStatus = {
   PENDING: "PENDING",
-  VALIDATING_STOCK: "VALIDATING_STOCK",
   PROCESSED: "PROCESSED",
   CANCELLED: "CANCELLED",
 } as const
-
-const MedicineStatus = {
-  ACTIVE: "ACTIVE",
-  INACTIVE: "INACTIVE",
-  LOW_STOCK: "LOW_STOCK",
-  EXPIRED: "EXPIRED",
-} as const
-
-type MedicineStatus = (typeof MedicineStatus)[keyof typeof MedicineStatus]
 
 const DocumentType = {
   LAB_RESULT: "LAB_RESULT",
@@ -203,8 +193,7 @@ const saveMedicalRecordSchema = z.object({
 
 const addPrescriptionItemSchema = z.object({
   medicalRecordId: z.string().trim().min(1, "Rekam medis wajib dipilih."),
-  medicineId: z.string().trim().optional(),
-  medicineQuery: z.string().trim().optional(),
+  medicineName: z.string().trim().min(1, "Obat wajib diisi."),
   dosage: z.string().trim().min(1, "Dosis wajib diisi."),
   usageRule: z.string().trim().min(1, "Aturan pakai wajib diisi."),
   quantity: z.string().trim().min(1, "Jumlah wajib diisi."),
@@ -217,33 +206,6 @@ const processPrescriptionSchema = z.object({
 
 const cancelPrescriptionSchema = z.object({
   prescriptionId: z.string().trim().min(1, "Resep wajib dipilih."),
-})
-
-const createMedicineSchema = z.object({
-  code: z.string().trim().min(2, "Kode obat wajib diisi."),
-  name: z.string().trim().min(2, "Nama obat wajib diisi."),
-  category: z.string().trim().min(2, "Kategori wajib diisi."),
-  unit: z.string().trim().min(1, "Satuan wajib diisi."),
-  stock: z.string().trim().min(1, "Stok wajib diisi."),
-  minimumStock: z.string().trim().min(1, "Stok minimum wajib diisi."),
-  price: z.string().trim().optional(),
-  expirationDate: z.string().trim().optional(),
-})
-
-const updateMedicineSchema = z.object({
-  medicineId: z.string().trim().min(1, "Obat wajib dipilih."),
-  name: z.string().trim().optional(),
-  category: z.string().trim().optional(),
-  unit: z.string().trim().optional(),
-  stock: z.string().trim().optional(),
-  minimumStock: z.string().trim().optional(),
-  price: z.string().trim().optional(),
-  expirationDate: z.string().trim().optional(),
-  status: z.enum(MedicineStatus, "Status obat wajib dipilih.").optional().or(z.literal("")),
-})
-
-const deactivateMedicineSchema = z.object({
-  medicineId: z.string().trim().min(1, "Obat wajib dipilih."),
 })
 
 const createMedicalDocumentSchema = z.object({
@@ -292,9 +254,7 @@ const visitMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.ADMIN])
 const vitalSignMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const medicalRecordMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const prescriptionMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
-const pharmacyMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const prescriptionCancelRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
-const medicineMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const documentMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const userMutationRoles = new Set<UserRole>([UserRole.MASTER])
 
@@ -316,32 +276,6 @@ function startOfToday() {
 
 function isExpiredDate(date: Date | null) {
   return Boolean(date && date < startOfToday())
-}
-
-function deriveMedicineStatus({
-  stock,
-  minimumStock,
-  expirationDate,
-  explicitStatus,
-}: {
-  stock: number
-  minimumStock: number
-  expirationDate: Date | null
-  explicitStatus?: MedicineStatus | null
-}) {
-  if (explicitStatus === MedicineStatus.INACTIVE) {
-    return MedicineStatus.INACTIVE
-  }
-
-  if (explicitStatus === MedicineStatus.EXPIRED || isExpiredDate(expirationDate)) {
-    return MedicineStatus.EXPIRED
-  }
-
-  if (stock <= minimumStock) {
-    return MedicineStatus.LOW_STOCK
-  }
-
-  return MedicineStatus.ACTIVE
 }
 
 function isInvalidOptionalDecimal(value: string | undefined) {
@@ -1214,8 +1148,7 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
 
   const parsed = addPrescriptionItemSchema.safeParse({
     medicalRecordId: formData.get("medicalRecordId"),
-    medicineId: formData.get("medicineId"),
-    medicineQuery: formData.get("medicineQuery"),
+    medicineName: formData.get("medicineName"),
     dosage: formData.get("dosage"),
     usageRule: formData.get("usageRule"),
     quantity: formData.get("quantity"),
@@ -1240,17 +1173,6 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
     }
   }
 
-  const medicineId = optionalString(parsed.data.medicineId)
-  const medicineQuery = optionalString(parsed.data.medicineQuery)
-
-  if (!medicineId && !medicineQuery) {
-    return {
-      ok: false,
-      message: "Obat wajib diisi.",
-      errors: { medicineQuery: ["Ketik kode atau nama obat."] },
-    }
-  }
-
   const record = await prisma.medicalRecord.findUnique({
     where: { id: parsed.data.medicalRecordId },
     include: {
@@ -1272,48 +1194,6 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
     }
   }
 
-  const medicineSearchText = medicineQuery?.trim()
-  const medicineCode = medicineSearchText?.split(" - ")[0]?.trim()
-  const medicineSearchFilters: Prisma.MedicineWhereInput[] = []
-
-  if (medicineCode) {
-    medicineSearchFilters.push({ code: { equals: medicineCode, mode: "insensitive" } })
-  }
-
-  if (medicineSearchText) {
-    medicineSearchFilters.push(
-      { name: { equals: medicineSearchText, mode: "insensitive" } },
-      { name: { contains: medicineSearchText, mode: "insensitive" } },
-      { code: { contains: medicineSearchText, mode: "insensitive" } },
-    )
-  }
-
-  const medicine = medicineId
-    ? await prisma.medicine.findUnique({
-        where: { id: medicineId },
-        select: { id: true, name: true },
-      })
-    : await prisma.medicine.findFirst({
-        where: {
-          status: {
-            notIn: [MedicineStatus.INACTIVE, MedicineStatus.EXPIRED],
-          },
-          stock: {
-            gt: 0,
-          },
-          OR: medicineSearchFilters,
-        },
-        select: { id: true, name: true },
-      })
-
-  if (!medicine) {
-    return {
-      ok: false,
-      message: "Obat tidak ditemukan.",
-      errors: { medicineQuery: ["Obat tidak ditemukan. Pilih dari saran atau periksa master obat."] },
-    }
-  }
-
   const prescription = await prisma.prescription.upsert({
     where: { medicalRecordId: record.id },
     update: {
@@ -1330,7 +1210,7 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
   await prisma.prescriptionItem.create({
     data: {
       prescriptionId: prescription.id,
-      medicineId: medicine.id,
+      medicineName: parsed.data.medicineName,
       dosage: parsed.data.dosage,
       usageRule: parsed.data.usageRule,
       quantity,
@@ -1345,7 +1225,7 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
     entityId: prescription.id,
     afterData: {
       patientName: record.visit.patient.fullName,
-      medicineName: medicine.name,
+      medicineName: parsed.data.medicineName,
       quantity,
     },
   })
@@ -1354,14 +1234,14 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
 
   return {
     ok: true,
-    message: `Resep ${medicine.name} untuk ${record.visit.patient.fullName} berhasil dibuat.`,
+    message: `Resep ${parsed.data.medicineName} untuk ${record.visit.patient.fullName} berhasil dibuat.`,
   }
 }
 
 export async function processPrescriptionAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
   const user = await getCurrentUser()
 
-  if (!user || !pharmacyMutationRoles.has(user.role)) {
+  if (!user || !prescriptionMutationRoles.has(user.role)) {
     return {
       ok: false,
       message: "Anda tidak memiliki akses untuk memproses resep.",
@@ -1384,11 +1264,7 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
     const prescription = await tx.prescription.findUnique({
       where: { id: parsed.data.prescriptionId },
       include: {
-        items: {
-          include: {
-            medicine: true,
-          },
-        },
+        items: true,
         medicalRecord: {
           include: {
             visit: {
@@ -1417,73 +1293,6 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
       return { ok: false as const, message: "Resep sudah dibatalkan dan tidak dapat diproses." }
     }
 
-    const inactive = prescription.items.find((item) => item.medicine.status === MedicineStatus.INACTIVE)
-
-    if (inactive) {
-      await tx.prescription.update({
-        where: { id: prescription.id },
-        data: { status: PrescriptionStatus.VALIDATING_STOCK },
-      })
-
-      return {
-        ok: false as const,
-        message: `${inactive.medicine.name} tidak aktif dan tidak dapat diproses.`,
-      }
-    }
-
-    const expired = prescription.items.find((item) => item.medicine.status === MedicineStatus.EXPIRED || isExpiredDate(item.medicine.expirationDate))
-
-    if (expired) {
-      await tx.prescription.update({
-        where: { id: prescription.id },
-        data: { status: PrescriptionStatus.VALIDATING_STOCK },
-      })
-
-      return {
-        ok: false as const,
-        message: `${expired.medicine.name} sudah kedaluwarsa dan tidak dapat diproses.`,
-      }
-    }
-
-    const insufficient = prescription.items.find((item) => item.medicine.stock < item.quantity)
-
-    if (insufficient) {
-      await tx.prescription.update({
-        where: { id: prescription.id },
-        data: { status: PrescriptionStatus.VALIDATING_STOCK },
-      })
-
-      return {
-        ok: false as const,
-        message: `Stok ${insufficient.medicine.name} tidak cukup. Tersedia ${insufficient.medicine.stock}, dibutuhkan ${insufficient.quantity}.`,
-      }
-    }
-
-    const stockChanges = []
-
-    for (const item of prescription.items) {
-      const nextStock = item.medicine.stock - item.quantity
-
-      await tx.medicine.update({
-        where: { id: item.medicineId },
-        data: {
-          stock: nextStock,
-          status: deriveMedicineStatus({
-            stock: nextStock,
-            minimumStock: item.medicine.minimumStock,
-            expirationDate: item.medicine.expirationDate,
-          }),
-        },
-      })
-
-      stockChanges.push({
-        medicineName: item.medicine.name,
-        quantity: item.quantity,
-        beforeStock: item.medicine.stock,
-        afterStock: nextStock,
-      })
-    }
-
     await tx.prescription.update({
       where: { id: prescription.id },
       data: {
@@ -1502,7 +1311,6 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
       ok: true as const,
       prescriptionId: prescription.id,
       patientName: prescription.medicalRecord.visit.patient.fullName,
-      stockChanges,
     }
   })
 
@@ -1523,7 +1331,6 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
     afterData: {
       patientName: result.patientName,
       status: "PROCESSED",
-      stockChanges: result.stockChanges,
     },
   })
 
@@ -1531,7 +1338,7 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
 
   return {
     ok: true,
-    message: `Resep ${result.patientName} berhasil diproses dan stok obat diperbarui.`,
+    message: `Resep ${result.patientName} berhasil diproses.`,
   }
 }
 
@@ -1626,320 +1433,6 @@ export async function cancelPrescriptionAction(_state: ClinicFormState, formData
   return {
     ok: true,
     message: `Resep ${prescription.medicalRecord.visit.patient.fullName} berhasil dibatalkan.`,
-  }
-}
-
-export async function createMedicineAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
-  const user = await getCurrentUser()
-
-  if (!user || !medicineMutationRoles.has(user.role)) {
-    return {
-      ok: false,
-      message: "Anda tidak memiliki akses untuk menambah obat.",
-    }
-  }
-
-  const parsed = createMedicineSchema.safeParse({
-    code: formData.get("code"),
-    name: formData.get("name"),
-    category: formData.get("category"),
-    unit: formData.get("unit"),
-    stock: formData.get("stock"),
-    minimumStock: formData.get("minimumStock"),
-    price: formData.get("price"),
-    expirationDate: formData.get("expirationDate"),
-  })
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: "Data obat belum valid.",
-      errors: getFieldErrors(parsed.error),
-    }
-  }
-
-  const stock = parseNonNegativeIntegerInput(parsed.data.stock)
-  const minimumStock = parseNonNegativeIntegerInput(parsed.data.minimumStock)
-  const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : null
-  const price = parseOptionalDecimalInput(parsed.data.price)
-
-  if (stock === null || minimumStock === null) {
-    return {
-      ok: false,
-      message: "Stok dan stok minimum harus berupa angka.",
-    }
-  }
-
-  if (isInvalidOptionalDecimal(parsed.data.price)) {
-    return {
-      ok: false,
-      message: "Harga obat harus berupa angka valid.",
-      errors: { price: ["Harga obat harus berupa angka positif atau nol."] },
-    }
-  }
-
-  if (parsed.data.expirationDate && !expirationDate) {
-    return {
-      ok: false,
-      message: "Tanggal kedaluwarsa tidak valid.",
-      errors: { expirationDate: ["Tanggal kedaluwarsa tidak valid."] },
-    }
-  }
-
-  try {
-    const medicine = await prisma.medicine.create({
-      data: {
-        code: parsed.data.code,
-        name: parsed.data.name,
-        category: parsed.data.category,
-        unit: parsed.data.unit,
-        stock,
-        minimumStock,
-        price,
-        expirationDate,
-        status: deriveMedicineStatus({
-          stock,
-          minimumStock,
-          expirationDate,
-        }),
-      },
-    })
-
-    await writeAuditLog({
-      userId: user.id,
-      action: "CREATE_MEDICINE",
-      entityName: "Medicine",
-      entityId: medicine.id,
-      afterData: {
-        code: medicine.code,
-        name: medicine.name,
-        stock: medicine.stock,
-      },
-    })
-
-    revalidatePath("/")
-
-    return {
-      ok: true,
-      message: `Obat ${medicine.name} berhasil ditambahkan.`,
-    }
-  } catch (error) {
-    if (isUniqueConstraintError(error)) {
-      return {
-        ok: false,
-        message: "Kode obat sudah terdaftar.",
-        errors: { code: ["Kode obat sudah terdaftar."] },
-      }
-    }
-
-    return {
-      ok: false,
-      message: "Obat gagal ditambahkan.",
-    }
-  }
-}
-
-export async function updateMedicineAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
-  const user = await getCurrentUser()
-
-  if (!user || !medicineMutationRoles.has(user.role)) {
-    return {
-      ok: false,
-      message: "Anda tidak memiliki akses untuk mengubah obat.",
-    }
-  }
-
-  const parsed = updateMedicineSchema.safeParse({
-    medicineId: formData.get("medicineId"),
-    name: formData.get("name"),
-    category: formData.get("category"),
-    unit: formData.get("unit"),
-    stock: formData.get("stock"),
-    minimumStock: formData.get("minimumStock"),
-    price: formData.get("price"),
-    expirationDate: formData.get("expirationDate"),
-    status: formData.get("status"),
-  })
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: "Data obat belum valid.",
-      errors: getFieldErrors(parsed.error),
-    }
-  }
-
-  const medicine = await prisma.medicine.findUnique({
-    where: { id: parsed.data.medicineId },
-  })
-
-  if (!medicine) {
-    return {
-      ok: false,
-      message: "Obat tidak ditemukan.",
-      errors: { medicineId: ["Obat tidak ditemukan."] },
-    }
-  }
-
-  const stock = parseOptionalIntegerInput(parsed.data.stock)
-  const minimumStock = parseOptionalIntegerInput(parsed.data.minimumStock)
-
-  if (parsed.data.stock && stock === null) {
-    return {
-      ok: false,
-      message: "Stok harus berupa angka.",
-      errors: { stock: ["Stok harus berupa angka."] },
-    }
-  }
-
-  if (parsed.data.minimumStock && minimumStock === null) {
-    return {
-      ok: false,
-      message: "Stok minimum harus berupa angka.",
-      errors: { minimumStock: ["Stok minimum harus berupa angka."] },
-    }
-  }
-
-  const nextStock = stock ?? medicine.stock
-  const nextMinimumStock = minimumStock ?? medicine.minimumStock
-  const explicitStatus = parsed.data.status || null
-  const expirationDate = parsed.data.expirationDate ? toDate(parsed.data.expirationDate) : undefined
-  const price = parseOptionalDecimalInput(parsed.data.price)
-
-  if (parsed.data.expirationDate && !expirationDate) {
-    return {
-      ok: false,
-      message: "Tanggal kedaluwarsa tidak valid.",
-      errors: { expirationDate: ["Tanggal kedaluwarsa tidak valid."] },
-    }
-  }
-
-  if (isInvalidOptionalDecimal(parsed.data.price)) {
-    return {
-      ok: false,
-      message: "Harga obat harus berupa angka valid.",
-      errors: { price: ["Harga obat harus berupa angka positif atau nol."] },
-    }
-  }
-
-  const updateData = {
-    ...(parsed.data.name ? { name: parsed.data.name } : {}),
-    ...(parsed.data.category ? { category: parsed.data.category } : {}),
-    ...(parsed.data.unit ? { unit: parsed.data.unit } : {}),
-    ...(stock !== null ? { stock } : {}),
-    ...(minimumStock !== null ? { minimumStock } : {}),
-    ...(parsed.data.price ? { price } : {}),
-    ...(expirationDate !== undefined ? { expirationDate } : {}),
-    status: deriveMedicineStatus({
-      stock: nextStock,
-      minimumStock: nextMinimumStock,
-      expirationDate: expirationDate ?? medicine.expirationDate,
-      explicitStatus,
-    }),
-  }
-
-  const updatedMedicine = await prisma.medicine.update({
-    where: { id: medicine.id },
-    data: updateData,
-  })
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "UPDATE_MEDICINE",
-    entityName: "Medicine",
-    entityId: medicine.id,
-    beforeData: {
-      code: medicine.code,
-      name: medicine.name,
-      stock: medicine.stock,
-      minimumStock: medicine.minimumStock,
-      status: medicine.status,
-    },
-    afterData: {
-      code: updatedMedicine.code,
-      name: updatedMedicine.name,
-      stock: updatedMedicine.stock,
-      minimumStock: updatedMedicine.minimumStock,
-      status: updatedMedicine.status,
-    },
-  })
-
-  revalidatePath("/")
-
-  return {
-    ok: true,
-    message: `Obat ${updatedMedicine.name} berhasil diperbarui.`,
-  }
-}
-
-export async function deactivateMedicineAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
-  const user = await getCurrentUser()
-
-  if (!user || !medicineMutationRoles.has(user.role)) {
-    return {
-      ok: false,
-      message: "Anda tidak memiliki akses untuk menonaktifkan obat.",
-    }
-  }
-
-  const parsed = deactivateMedicineSchema.safeParse({
-    medicineId: formData.get("medicineId"),
-  })
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: "Data obat belum valid.",
-      errors: getFieldErrors(parsed.error),
-    }
-  }
-
-  const medicine = await prisma.medicine.findUnique({
-    where: { id: parsed.data.medicineId },
-  })
-
-  if (!medicine) {
-    return {
-      ok: false,
-      message: "Obat tidak ditemukan.",
-      errors: { medicineId: ["Obat tidak ditemukan."] },
-    }
-  }
-
-  if (medicine.status === MedicineStatus.INACTIVE) {
-    return {
-      ok: true,
-      message: `Obat ${medicine.name} sudah nonaktif.`,
-    }
-  }
-
-  const updatedMedicine = await prisma.medicine.update({
-    where: { id: medicine.id },
-    data: { status: MedicineStatus.INACTIVE },
-  })
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "DEACTIVATE_MEDICINE",
-    entityName: "Medicine",
-    entityId: medicine.id,
-    beforeData: {
-      code: medicine.code,
-      name: medicine.name,
-      status: medicine.status,
-    },
-    afterData: {
-      code: updatedMedicine.code,
-      name: updatedMedicine.name,
-      status: updatedMedicine.status,
-    },
-  })
-
-  revalidatePath("/")
-
-  return {
-    ok: true,
-    message: `Obat ${updatedMedicine.name} berhasil dinonaktifkan.`,
   }
 }
 

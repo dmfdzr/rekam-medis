@@ -72,7 +72,6 @@ export function PrescriptionsSection({
       prescription.items,
       prescription.doctor,
       prescription.pharmacist,
-      prescription.stock,
       prescription.status,
     ],
     [],
@@ -109,7 +108,7 @@ export function PrescriptionsSection({
                     <th className="py-3 pr-4 font-medium">Pasien</th>
                     <th className="py-3 pr-4 font-medium">Item obat</th>
                     <th className="py-3 pr-4 font-medium">Dokter</th>
-                    <th className="py-3 pr-4 font-medium">Stok</th>
+                    
                     <th className="py-3 pr-4 font-medium">Status</th>
                     <th className="py-3 font-medium">Aksi</th>
                   </tr>
@@ -121,7 +120,6 @@ export function PrescriptionsSection({
                       <td className="py-4 pr-4">{prescription.patient}</td>
                       <td className="max-w-[20rem] py-4 pr-4 leading-6">{prescription.items}</td>
                       <td className="py-4 pr-4 text-muted-foreground">{prescription.doctor}</td>
-                      <td className="py-4 pr-4 text-muted-foreground">{prescription.stock}</td>
                       <td className="py-4 pr-4">
                         <StatusBadge label={prescription.status} />
                       </td>
@@ -151,10 +149,6 @@ export function PrescriptionsSection({
                     <p>
                       <span className="text-muted-foreground">Dokter: </span>
                       {prescription.doctor}
-                    </p>
-                    <p>
-                      <span className="text-muted-foreground">Stok: </span>
-                      {prescription.stock}
                     </p>
                   </div>
                   <div className="mt-3">

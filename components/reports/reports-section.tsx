@@ -239,24 +239,6 @@ export function ReportsSection({
             emptyDetail="Belum ada tindakan pada rentang laporan ini."
           />
         ) : null}
-        {canViewReportSection(role, "medicineUsage") ? (
-          <ReportDetailTable
-            title="Penggunaan obat"
-            description="Obat yang sudah diproses oleh farmasi."
-            columns={["Kode", "Obat", "Jumlah"]}
-            rows={details.medicineUsage.map((medicine) => [medicine.code, medicine.name, `${medicine.quantity} ${medicine.unit}`])}
-            emptyDetail="Belum ada penggunaan obat pada rentang laporan ini."
-          />
-        ) : null}
-        {canViewReportSection(role, "stockReport") ? (
-          <ReportDetailTable
-            title="Stok perlu perhatian"
-            description="Obat stok rendah atau kedaluwarsa."
-            columns={["Kode", "Obat", "Stok", "Status"]}
-            rows={details.stockReport.map((medicine) => [medicine.code, medicine.name, `${medicine.stock}/${medicine.minimumStock} ${medicine.unit}`, medicine.status])}
-            emptyDetail="Tidak ada stok rendah atau kedaluwarsa."
-          />
-        ) : null}
       </div>
       <ModalDialog open={filtersOpen} onOpenChange={onFiltersOpenChange} title="Filter laporan" description="Batasi laporan berdasarkan rentang tanggal agar query tetap ringan.">
         <div className="grid gap-3 sm:grid-cols-2">

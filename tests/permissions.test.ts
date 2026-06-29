@@ -14,7 +14,6 @@ const sectionPermissionMap: Partial<Record<SectionKey, PermissionKey>> = {
   audit: "audit",
   dashboard: "dashboard",
   documents: "documents",
-  medicines: "medicines",
   patients: "patients",
   prescriptions: "prescriptions",
   records: "records",
@@ -45,7 +44,7 @@ describe("role access", () => {
 
   it("limits Admin to dashboard, patients, and visits", () => {
     const adminAllowed: PermissionKey[] = ["dashboard", "patients", "visits"]
-    const adminBlocked: PermissionKey[] = ["users", "vitals", "records", "prescriptions", "medicines", "documents", "reports", "audit"]
+    const adminBlocked: PermissionKey[] = ["users", "vitals", "records", "prescriptions", "documents", "reports", "audit"]
 
     for (const permission of adminAllowed) {
       assert.equal(canAccess("ADMIN", permission), true, `ADMIN must access ${permission}`)
@@ -56,7 +55,7 @@ describe("role access", () => {
   })
 
   it("limits Doctor to clinical features", () => {
-    const doctorAllowed: PermissionKey[] = ["dashboard", "vitals", "records", "prescriptions", "medicines", "documents", "reports"]
+    const doctorAllowed: PermissionKey[] = ["dashboard", "vitals", "records", "prescriptions", "documents", "reports"]
     const doctorBlocked: PermissionKey[] = ["users", "patients", "visits", "audit"]
 
     for (const permission of doctorAllowed) {

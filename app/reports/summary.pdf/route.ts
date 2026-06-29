@@ -41,16 +41,6 @@ export async function GET(request: Request) {
       ["Tindakan", "Jumlah", "Total biaya"],
       details.treatments.map((treatment) => [treatment.name, String(treatment.count), treatment.totalCost]),
     ),
-    ...sectionLines(
-      "Penggunaan Obat",
-      ["Kode", "Obat", "Jumlah"],
-      details.medicineUsage.map((medicine) => [medicine.code, medicine.name, `${medicine.quantity} ${medicine.unit}`]),
-    ),
-    ...sectionLines(
-      "Stok Perlu Perhatian",
-      ["Kode", "Obat", "Stok", "Status"],
-      details.stockReport.map((medicine) => [medicine.code, medicine.name, `${medicine.stock}/${medicine.minimumStock} ${medicine.unit}`, medicine.status]),
-    ),
   ]
   const pdf = buildReportPdf(lines)
 

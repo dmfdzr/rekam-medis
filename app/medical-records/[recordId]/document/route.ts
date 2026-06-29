@@ -108,16 +108,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       },
       prescription: {
         include: {
-          items: {
-            include: {
-              medicine: {
-                select: {
-                  name: true,
-                  unit: true,
-                },
-              },
-            },
-          },
+          items: true,
         },
       },
     },
@@ -198,7 +189,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       ])}
       ${listSection("Diagnosa", record.diagnoses.map((diagnosis) => `${diagnosis.type === "PRIMARY" ? "Utama" : "Tambahan"} - ${diagnosis.code ? `${diagnosis.code} - ` : ""}${diagnosis.name}${diagnosis.note ? ` (${diagnosis.note})` : ""}`))}
       ${listSection("Tindakan", record.treatments.map((treatment) => `${treatment.code ? `${treatment.code} - ` : ""}${treatment.name}${treatment.cost ? ` - Rp${treatment.cost.toString()}` : ""}${treatment.note ? ` (${treatment.note})` : ""}`))}
-      ${listSection("Resep", record.prescription?.items.map((item) => `${item.medicine.name} - ${item.quantity} ${item.medicine.unit} - ${item.dosage} - ${item.usageRule}${item.note ? ` (${item.note})` : ""}`) ?? [])}
+      ${listSection("Resep", record.prescription?.items.map((item) => `${item.medicineName} - ${item.quantity} ${""} - ${item.dosage} - ${item.usageRule}${item.note ? ` (${item.note})` : ""}`) ?? [])}
       ${listSection("Dokumen Pendukung", record.visit.documents.map((document) => `${document.fileName} - ${document.type}`))}
       <footer>
         Dokumen ini dibuat otomatis dari data rekam medis yang tersimpan di MedNote.
