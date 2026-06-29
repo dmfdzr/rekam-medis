@@ -51,6 +51,7 @@ const PatientStatus = {
 const PatientType = {
   BPJS: "BPJS",
   UMUM: "UMUM",
+  ASURANSI: "ASURANSI",
 } as const
 
 const VisitStatus = {
@@ -139,7 +140,7 @@ const createVisitSchema = z.object({
   chiefComplaint: z.string().trim().min(3, "Keluhan utama minimal 3 karakter."),
   admissionDate: z.string().trim().min(1, "Tanggal masuk wajib diisi."),
   dischargeDate: z.string().trim().optional(),
-  patientType: z.enum(PatientType, "Jenis pasien wajib dipilih."),
+  patientType: z.enum(PatientType, "Registrasi pasien wajib dipilih."),
 })
 
 const updateVisitStatusSchema = z.object({
@@ -365,7 +366,8 @@ function uniqueConstraintTargets(error: unknown) {
 
 async function generateMedicalRecordNumber() {
   const year = new Date().getFullYear()
-  const prefix = `RM-${year}-`
+  const yearShort = String(year).slice(-2)
+  const prefix = `${yearShort}-`
   const latestPatient = await prisma.patient.findFirst({
     where: {
       medicalRecordNumber: {
@@ -379,10 +381,14 @@ async function generateMedicalRecordNumber() {
       medicalRecordNumber: true,
     },
   })
-  const latestSequence = latestPatient?.medicalRecordNumber.split("-").at(-1)
-  const nextSequence = latestSequence ? Number.parseInt(latestSequence, 10) + 1 : 1
+  const parts = latestPatient?.medicalRecordNumber.split("-")
+  const latestSequence = parts ? Number.parseInt(parts.slice(1).join(""), 10) : 0
+  const nextSequence = (latestSequence || 0) + 1
+  const padded = String(nextSequence).padStart(4, "0")
+  const middle = padded.slice(0, 2)
+  const last = padded.slice(2, 4)
 
-  return `${prefix}${String(Number.isNaN(nextSequence) ? 1 : nextSequence).padStart(5, "0")}`
+  return `${yearShort}-${middle}-${last}`
 }
 
 export async function createPatientAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {

@@ -7,7 +7,7 @@ import { saveMedicalRecordAction, type ClinicFormState } from "@/app/actions/cli
 import * as React from "react"
 
 import { useRefreshOnSuccess, useListControls } from "@/lib/hooks"
-import { TextField, TextAreaField, FormMessage } from "@/components/shared/forms"
+import { TextField, TextAreaField, FormMessage, DatePickerField } from "@/components/shared/forms"
 import { EmptyState, StatusBadge, PermissionNotice } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
@@ -217,7 +217,7 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
         <TextAreaField name="plan" label="Plan" defaultValue={selectedVisit?.medicalRecord?.plan} />
         <TextAreaField name="physicalExam" label="Pemeriksaan fisik" defaultValue={selectedVisit?.medicalRecord?.physicalExam} />
         <TextAreaField name="doctorNote" label="Catatan dokter" defaultValue={selectedVisit?.medicalRecord?.doctorNote} />
-        <TextField name="followUpDate" label="Rencana kontrol" type="date" defaultValue={selectedVisit?.medicalRecord?.followUpDate} />
+        <DatePickerField name="followUpDate" label="Rencana kontrol" defaultValue={selectedVisit?.medicalRecord?.followUpDate} />
 
         <div className="grid gap-3 rounded-md border border-border bg-card p-3 sm:grid-cols-2">
           <TextField name="diagnosisCode" label="Kode diagnosa" defaultValue={primaryDiagnosis?.code} placeholder="J06.9" />

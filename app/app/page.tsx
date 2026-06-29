@@ -25,6 +25,7 @@ import {
 const emptyVisitOptions = {
   patients: [],
   doctors: [],
+  services: [],
 }
 
 const emptyPrescriptionOptions = {

@@ -34,7 +34,7 @@ export function VisitDetailDialog({ visit }: { visit: VisitListItem }) {
             <PatientDetailItem label="No. rekam medis" value={visit.medicalRecordNumber} />
             <PatientDetailItem label="Dokter" value={visit.doctor} />
             <PatientDetailItem label="Layanan / poli" value={visit.service} />
-            <PatientDetailItem label="Jenis pasien" value={visit.patientType} />
+            <PatientDetailItem label="Registrasi pasien" value={visit.patientType} />
             <PatientDetailItem label="Lama dirawat" value={visit.lengthOfStay} />
           </div>
 
@@ -121,7 +121,7 @@ export function ResponsiveVisitsTable({
               <th className="py-3 pr-4 font-medium">No. RM</th>
               <th className="py-3 pr-4 font-medium">Pasien</th>
               <th className="py-3 pr-4 font-medium">Layanan</th>
-              <th className="py-3 pr-4 font-medium">Jenis pasien</th>
+              <th className="py-3 pr-4 font-medium">Registrasi</th>
               <th className="py-3 pr-4 font-medium">Lama dirawat</th>
               <th className="py-3 pr-4 font-medium">Status</th>
               <th className="py-3 font-medium">Aksi</th>
@@ -166,7 +166,7 @@ export function ResponsiveVisitsTable({
             </div>
             <div className="mt-3 grid gap-1 text-sm">
               <p>
-                <span className="text-muted-foreground">Jenis pasien: </span>
+                <span className="text-muted-foreground">Registrasi: </span>
                 {visit.patientType}
               </p>
               <p>

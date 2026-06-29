@@ -6,7 +6,7 @@ import { createPatientAction, updatePatientAction, deactivatePatientAction, type
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextField, TextAreaField, FieldError, FormMessage } from "@/components/shared/forms"
+import { TextField, TextAreaField, FieldError, FormMessage, DatePickerField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -22,7 +22,7 @@ export function CreatePatientForm() {
       <div className="grid gap-3">
         <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} autoComplete="name" />
         <TextField name="nik" label="NIK" error={state.errors?.nik?.[0]} inputMode="numeric" maxLength={16} pattern="\d{16}" numbersOnly />
-        <TextField name="birthDate" label="Tanggal lahir" type="date" error={state.errors?.birthDate?.[0]} />
+        <DatePickerField name="birthDate" label="Tanggal lahir" error={state.errors?.birthDate?.[0]} />
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Jenis kelamin</span>
           <select

@@ -152,7 +152,7 @@ export const queueSummary = [
 
 export const patients = [
   {
-    id: "RM-2026-00041",
+    id: "26-00-41",
     name: "Siti Aminah",
     nik: "3273********0001",
     gender: "Perempuan",
@@ -163,7 +163,7 @@ export const patients = [
     lastVisit: "14 Jun 2026",
   },
   {
-    id: "RM-2026-00042",
+    id: "26-00-42",
     name: "Bima Pratama",
     nik: "3273********0032",
     gender: "Laki-laki",
@@ -174,7 +174,7 @@ export const patients = [
     lastVisit: "14 Jun 2026",
   },
   {
-    id: "RM-2026-00043",
+    id: "26-00-43",
     name: "Hendra Wijaya",
     nik: "3174********0088",
     gender: "Laki-laki",
@@ -185,7 +185,7 @@ export const patients = [
     lastVisit: "13 Jun 2026",
   },
   {
-    id: "RM-2026-00044",
+    id: "26-00-44",
     name: "Ratna Laksmi",
     nik: "3276********0020",
     gender: "Perempuan",
@@ -319,7 +319,7 @@ export const users = [
 export const auditLogs = [
   { actor: "Ardi Santoso", action: "Membuat kunjungan", entity: "VIS-1444", time: "10:05", risk: "Normal" },
   { actor: "Maya Lestari", action: "Mengisi tanda vital", entity: "VIS-1443", time: "09:48", risk: "Normal" },
-  { actor: "dr. Raka Mahendra", action: "Menyimpan draft rekam medis", entity: "RM-2026-00041", time: "09:44", risk: "Sensitif" },
+  { actor: "dr. Raka Mahendra", action: "Menyimpan draft rekam medis", entity: "26-00-41", time: "09:44", risk: "Sensitif" },
   { actor: "Dewi Kurnia", action: "Memproses resep", entity: "RX-823", time: "09:32", risk: "Normal" },
 ]
 

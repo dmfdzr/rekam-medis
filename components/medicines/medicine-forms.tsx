@@ -6,7 +6,7 @@ import { createMedicineAction, updateMedicineAction, deactivateMedicineAction, t
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextField, FieldError, FormMessage } from "@/components/shared/forms"
+import { TextField, FieldError, FormMessage, DatePickerField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -27,7 +27,7 @@ export function CreateMedicineForm() {
         <TextField name="stock" label="Stok" inputMode="numeric" error={state.errors?.stock?.[0]} />
         <TextField name="minimumStock" label="Stok minimum" inputMode="numeric" error={state.errors?.minimumStock?.[0]} />
         <TextField name="price" label="Harga" inputMode="decimal" error={state.errors?.price?.[0]} />
-        <TextField name="expirationDate" label="Tanggal kedaluwarsa" type="date" error={state.errors?.expirationDate?.[0]} />
+        <DatePickerField name="expirationDate" label="Tanggal kedaluwarsa" error={state.errors?.expirationDate?.[0]} />
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
@@ -95,7 +95,7 @@ export function UpdateMedicineForm({ medicines }: { medicines: MedicineListItem[
           <TextField name="stock" label="Stok" inputMode="numeric" error={state.errors?.stock?.[0]} />
           <TextField name="minimumStock" label="Stok minimum" inputMode="numeric" error={state.errors?.minimumStock?.[0]} />
           <TextField name="price" label="Harga" inputMode="decimal" error={state.errors?.price?.[0]} />
-          <TextField name="expirationDate" label="Tanggal kedaluwarsa" type="date" error={state.errors?.expirationDate?.[0]} />
+          <DatePickerField name="expirationDate" label="Tanggal kedaluwarsa" error={state.errors?.expirationDate?.[0]} />
           <label className="grid gap-1.5">
             <span className="text-sm font-medium">Status obat</span>
             <select

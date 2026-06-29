@@ -8,7 +8,7 @@ import * as React from "react"
 import { Download } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { TextField } from "@/components/shared/forms"
+import { TextField, DatePickerField } from "@/components/shared/forms"
 import { EmptyState, InlineErrorState, LoadingState } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
@@ -260,8 +260,8 @@ export function ReportsSection({
       </div>
       <ModalDialog open={filtersOpen} onOpenChange={onFiltersOpenChange} title="Filter laporan" description="Batasi laporan berdasarkan rentang tanggal agar query tetap ringan.">
         <div className="grid gap-3 sm:grid-cols-2">
-          <TextField name="startDate" label="Tanggal mulai" type="date" value={startDate} onValueChange={setStartDate} />
-          <TextField name="endDate" label="Tanggal akhir" type="date" value={endDate} onValueChange={setEndDate} />
+          <DatePickerField name="startDate" label="Tanggal mulai" value={startDate} onValueChange={setStartDate} />
+          <DatePickerField name="endDate" label="Tanggal akhir" value={endDate} onValueChange={setEndDate} />
         </div>
         {isLoading ? <LoadingState title="Memuat laporan" detail="Filter tanggal sedang diterapkan ke ringkasan dan detail laporan." /> : null}
         {error || dateRangeError ? (

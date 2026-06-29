@@ -2,6 +2,10 @@
 
 import * as React from "react"
 import { cn } from "@/lib/utils"
+import { Calendar } from "@/components/ui/calendar"
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
+import { format as formatDate, parse as parseDate } from "date-fns"
+import { id } from "date-fns/locale"
 
 export function TextField({
   name,
@@ -143,6 +147,118 @@ export function FieldError({ message }: { message?: string }) {
     <p className="text-sm text-destructive" role="alert">
       {message}
     </p>
+  )
+}
+
+export function DatePickerField({
+  name,
+  label,
+  error,
+  defaultValue,
+  value,
+  onValueChange,
+  placeholder,
+}: {
+  name: string
+  label: string
+  error?: string
+  defaultValue?: string
+  value?: string
+  onValueChange?: (value: string) => void
+  placeholder?: string
+}) {
+  const [open, setOpen] = React.useState(false)
+
+  function toISO(date: Date): string {
+    return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+  }
+
+  const raw = value ?? defaultValue
+  const initialDate = React.useMemo(() => {
+    if (!raw) return undefined
+    const parsed = parseDate(raw, "yyyy-MM-dd", new Date())
+    return isNaN(parsed.getTime()) ? undefined : parsed
+  }, [raw])
+
+  const [selected, setSelected] = React.useState<Date | undefined>(initialDate)
+
+  // Sync with external controlled value
+  React.useEffect(() => {
+    if (value !== undefined) {
+      if (!value) {
+        setSelected(undefined)
+      } else {
+        const parsed = parseDate(value, "yyyy-MM-dd", new Date())
+        if (!isNaN(parsed.getTime())) setSelected(parsed)
+      }
+    }
+  }, [value])
+
+  function handleSelect(date: Date | undefined) {
+    setSelected(date)
+    const iso = date ? toISO(date) : ""
+    onValueChange?.(iso)
+  }
+
+  const isoValue = selected ? toISO(selected) : ""
+  const displayText = selected
+    ? formatDate(selected, "d MMMM yyyy", { locale: id })
+    : ""
+
+  return (
+    <div className="grid gap-1.5">
+      <span className="text-sm font-medium">{label}</span>
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            className={cn(
+              "flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25",
+              !displayText && "text-muted-foreground",
+            )}
+            aria-invalid={Boolean(error)}
+          >
+            <span>{displayText || placeholder || `Pilih ${label.toLowerCase()}`}</span>
+            <CalendarIcon />
+          </button>
+        </PopoverTrigger>
+        <PopoverContent className="w-auto p-0" align="start">
+          <Calendar
+            mode="single"
+            selected={selected}
+            onSelect={(date) => {
+              handleSelect(date)
+              setOpen(false)
+            }}
+            defaultMonth={initialDate}
+            locale={id}
+          />
+        </PopoverContent>
+      </Popover>
+      {name ? <input type="hidden" name={name} value={isoValue} /> : null}
+      <FieldError message={error} />
+    </div>
+  )
+}
+
+function CalendarIcon() {
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      className="size-4 text-muted-foreground"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden="true"
+    >
+      <path d="M8 2v4" />
+      <path d="M16 2v4" />
+      <rect width="18" height="18" x="3" y="4" rx="2" />
+      <path d="M3 10h18" />
+    </svg>
   )
 }
 

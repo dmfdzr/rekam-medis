@@ -135,7 +135,7 @@ async function main() {
   })
 
   const patient = await prisma.patient.upsert({
-    where: { medicalRecordNumber: "RM-2026-00041" },
+    where: { medicalRecordNumber: "26-00-41" },
     update: {
       fullName: "Siti Aminah",
       phone: "0812-4432-1180",
@@ -143,7 +143,7 @@ async function main() {
       status: PatientStatus.ACTIVE,
     },
     create: {
-      medicalRecordNumber: "RM-2026-00041",
+      medicalRecordNumber: "26-00-41",
       nik: "3273010101900001",
       fullName: "Siti Aminah",
       birthDate: new Date("1990-01-01"),
@@ -157,14 +157,14 @@ async function main() {
   })
 
   await prisma.patient.upsert({
-    where: { medicalRecordNumber: "RM-2026-00042" },
+    where: { medicalRecordNumber: "26-00-42" },
     update: {
       fullName: "Bima Pratama",
       phone: "0821-7789-1044",
       status: PatientStatus.ACTIVE,
     },
     create: {
-      medicalRecordNumber: "RM-2026-00042",
+      medicalRecordNumber: "26-00-42",
       nik: "3273011205170032",
       fullName: "Bima Pratama",
       birthDate: new Date("2017-05-12"),

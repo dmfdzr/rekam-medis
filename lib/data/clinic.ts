@@ -67,6 +67,7 @@ const documentTypeLabels = {
 const patientTypeLabels = {
   BPJS: "BPJS",
   UMUM: "Umum",
+  ASURANSI: "Asuransi",
 } as const
 
 const userStatusLabels = {
@@ -351,7 +352,7 @@ export async function getVisitList() {
 }
 
 export async function getVisitFormOptions() {
-  const [patients, doctors] = await Promise.all([
+  const [patients, doctors, visits] = await Promise.all([
     prisma.patient.findMany({
       orderBy: { fullName: "asc" },
       take: 100,
@@ -374,6 +375,13 @@ export async function getVisitFormOptions() {
         name: true,
       },
     }),
+    prisma.visit.findMany({
+      select: {
+        service: true,
+      },
+      distinct: ["service"],
+      orderBy: { service: "asc" },
+    }),
   ])
 
   return {
@@ -382,6 +390,7 @@ export async function getVisitFormOptions() {
       label: `${patient.medicalRecordNumber} - ${patient.fullName}`,
     })),
     doctors,
+    services: visits.map((v) => v.service),
   }
 }
 

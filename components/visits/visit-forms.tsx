@@ -6,7 +6,7 @@ import { createVisitAction, updateVisitStatusAction, cancelVisitAction, type Cli
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextField, TextAreaField, FieldError, FormMessage } from "@/components/shared/forms"
+import { TextField, TextAreaField, FieldError, FormMessage, DatePickerField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -37,6 +37,20 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
           <FieldError message={state.errors?.patientId?.[0]} />
         </label>
         <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Registrasi pasien</span>
+          <select
+            name="patientType"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.patientType)}
+          >
+            <option value="">Pilih registrasi pasien</option>
+            <option value="BPJS">BPJS</option>
+            <option value="UMUM">Umum</option>
+            <option value="ASURANSI">Asuransi</option>
+          </select>
+          <FieldError message={state.errors?.patientType?.[0]} />
+        </label>
+        <label className="grid gap-1.5">
           <span className="text-sm font-medium">Dokter</span>
           <select
             name="doctorId"
@@ -52,25 +66,27 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
           </select>
           <FieldError message={state.errors?.doctorId?.[0]} />
         </label>
-        <TextField name="service" label="Layanan / poli" error={state.errors?.service?.[0]} placeholder="Contoh: Poli Umum" />
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Layanan / poli</span>
+          <select
+            name="service"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.service)}
+          >
+            <option value="">Pilih layanan / poli</option>
+            {visitOptions.services.map((service) => (
+              <option key={service} value={service}>
+                {service}
+              </option>
+            ))}
+          </select>
+          <FieldError message={state.errors?.service?.[0]} />
+        </label>
         <TextAreaField name="chiefComplaint" label="Keluhan utama" error={state.errors?.chiefComplaint?.[0]} />
         <div className="grid gap-3 sm:grid-cols-2">
-          <TextField name="admissionDate" label="Tanggal masuk" type="date" error={state.errors?.admissionDate?.[0]} />
-          <TextField name="dischargeDate" label="Tanggal keluar" type="date" error={state.errors?.dischargeDate?.[0]} />
+          <DatePickerField name="admissionDate" label="Tanggal masuk" error={state.errors?.admissionDate?.[0]} />
+          <DatePickerField name="dischargeDate" label="Tanggal keluar" error={state.errors?.dischargeDate?.[0]} />
         </div>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Jenis pasien</span>
-          <select
-            name="patientType"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.patientType)}
-          >
-            <option value="">Pilih jenis pasien</option>
-            <option value="BPJS">BPJS</option>
-            <option value="UMUM">Umum</option>
-          </select>
-          <FieldError message={state.errors?.patientType?.[0]} />
-        </label>
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
