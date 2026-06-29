@@ -17,7 +17,7 @@ import {
   Users,
 } from "lucide-react"
 
-export type RoleKey = "admin" | "registration" | "doctor" | "nurse" | "pharmacist"
+export type RoleKey = "master" | "admin" | "doctor"
 
 export type NavigationItem = {
   id: SectionKey
@@ -48,15 +48,15 @@ export const roles: Record<
     accent: string
   }
 > = {
-  admin: {
-    label: "Admin Klinik",
-    user: "Nadia Prameswari",
-    description: "Operasional, user, data master, dan laporan",
-    accent: "bg-sky-600",
+  master: {
+    label: "Master",
+    user: "Master User",
+    description: "Akses penuh seluruh fitur aplikasi",
+    accent: "bg-sky-700",
   },
-  registration: {
-    label: "Petugas Pendaftaran",
-    user: "Ardi Santoso",
+  admin: {
+    label: "Admin Pendaftaran",
+    user: "Admin Pendaftaran",
     description: "Pasien, pencarian, dan pembuatan kunjungan",
     accent: "bg-cyan-600",
   },
@@ -65,18 +65,6 @@ export const roles: Record<
     user: "dr. Raka Mahendra",
     description: "Pemeriksaan, diagnosa, tindakan, dan resep",
     accent: "bg-teal-600",
-  },
-  nurse: {
-    label: "Perawat",
-    user: "Maya Lestari",
-    description: "Tanda vital dan catatan pemeriksaan awal",
-    accent: "bg-emerald-600",
-  },
-  pharmacist: {
-    label: "Apoteker",
-    user: "Dewi Kurnia",
-    description: "Resep, stok obat, dan penggunaan obat",
-    accent: "bg-violet-600",
   },
 }
 
@@ -96,7 +84,7 @@ const navigation: NavigationItem[] = [
 ]
 
 const roleAccess: Record<RoleKey, SectionKey[]> = {
-  admin: [
+  master: [
     "dashboard",
     "patients",
     "visits",
@@ -110,10 +98,8 @@ const roleAccess: Record<RoleKey, SectionKey[]> = {
     "audit",
     "settings",
   ],
-  registration: ["dashboard", "patients", "visits", "settings"],
-  doctor: ["dashboard", "patients", "visits", "vitals", "records", "prescriptions", "medicines", "documents", "reports", "settings"],
-  nurse: ["dashboard", "patients", "visits", "vitals", "documents", "settings"],
-  pharmacist: ["dashboard", "prescriptions", "medicines", "reports", "settings"],
+  admin: ["dashboard", "patients", "visits", "settings"],
+  doctor: ["dashboard", "vitals", "records", "prescriptions", "medicines", "documents", "reports", "settings"],
 }
 
 export function getNavigationForRole(role: RoleKey) {
@@ -325,10 +311,9 @@ export const reports = [
 ]
 
 export const users = [
-  { name: "Nadia Prameswari", role: "Admin Klinik", status: "Aktif", lastLogin: "14 Jun 2026 08:00" },
+  { name: "Master User", role: "Master", status: "Aktif", lastLogin: "14 Jun 2026 08:00" },
+  { name: "Admin Pendaftaran", role: "Admin Pendaftaran", status: "Aktif", lastLogin: "14 Jun 2026 08:12" },
   { name: "dr. Raka Mahendra", role: "Dokter", status: "Aktif", lastLogin: "14 Jun 2026 08:32" },
-  { name: "Maya Lestari", role: "Perawat", status: "Aktif", lastLogin: "14 Jun 2026 08:21" },
-  { name: "Dewi Kurnia", role: "Apoteker", status: "Aktif", lastLogin: "14 Jun 2026 09:04" },
 ]
 
 export const auditLogs = [

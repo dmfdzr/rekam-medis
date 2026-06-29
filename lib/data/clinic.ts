@@ -266,6 +266,7 @@ export async function getPatientList() {
     name: patient.fullName,
     nik: maskNik(patient.nik),
     gender: genderLabels[patient.gender],
+    birthDate: dateFormatter.format(patient.birthDate),
     age: calculateAge(patient.birthDate),
     phone: patient.phone ?? "-",
     address: patient.address ?? "-",

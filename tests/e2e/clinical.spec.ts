@@ -1,11 +1,11 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Clinical Workflow', () => {
-  test('Nurse should be able to record vitals', async ({ page }) => {
-    // Login as nurse
+  test('Doctor should be able to record vitals', async ({ page }) => {
+    // Login as doctor
     await page.goto('/login');
-    await page.getByLabel('Email atau username').fill('perawat');
-    await page.locator('input[name="password"]').fill('perawat123');
+    await page.getByLabel('Email atau username').fill('dokter');
+    await page.locator('input[name="password"]').fill('dokter123');
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page.getByRole('heading', { name: /Dashboard/ })).toBeVisible({ timeout: 15000 });
 

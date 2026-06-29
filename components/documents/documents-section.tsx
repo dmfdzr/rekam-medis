@@ -31,7 +31,7 @@ export function DocumentsSection({
   onFiltersOpenChange: (open: boolean) => void
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const canCreate = role === "admin" || role === "doctor" || role === "nurse"
+  const canCreate = role === "master" || role === "doctor"
   const documentTypes = React.useMemo(() => getUniqueOptions(documents, (document) => document.type), [documents])
   const searchSelector = React.useCallback(
     (document: MedicalDocumentListItem) => [
@@ -156,7 +156,7 @@ export function DocumentsSection({
         filterOptions={documentTypes}
       />
       <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola dokumen" description="Simpan metadata dokumen; isi dokumen sistem dibuat otomatis saat dibuka.">
-        {canCreate ? <MedicalDocumentForm documentOptions={documentOptions} /> : <PermissionNotice message="Kelola dokumen dibatasi untuk admin, dokter, dan perawat." />}
+        {canCreate ? <MedicalDocumentForm documentOptions={documentOptions} /> : <PermissionNotice message="Kelola dokumen dibatasi untuk master dan dokter." />}
       </ModalDialog>
     </div>
   )

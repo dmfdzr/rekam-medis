@@ -28,7 +28,7 @@ export function MedicinesSection({
   onFiltersOpenChange: (open: boolean) => void
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const canCreate = role === "admin" || role === "pharmacist"
+  const canCreate = role === "master" || role === "doctor"
   const medicineActions: ChoiceFormOption[] = canCreate
     ? [
         {
@@ -207,7 +207,7 @@ export function MedicinesSection({
         <ChoiceFormSwitch
           key={composerOpen ? "medicines-open" : "medicines-closed"}
           options={medicineActions}
-          emptyMessage="Pengelolaan master obat dan inventori dibatasi untuk admin dan apoteker."
+          emptyMessage="Pengelolaan master obat dan inventori dibatasi untuk master dan dokter."
         />
       </ModalDialog>
     </div>

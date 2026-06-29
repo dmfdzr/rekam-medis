@@ -2,8 +2,8 @@ import { test, expect } from '@playwright/test';
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/login');
-  await page.getByLabel('Email atau username').fill('pendaftaran');
-  await page.locator('input[name="password"]').fill('pendaftaran123');
+  await page.getByLabel('Email atau username').fill('admin');
+  await page.locator('input[name="password"]').fill('admin123');
   await page.getByRole('button', { name: 'Masuk' }).click();
   await expect(page.getByRole('heading', { name: /Dashboard/ })).toBeVisible({ timeout: 15000 });
 });

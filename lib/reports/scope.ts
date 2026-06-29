@@ -18,16 +18,8 @@ function normalizeRole(role: string) {
 export function getAllowedReportSections(role: string) {
   const normalizedRole = normalizeRole(role)
 
-  if (normalizedRole === "ADMIN") {
+  if (normalizedRole === "MASTER" || normalizedRole === "DOCTOR") {
     return allReportSections
-  }
-
-  if (normalizedRole === "DOCTOR") {
-    return clinicalReportSections
-  }
-
-  if (normalizedRole === "PHARMACIST") {
-    return pharmacyReportSections
   }
 
   return []

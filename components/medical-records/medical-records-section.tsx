@@ -387,7 +387,7 @@ export function MedicalRecordsSection({
   composerOpen: boolean
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const canInput = role === "admin" || role === "doctor"
+  const canInput = role === "master" || role === "doctor"
 
   return (
     <div className="grid gap-5">

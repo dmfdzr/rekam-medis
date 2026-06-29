@@ -26,7 +26,7 @@ export function VisitsSection({
   onFiltersOpenChange: (open: boolean) => void
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const canCreate = role === "admin" || role === "registration"
+  const canCreate = role === "master" || role === "admin"
 
   return (
     <div className="grid gap-5">
@@ -36,7 +36,7 @@ export function VisitsSection({
       <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola kunjungan" description="Pilih aksi pengelolaan kunjungan yang ingin dikerjakan.">
         <ChoiceFormSwitch
           key={composerOpen ? "visits-open" : "visits-closed"}
-          emptyMessage="Pengelolaan kunjungan dibatasi untuk admin dan petugas pendaftaran."
+          emptyMessage="Pengelolaan kunjungan dibatasi untuk master dan admin."
           options={
             canCreate
               ? [
@@ -66,4 +66,3 @@ export function VisitsSection({
     </div>
   )
 }
-

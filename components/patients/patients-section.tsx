@@ -28,7 +28,7 @@ export function PatientsSection({
   onFiltersOpenChange: (open: boolean) => void
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const canCreate = role === "admin" || role === "registration"
+  const canCreate = role === "master" || role === "admin"
   const patientStatuses = React.useMemo(() => getUniqueOptions(patients, (patient) => patient.status), [patients])
   const searchSelector = React.useCallback(
     (patient: PatientListItem) => [patient.medicalRecordNumber, patient.name, patient.nik, patient.phone, patient.address, patient.allergy, patient.status],
@@ -64,7 +64,7 @@ export function PatientsSection({
                     <th className="py-3 pr-4 font-medium">Kontak</th>
                     <th className="py-3 pr-4 font-medium">Alergi</th>
                     <th className="py-3 pr-4 font-medium">Status</th>
-                    <th className="py-3 font-medium">Kunjungan terakhir</th>
+                    <th className="py-3 font-medium">Tanggal lahir & usia</th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-border">
@@ -83,7 +83,10 @@ export function PatientsSection({
                       <td className="py-4 pr-4">
                         <StatusBadge label={patient.status} />
                       </td>
-                      <td className="py-4">{patient.lastVisit}</td>
+                      <td className="py-4">
+                        <p>{patient.birthDate}</p>
+                        <p className="mt-1 text-xs text-muted-foreground">{patient.age}</p>
+                      </td>
                     </tr>
                   ))}
                 </tbody>
@@ -115,8 +118,8 @@ export function PatientsSection({
                       {patient.allergy}
                     </p>
                     <p>
-                      <span className="text-muted-foreground">Kunjungan terakhir: </span>
-                      {patient.lastVisit}
+                      <span className="text-muted-foreground">Tanggal lahir: </span>
+                      {patient.birthDate} ({patient.age})
                     </p>
                   </div>
                   <PatientDetailDialog patient={patient} />
@@ -139,7 +142,7 @@ export function PatientsSection({
       <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola pasien" description="Pilih aksi pengelolaan pasien yang ingin dikerjakan.">
         <ChoiceFormSwitch
           key={composerOpen ? "patients-open" : "patients-closed"}
-          emptyMessage="Pengelolaan pasien dibatasi untuk admin dan petugas pendaftaran."
+          emptyMessage="Pengelolaan pasien dibatasi untuk master dan admin."
           options={
             canCreate
               ? [
@@ -169,4 +172,3 @@ export function PatientsSection({
     </div>
   )
 }
-

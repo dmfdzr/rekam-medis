@@ -122,7 +122,7 @@ export function VitalsSection({
   composerOpen: boolean
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const canInput = role === "admin" || role === "nurse"
+  const canInput = role === "master" || role === "doctor"
 
   return (
     <div className="grid gap-5">
@@ -141,7 +141,7 @@ export function VitalsSection({
         )}
       </Panel>
       <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Input tanda vital" description="Form dibuat satu kolom di mobile dan dua kolom di desktop untuk entry cepat.">
-        {canInput ? <VitalSignForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini hanya dapat melihat tanda vital. Input tanda vital dibatasi untuk admin dan perawat." />}
+        {canInput ? <VitalSignForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini hanya dapat melihat tanda vital. Input tanda vital dibatasi untuk master dan dokter." />}
       </ModalDialog>
     </div>
   )

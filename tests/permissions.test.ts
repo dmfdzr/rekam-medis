@@ -5,11 +5,9 @@ import { canAccess, permissions, type PermissionKey, type UserRoleKey } from "@/
 import { canAccessSection, type RoleKey, type SectionKey } from "@/lib/medical-data"
 
 const roleMap: Record<RoleKey, UserRoleKey> = {
+  master: "MASTER",
   admin: "ADMIN",
-  registration: "REGISTRATION",
   doctor: "DOCTOR",
-  nurse: "NURSE",
-  pharmacist: "PHARMACIST",
 }
 
 const sectionPermissionMap: Partial<Record<SectionKey, PermissionKey>> = {
@@ -39,9 +37,33 @@ describe("role access", () => {
     }
   })
 
-  it("allows Admin to access every protected feature", () => {
+  it("allows Master to access every protected feature", () => {
     for (const permission of Object.keys(permissions) as PermissionKey[]) {
+      assert.equal(canAccess("MASTER", permission), true, `MASTER must access ${permission}`)
+    }
+  })
+
+  it("limits Admin to dashboard, patients, and visits", () => {
+    const adminAllowed: PermissionKey[] = ["dashboard", "patients", "visits"]
+    const adminBlocked: PermissionKey[] = ["users", "vitals", "records", "prescriptions", "medicines", "documents", "reports", "audit"]
+
+    for (const permission of adminAllowed) {
       assert.equal(canAccess("ADMIN", permission), true, `ADMIN must access ${permission}`)
+    }
+    for (const permission of adminBlocked) {
+      assert.equal(canAccess("ADMIN", permission), false, `ADMIN must not access ${permission}`)
+    }
+  })
+
+  it("limits Doctor to clinical features", () => {
+    const doctorAllowed: PermissionKey[] = ["dashboard", "vitals", "records", "prescriptions", "medicines", "documents", "reports"]
+    const doctorBlocked: PermissionKey[] = ["users", "patients", "visits", "audit"]
+
+    for (const permission of doctorAllowed) {
+      assert.equal(canAccess("DOCTOR", permission), true, `DOCTOR must access ${permission}`)
+    }
+    for (const permission of doctorBlocked) {
+      assert.equal(canAccess("DOCTOR", permission), false, `DOCTOR must not access ${permission}`)
     }
   })
 

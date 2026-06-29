@@ -21,11 +21,9 @@ import {
 import { prisma } from "@/lib/prisma"
 
 const UserRole = {
+  MASTER: "MASTER",
   ADMIN: "ADMIN",
-  REGISTRATION: "REGISTRATION",
   DOCTOR: "DOCTOR",
-  NURSE: "NURSE",
-  PHARMACIST: "PHARMACIST",
 } as const
 
 type UserRole = (typeof UserRole)[keyof typeof UserRole]
@@ -280,16 +278,16 @@ const deactivateUserSchema = z.object({
   userId: z.string().trim().min(1, "User wajib dipilih."),
 })
 
-const patientMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.REGISTRATION])
-const visitMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.REGISTRATION])
-const vitalSignMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.NURSE])
-const medicalRecordMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.DOCTOR])
-const prescriptionMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.DOCTOR])
-const pharmacyMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.PHARMACIST])
-const prescriptionCancelRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.DOCTOR, UserRole.PHARMACIST])
-const medicineMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.PHARMACIST])
-const documentMutationRoles = new Set<UserRole>([UserRole.ADMIN, UserRole.DOCTOR, UserRole.NURSE])
-const userMutationRoles = new Set<UserRole>([UserRole.ADMIN])
+const patientMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.ADMIN])
+const visitMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.ADMIN])
+const vitalSignMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
+const medicalRecordMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
+const prescriptionMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
+const pharmacyMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
+const prescriptionCancelRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
+const medicineMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
+const documentMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
+const userMutationRoles = new Set<UserRole>([UserRole.MASTER])
 
 function optionalString(value: string | undefined) {
   return value && value.length > 0 ? value : null

@@ -7,11 +7,9 @@ datasource db {
 }
 
 enum UserRole {
+  MASTER
   ADMIN
-  REGISTRATION
   DOCTOR
-  NURSE
-  PHARMACIST
 }
 
 enum UserStatus {

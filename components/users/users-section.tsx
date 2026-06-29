@@ -29,7 +29,7 @@ export function UsersSection({
   onFiltersOpenChange: (open: boolean) => void
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const canCreate = role === "admin"
+  const canCreate = role === "master"
   const userActions: ChoiceFormOption[] = canCreate
     ? [
         {
@@ -114,7 +114,7 @@ export function UsersSection({
         filterOptions={userStatuses}
       />
       <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola user" description="Pilih aksi pengelolaan user yang ingin dikerjakan.">
-        <ChoiceFormSwitch key={composerOpen ? "users-open" : "users-closed"} options={userActions} emptyMessage="Manajemen user hanya tersedia untuk admin." />
+        <ChoiceFormSwitch key={composerOpen ? "users-open" : "users-closed"} options={userActions} emptyMessage="Manajemen user hanya tersedia untuk master." />
       </ModalDialog>
     </div>
   )

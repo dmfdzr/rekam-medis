@@ -27,48 +27,37 @@ const adapter = new PrismaPg({ connectionString })
 const prisma = new PrismaClient({ adapter })
 
 const roles = [
-
   {
-    key: UserRole.ADMIN,
-    name: "Admin Klinik",
-    description: "Mengelola operasional, user tertentu, data pasien, obat, dan laporan.",
+    key: UserRole.MASTER,
+    name: "Master",
+    description: "Akses penuh seluruh fitur aplikasi.",
   },
   {
-    key: UserRole.REGISTRATION,
-    name: "Petugas Pendaftaran",
-    description: "Mendaftarkan pasien, mencari pasien, dan membuat kunjungan.",
+    key: UserRole.ADMIN,
+    name: "Admin Pendaftaran",
+    description: "Mengelola data pasien dan kunjungan.",
   },
   {
     key: UserRole.DOCTOR,
     name: "Dokter",
-    description: "Melihat pasien, mengisi rekam medis, diagnosa, tindakan, dan resep.",
-  },
-  {
-    key: UserRole.NURSE,
-    name: "Perawat",
-    description: "Melihat kunjungan dan mengisi tanda vital pasien.",
-  },
-  {
-    key: UserRole.PHARMACIST,
-    name: "Apoteker",
-    description: "Mengelola stok obat dan memproses resep.",
+    description: "Mengelola alur klinis selain pendaftaran, manajemen user, dan audit log.",
   },
 ]
 
 const users = [
   {
-    name: "Nadia Prameswari",
+    name: "Master User",
+    email: "master@medrecord.local",
+    username: "master",
+    role: UserRole.MASTER,
+    password: "master123",
+  },
+  {
+    name: "Admin Pendaftaran",
     email: "admin@medrecord.local",
     username: "admin",
     role: UserRole.ADMIN,
     password: "admin123",
-  },
-  {
-    name: "Ardi Santoso",
-    email: "pendaftaran@medrecord.local",
-    username: "pendaftaran",
-    role: UserRole.REGISTRATION,
-    password: "pendaftaran123",
   },
   {
     name: "dr. Raka Mahendra",
@@ -76,20 +65,6 @@ const users = [
     username: "dokter",
     role: UserRole.DOCTOR,
     password: "dokter123",
-  },
-  {
-    name: "Maya Lestari",
-    email: "perawat@medrecord.local",
-    username: "perawat",
-    role: UserRole.NURSE,
-    password: "perawat123",
-  },
-  {
-    name: "Dewi Kurnia",
-    email: "apoteker@medrecord.local",
-    username: "apoteker",
-    role: UserRole.PHARMACIST,
-    password: "apoteker123",
   },
 ]
 
@@ -130,24 +105,32 @@ async function main() {
     })
   }
 
+  await prisma.user.deleteMany({
+    where: {
+      username: {
+        notIn: users.map((user) => user.username),
+      },
+    },
+  })
+
+  await prisma.role.deleteMany({
+    where: {
+      key: {
+        notIn: roles.map((role) => role.key),
+      },
+    },
+  })
+
+  const master = await prisma.user.findUniqueOrThrow({
+    where: { email: "master@medrecord.local" },
+    select: { id: true },
+  })
   const admin = await prisma.user.findUniqueOrThrow({
     where: { email: "admin@medrecord.local" },
     select: { id: true },
   })
-  const registration = await prisma.user.findUniqueOrThrow({
-    where: { email: "pendaftaran@medrecord.local" },
-    select: { id: true },
-  })
   const doctor = await prisma.user.findUniqueOrThrow({
     where: { email: "dokter@medrecord.local" },
-    select: { id: true },
-  })
-  const nurse = await prisma.user.findUniqueOrThrow({
-    where: { email: "perawat@medrecord.local" },
-    select: { id: true },
-  })
-  const pharmacist = await prisma.user.findUniqueOrThrow({
-    where: { email: "apoteker@medrecord.local" },
     select: { id: true },
   })
 
@@ -210,7 +193,7 @@ async function main() {
       service: "Poli Umum",
       chiefComplaint: "Demam, nyeri tenggorokan, batuk kering",
       status: VisitStatus.EXAMINATION,
-      createdById: registration.id,
+      createdById: admin.id,
     },
   })
 
@@ -365,13 +348,13 @@ async function main() {
     update: {
       status: PrescriptionStatus.PENDING,
       doctorId: doctor.id,
-      pharmacistId: pharmacist.id,
+      pharmacistId: doctor.id,
     },
     create: {
       medicalRecordId: medicalRecord.id,
       status: PrescriptionStatus.PENDING,
       doctorId: doctor.id,
-      pharmacistId: pharmacist.id,
+      pharmacistId: doctor.id,
     },
   })
 
@@ -416,7 +399,7 @@ async function main() {
     update: {
       patientId: patient.id,
       visitId: visit.id,
-      uploadedById: nurse.id,
+      uploadedById: doctor.id,
     },
     create: {
       id: "document-initial-001",
@@ -425,13 +408,13 @@ async function main() {
       type: DocumentType.SUPPORTING_DOCUMENT,
       fileName: "Ringkasan pemeriksaan awal Siti Aminah",
       fileUrl: "generated:medical-document",
-      uploadedById: nurse.id,
+      uploadedById: doctor.id,
     },
   })
 
   await prisma.auditLog.create({
     data: {
-      userId: admin.id,
+      userId: master.id,
       action: "SEED_INITIAL_DATA",
       entityName: "Database",
       afterData: {

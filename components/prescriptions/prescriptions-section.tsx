@@ -30,8 +30,8 @@ export function PrescriptionsSection({
   onFiltersOpenChange: (open: boolean) => void
   onComposerOpenChange: (open: boolean) => void
 }) {
-  const canCreate = role === "admin" || role === "doctor"
-  const canProcess = role === "admin" || role === "pharmacist"
+  const canCreate = role === "master" || role === "doctor"
+  const canProcess = role === "master" || role === "doctor"
   const prescriptionActions: ChoiceFormOption[] = [
     ...(canCreate
       ? [
@@ -180,10 +180,9 @@ export function PrescriptionsSection({
         <ChoiceFormSwitch
           key={composerOpen ? "prescriptions-open" : "prescriptions-closed"}
           options={prescriptionActions}
-          emptyMessage="Pengelolaan resep dibatasi untuk admin, dokter, dan apoteker sesuai kewenangan masing-masing."
+          emptyMessage="Pengelolaan resep dibatasi untuk master dan dokter sesuai kewenangan masing-masing."
         />
       </ModalDialog>
     </div>
   )
 }
-

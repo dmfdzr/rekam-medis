@@ -110,7 +110,7 @@ export function DashboardSection({
   medicines: MedicineListItem[]
   dashboardSummary: DashboardSummary
 }) {
-  const canSeeMedicineAlerts = role === "admin" || role === "pharmacist"
+  const canSeeMedicineAlerts = role === "master" || role === "doctor"
 
   return (
     <div className="grid gap-5">
@@ -162,4 +162,3 @@ export function DashboardSection({
     </div>
   )
 }
-

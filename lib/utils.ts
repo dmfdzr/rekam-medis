@@ -17,12 +17,10 @@ export function getUniqueOptions<T>(items: T[], selector: (item: T) => string) {
 
 export function mapUserRoleToAppRole(role: string): RoleKey {
   const roleMap: Record<string, RoleKey> = {
+    MASTER: "master",
     ADMIN: "admin",
-    REGISTRATION: "registration",
     DOCTOR: "doctor",
-    NURSE: "nurse",
-    PHARMACIST: "pharmacist",
   }
 
-  return roleMap[role] ?? "admin"
+  return roleMap[role] ?? "doctor"
 }

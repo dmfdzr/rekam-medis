@@ -11,20 +11,20 @@ export type PermissionKey =
   | "reports"
   | "audit"
 
-export type UserRoleKey = "ADMIN" | "REGISTRATION" | "DOCTOR" | "NURSE" | "PHARMACIST"
+export type UserRoleKey = "MASTER" | "ADMIN" | "DOCTOR"
 
 export const permissions: Record<PermissionKey, UserRoleKey[]> = {
-  dashboard: ["ADMIN", "REGISTRATION", "DOCTOR", "NURSE", "PHARMACIST"],
-  users: ["ADMIN"],
-  patients: ["ADMIN", "REGISTRATION", "DOCTOR", "NURSE"],
-  visits: ["ADMIN", "REGISTRATION", "DOCTOR", "NURSE"],
-  vitals: ["ADMIN", "DOCTOR", "NURSE"],
-  records: ["ADMIN", "DOCTOR"],
-  prescriptions: ["ADMIN", "DOCTOR", "PHARMACIST"],
-  medicines: ["ADMIN", "DOCTOR", "PHARMACIST"],
-  documents: ["ADMIN", "DOCTOR", "NURSE"],
-  reports: ["ADMIN", "DOCTOR", "PHARMACIST"],
-  audit: ["ADMIN"],
+  dashboard: ["MASTER", "ADMIN", "DOCTOR"],
+  users: ["MASTER"],
+  patients: ["MASTER", "ADMIN"],
+  visits: ["MASTER", "ADMIN"],
+  vitals: ["MASTER", "DOCTOR"],
+  records: ["MASTER", "DOCTOR"],
+  prescriptions: ["MASTER", "DOCTOR"],
+  medicines: ["MASTER", "DOCTOR"],
+  documents: ["MASTER", "DOCTOR"],
+  reports: ["MASTER", "DOCTOR"],
+  audit: ["MASTER"],
 }
 
 export function canAccess(role: string, permission: PermissionKey) {

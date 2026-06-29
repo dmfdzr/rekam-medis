@@ -20,34 +20,36 @@ const reportBundle: Parameters<typeof scopeReportBundleForRole>[1] = {
 }
 
 describe("report role scoping", () => {
-  it("allows admin roles to view every report section", () => {
-    assert.deepEqual(getAllowedReportSections("ADMIN"), ["diagnoses", "treatments", "medicineUsage", "stockReport"])
+  it("allows master to view every report section", () => {
+    assert.deepEqual(getAllowedReportSections("MASTER"), ["diagnoses", "treatments", "medicineUsage", "stockReport"])
   })
 
-  it("limits doctors to clinical reports", () => {
+  it("allows doctor to view every report section", () => {
     const scoped = scopeReportBundleForRole("DOCTOR", reportBundle)
 
-    assert.deepEqual(scoped.reports.map((report) => report.label), ["Diagnosa terbanyak"])
+    assert.deepEqual(scoped.reports.map((report) => report.label), ["Kunjungan", "Pasien baru", "Diagnosa terbanyak", "Penggunaan obat", "Obat stok rendah"])
     assert.equal(scoped.details.diagnoses.length, 1)
     assert.equal(scoped.details.treatments.length, 1)
-    assert.equal(scoped.details.medicineUsage.length, 0)
-    assert.equal(scoped.details.stockReport.length, 0)
-    assert.equal(canViewReportSection("DOCTOR", "stockReport"), false)
-  })
-
-  it("limits pharmacists to pharmacy reports", () => {
-    const scoped = scopeReportBundleForRole("PHARMACIST", reportBundle)
-
-    assert.deepEqual(scoped.reports.map((report) => report.label), ["Penggunaan obat", "Obat stok rendah"])
-    assert.equal(scoped.details.diagnoses.length, 0)
-    assert.equal(scoped.details.treatments.length, 0)
     assert.equal(scoped.details.medicineUsage.length, 1)
     assert.equal(scoped.details.stockReport.length, 1)
-    assert.equal(canViewReportSection("PHARMACIST", "diagnoses"), false)
+    assert.equal(canViewReportSection("DOCTOR", "stockReport"), true)
   })
 
-  it("blocks non-report roles from report sections", () => {
-    const scoped = scopeReportBundleForRole("NURSE", reportBundle)
+  it("blocks admin from report sections", () => {
+    const scoped = scopeReportBundleForRole("ADMIN", reportBundle)
+
+    assert.deepEqual(scoped.reports, [])
+    assert.deepEqual(scoped.details, {
+      diagnoses: [],
+      treatments: [],
+      medicineUsage: [],
+      stockReport: [],
+    })
+    assert.equal(canViewReportSection("ADMIN", "diagnoses"), false)
+  })
+
+  it("blocks unknown roles from report sections", () => {
+    const scoped = scopeReportBundleForRole("UNKNOWN_ROLE", reportBundle)
 
     assert.deepEqual(scoped.reports, [])
     assert.deepEqual(scoped.details, {
