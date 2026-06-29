@@ -192,7 +192,6 @@ export async function GET(request: Request, context: { params: Promise<{ documen
         ["Telepon", document.patient.phone],
         ["Golongan Darah", document.patient.bloodType],
         ["Alergi", document.patient.allergies],
-        ["Kontak Darurat", document.patient.emergencyContact],
         ["Alamat", document.patient.address],
       ])}
       ${document.visit ? section("Data Kunjungan", [

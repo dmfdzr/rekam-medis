@@ -54,6 +54,23 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
         </label>
         <TextField name="service" label="Layanan / poli" error={state.errors?.service?.[0]} placeholder="Contoh: Poli Umum" />
         <TextAreaField name="chiefComplaint" label="Keluhan utama" error={state.errors?.chiefComplaint?.[0]} />
+        <div className="grid gap-3 sm:grid-cols-2">
+          <TextField name="admissionDate" label="Tanggal masuk" type="date" error={state.errors?.admissionDate?.[0]} />
+          <TextField name="dischargeDate" label="Tanggal keluar" type="date" error={state.errors?.dischargeDate?.[0]} />
+        </div>
+        <label className="grid gap-1.5">
+          <span className="text-sm font-medium">Jenis pasien</span>
+          <select
+            name="patientType"
+            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            aria-invalid={Boolean(state.errors?.patientType)}
+          >
+            <option value="">Pilih jenis pasien</option>
+            <option value="BPJS">BPJS</option>
+            <option value="UMUM">Umum</option>
+          </select>
+          <FieldError message={state.errors?.patientType?.[0]} />
+        </label>
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>

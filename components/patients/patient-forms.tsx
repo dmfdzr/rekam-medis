@@ -43,7 +43,6 @@ export function CreatePatientForm() {
         <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" lettersOnly />
         <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} placeholder="Contoh: Amoxicillin" />
-        <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
@@ -84,7 +83,6 @@ export function UpdatePatientForm({ patients }: { patients: PatientListItem[] })
           <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} />
           <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
           <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" lettersOnly />
-          <TextField name="emergencyContact" label="Kontak darurat" error={state.errors?.emergencyContact?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
         </div>
         <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} />

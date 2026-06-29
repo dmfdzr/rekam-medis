@@ -64,6 +64,11 @@ const documentTypeLabels = {
   OTHER: "Lainnya",
 } as const
 
+const patientTypeLabels = {
+  BPJS: "BPJS",
+  UMUM: "Umum",
+} as const
+
 const userStatusLabels = {
   ACTIVE: "Aktif",
   INACTIVE: "Nonaktif",
@@ -274,7 +279,6 @@ export async function getPatientList() {
     address: patient.address ?? "-",
     bloodType: patient.bloodType ?? "-",
     allergy: patient.allergies ?? "Tidak ada",
-    emergencyContact: patient.emergencyContact ?? "-",
     status: patientStatusLabels[patient.status],
     lastVisit: patient.visits[0] ? dateFormatter.format(patient.visits[0].visitDate) : "-",
     visitCount: patient._count.visits,
@@ -324,16 +328,26 @@ export async function getVisitList() {
     },
   })
 
-  return visits.map((visit) => ({
-    id: visit.id,
-    patient: visit.patient.fullName,
-    medicalRecordNumber: visit.patient.medicalRecordNumber,
-    service: visit.service,
-    doctor: visit.doctor?.name ?? "Belum ditentukan",
-    complaint: visit.chiefComplaint,
-    status: visitStatusLabels[visit.status],
-    time: timeFormatter.format(visit.visitDate),
-  }))
+  return visits.map((visit) => {
+    const lengthOfStayDays = visit.dischargeDate
+      ? Math.ceil((visit.dischargeDate.getTime() - visit.admissionDate.getTime()) / (1000 * 60 * 60 * 24))
+      : null
+
+    return {
+      id: visit.id,
+      patient: visit.patient.fullName,
+      medicalRecordNumber: visit.patient.medicalRecordNumber,
+      service: visit.service,
+      doctor: visit.doctor?.name ?? "Belum ditentukan",
+      complaint: visit.chiefComplaint,
+      status: visitStatusLabels[visit.status],
+      time: timeFormatter.format(visit.visitDate),
+      admissionDate: dateFormatter.format(visit.admissionDate),
+      dischargeDate: visit.dischargeDate ? dateFormatter.format(visit.dischargeDate) : "-",
+      lengthOfStay: lengthOfStayDays !== null ? `${lengthOfStayDays} hari` : "Masih dirawat",
+      patientType: patientTypeLabels[visit.patientType],
+    }
+  })
 }
 
 export async function getVisitFormOptions() {

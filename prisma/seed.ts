@@ -152,7 +152,6 @@ async function main() {
       phone: "0812-4432-1180",
       bloodType: "O",
       allergies: "Amoxicillin",
-      emergencyContact: "Budi Santoso - 0812-0000-4411",
       status: PatientStatus.ACTIVE,
     },
   })
@@ -173,7 +172,6 @@ async function main() {
       address: "Jl. Anggrek No. 5, Bandung",
       phone: "0821-7789-1044",
       allergies: "Tidak ada",
-      emergencyContact: "Dina Permata - 0821-7789-1044",
       status: PatientStatus.ACTIVE,
     },
   })
@@ -190,6 +188,8 @@ async function main() {
       patientId: patient.id,
       doctorId: doctor.id,
       visitDate: new Date("2026-06-14T09:15:00+07:00"),
+      admissionDate: new Date("2026-06-14T09:15:00+07:00"),
+      patientType: "UMUM",
       service: "Poli Umum",
       chiefComplaint: "Demam, nyeri tenggorokan, batuk kering",
       status: VisitStatus.EXAMINATION,

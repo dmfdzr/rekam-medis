@@ -34,6 +34,8 @@ export function VisitDetailDialog({ visit }: { visit: VisitListItem }) {
             <PatientDetailItem label="No. rekam medis" value={visit.medicalRecordNumber} />
             <PatientDetailItem label="Dokter" value={visit.doctor} />
             <PatientDetailItem label="Layanan / poli" value={visit.service} />
+            <PatientDetailItem label="Jenis pasien" value={visit.patientType} />
+            <PatientDetailItem label="Lama dirawat" value={visit.lengthOfStay} />
           </div>
 
           <div className="rounded-md border border-border bg-card p-4">
@@ -119,8 +121,8 @@ export function ResponsiveVisitsTable({
               <th className="py-3 pr-4 font-medium">No. RM</th>
               <th className="py-3 pr-4 font-medium">Pasien</th>
               <th className="py-3 pr-4 font-medium">Layanan</th>
-              <th className="py-3 pr-4 font-medium">Keluhan</th>
-              <th className="py-3 pr-4 font-medium">Jam</th>
+              <th className="py-3 pr-4 font-medium">Jenis pasien</th>
+              <th className="py-3 pr-4 font-medium">Lama dirawat</th>
               <th className="py-3 pr-4 font-medium">Status</th>
               <th className="py-3 font-medium">Aksi</th>
             </tr>
@@ -136,8 +138,8 @@ export function ResponsiveVisitsTable({
                   </p>
                 </td>
                 <td className="py-4 pr-4">{visit.service}</td>
-                <td className="max-w-[18rem] py-4 pr-4 leading-6 text-muted-foreground">{visit.complaint}</td>
-                <td className="py-4 pr-4 tabular-nums">{visit.time}</td>
+                <td className="py-4 pr-4">{visit.patientType}</td>
+                <td className="py-4 pr-4">{visit.lengthOfStay}</td>
                 <td className="py-4 pr-4">
                   <StatusBadge label={visit.status} />
                 </td>
@@ -157,13 +159,21 @@ export function ResponsiveVisitsTable({
               <div>
                 <p className="font-medium">{visit.patient}</p>
                 <p className="mt-1 text-xs text-muted-foreground">
-                  {visit.medicalRecordNumber} - {visit.time}
+                  {visit.medicalRecordNumber} - {visit.service}
                 </p>
               </div>
               <StatusBadge label={visit.status} />
             </div>
-            <p className="mt-3 text-sm">{visit.service}</p>
-            <p className="mt-2 text-sm leading-6 text-muted-foreground">{visit.complaint}</p>
+            <div className="mt-3 grid gap-1 text-sm">
+              <p>
+                <span className="text-muted-foreground">Jenis pasien: </span>
+                {visit.patientType}
+              </p>
+              <p>
+                <span className="text-muted-foreground">Lama dirawat: </span>
+                {visit.lengthOfStay}
+              </p>
+            </div>
             <VisitDetailDialog visit={visit} />
           </div>
         ))}

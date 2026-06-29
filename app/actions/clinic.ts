@@ -48,6 +48,11 @@ const PatientStatus = {
   DECEASED: "DECEASED",
 } as const
 
+const PatientType = {
+  BPJS: "BPJS",
+  UMUM: "UMUM",
+} as const
+
 const VisitStatus = {
   WAITING: "WAITING",
   VITAL_SIGN: "VITAL_SIGN",
@@ -111,7 +116,6 @@ const createPatientSchema = z.object({
   address: z.string().trim().optional(),
   bloodType: z.string().trim().refine(isOptionalLettersOnlyValid, "Golongan darah hanya boleh berisi huruf.").optional(),
   allergies: z.string().trim().optional(),
-  emergencyContact: z.string().trim().refine(isOptionalDigitsOnlyValid, "Kontak darurat hanya boleh berisi angka.").optional(),
 })
 
 const updatePatientSchema = z.object({
@@ -121,7 +125,6 @@ const updatePatientSchema = z.object({
   address: z.string().trim().optional(),
   bloodType: z.string().trim().refine(isOptionalLettersOnlyValid, "Golongan darah hanya boleh berisi huruf.").optional(),
   allergies: z.string().trim().optional(),
-  emergencyContact: z.string().trim().refine(isOptionalDigitsOnlyValid, "Kontak darurat hanya boleh berisi angka.").optional(),
   status: z.enum(PatientStatus, "Status pasien wajib dipilih.").optional().or(z.literal("")),
 })
 
@@ -134,6 +137,9 @@ const createVisitSchema = z.object({
   doctorId: z.string().trim().optional(),
   service: z.string().trim().min(2, "Layanan wajib diisi."),
   chiefComplaint: z.string().trim().min(3, "Keluhan utama minimal 3 karakter."),
+  admissionDate: z.string().trim().min(1, "Tanggal masuk wajib diisi."),
+  dischargeDate: z.string().trim().optional(),
+  patientType: z.enum(PatientType, "Jenis pasien wajib dipilih."),
 })
 
 const updateVisitStatusSchema = z.object({
@@ -398,7 +404,6 @@ export async function createPatientAction(_state: ClinicFormState, formData: For
     address: formData.get("address"),
     bloodType: formData.get("bloodType"),
     allergies: formData.get("allergies"),
-    emergencyContact: formData.get("emergencyContact"),
   })
 
   if (!parsed.success) {
@@ -434,7 +439,6 @@ export async function createPatientAction(_state: ClinicFormState, formData: For
           phone: optionalString(parsed.data.phone),
           bloodType: optionalString(parsed.data.bloodType),
           allergies: optionalString(parsed.data.allergies),
-          emergencyContact: optionalString(parsed.data.emergencyContact),
         },
       })
 
@@ -500,7 +504,6 @@ export async function updatePatientAction(_state: ClinicFormState, formData: For
     address: formData.get("address"),
     bloodType: formData.get("bloodType"),
     allergies: formData.get("allergies"),
-    emergencyContact: formData.get("emergencyContact"),
     status: formData.get("status"),
   })
 
@@ -530,7 +533,6 @@ export async function updatePatientAction(_state: ClinicFormState, formData: For
     ...(parsed.data.address ? { address: parsed.data.address } : {}),
     ...(parsed.data.bloodType ? { bloodType: parsed.data.bloodType } : {}),
     ...(parsed.data.allergies ? { allergies: parsed.data.allergies } : {}),
-    ...(parsed.data.emergencyContact ? { emergencyContact: parsed.data.emergencyContact } : {}),
     ...(parsed.data.status ? { status: parsed.data.status } : {}),
   }
 
@@ -663,6 +665,9 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
     doctorId: formData.get("doctorId"),
     service: formData.get("service"),
     chiefComplaint: formData.get("chiefComplaint"),
+    admissionDate: formData.get("admissionDate"),
+    dischargeDate: formData.get("dischargeDate"),
+    patientType: formData.get("patientType"),
   })
 
   if (!parsed.success) {
@@ -686,12 +691,34 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
     }
   }
 
+  const admissionDate = new Date(parsed.data.admissionDate)
+  const dischargeDate = parsed.data.dischargeDate ? new Date(parsed.data.dischargeDate) : null
+
+  if (isNaN(admissionDate.getTime())) {
+    return {
+      ok: false,
+      message: "Format tanggal masuk tidak valid.",
+      errors: { admissionDate: ["Format tanggal masuk tidak valid."] },
+    }
+  }
+
+  if (dischargeDate && isNaN(dischargeDate.getTime())) {
+    return {
+      ok: false,
+      message: "Format tanggal keluar tidak valid.",
+      errors: { dischargeDate: ["Format tanggal keluar tidak valid."] },
+    }
+  }
+
   const visit = await prisma.visit.create({
     data: {
       patientId: parsed.data.patientId,
       doctorId: optionalString(parsed.data.doctorId),
       service: parsed.data.service,
       chiefComplaint: parsed.data.chiefComplaint,
+      admissionDate,
+      dischargeDate,
+      patientType: parsed.data.patientType,
       status: VisitStatus.WAITING,
       createdById: user.id,
     },

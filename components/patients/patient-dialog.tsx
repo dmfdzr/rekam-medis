@@ -36,7 +36,6 @@ export function PatientDetailDialog({ patient }: { patient: PatientListItem }) {
 
           <div className="grid gap-3 sm:grid-cols-2">
             <PatientDetailItem label="Telepon" value={patient.phone} />
-            <PatientDetailItem label="Kontak darurat" value={patient.emergencyContact} />
             <PatientDetailItem label="Golongan darah" value={patient.bloodType} />
             <PatientDetailItem label="Alergi" value={patient.allergy} />
             <div className="sm:col-span-2">
