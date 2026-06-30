@@ -196,30 +196,7 @@ async function main() {
     },
   })
 
-  await prisma.vitalSign.upsert({
-    where: { visitId: visit.id },
-    update: {
-      bloodPressure: "128/82",
-      temperature: "37.8",
-      weight: "58.20",
-      height: "157.00",
-      pulse: 92,
-      respiration: 20,
-      oxygenSaturation: 98,
-      nurseNote: "Pasien tampak compos mentis, keluhan demam sejak 2 hari.",
-    },
-    create: {
-      visitId: visit.id,
-      bloodPressure: "128/82",
-      temperature: "37.8",
-      weight: "58.20",
-      height: "157.00",
-      pulse: 92,
-      respiration: 20,
-      oxygenSaturation: 98,
-      nurseNote: "Pasien tampak compos mentis, keluhan demam sejak 2 hari.",
-    },
-  })
+
 
   const medicalRecord = await prisma.medicalRecord.upsert({
     where: { visitId: visit.id },
