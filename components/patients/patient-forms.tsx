@@ -6,7 +6,7 @@ import { createPatientAction, updatePatientAction, deactivatePatientAction, type
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextField, TextAreaField, FieldError, FormMessage, DatePickerField } from "@/components/shared/forms"
+import { TextField, TextAreaField, FieldError, FormMessage, DatePickerField, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -63,22 +63,13 @@ export function UpdatePatientForm({ patients }: { patients: PatientListItem[] })
   return (
     <form action={formAction} className="grid gap-4" noValidate>
       <div className="grid gap-3">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Pasien</span>
-          <select
-            name="patientId"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.patientId)}
-          >
-            <option value="">Pilih pasien</option>
-            {patients.map((patient) => (
-              <option key={patient.id} value={patient.id}>
-                {patient.medicalRecordNumber} - {patient.name}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.patientId?.[0]} />
-        </label>
+        <ComboboxField
+          name="patientId"
+          label="Pasien"
+          items={patients.map(p => ({ value: p.id, label: `${p.medicalRecordNumber} - ${p.name}` }))}
+          placeholder="Pilih pasien"
+          error={state.errors?.patientId}
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} />
           <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
@@ -120,22 +111,13 @@ export function DeactivatePatientForm({ patients }: { patients: PatientListItem[
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Pasien</span>
-        <select
-          name="patientId"
-          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-          aria-invalid={Boolean(state.errors?.patientId)}
-        >
-          <option value="">Pilih pasien</option>
-          {activePatients.map((patient) => (
-            <option key={patient.id} value={patient.id}>
-              {patient.medicalRecordNumber} - {patient.name} - {patient.status}
-            </option>
-          ))}
-        </select>
-        <FieldError message={state.errors?.patientId?.[0]} />
-      </label>
+      <ComboboxField
+        name="patientId"
+        label="Pasien"
+        items={activePatients.map(p => ({ value: p.id, label: `${p.medicalRecordNumber} - ${p.name} - ${p.status}` }))}
+        placeholder="Pilih pasien"
+        error={state.errors?.patientId}
+      />
       <DestructiveActionNotice message="Pasien tidak dihapus permanen. Statusnya menjadi nonaktif agar riwayat klinis, dokumen, dan audit tetap tersimpan." />
       <FormMessage state={state} />
       <ConfirmSubmitButton

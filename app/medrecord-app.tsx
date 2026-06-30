@@ -45,9 +45,10 @@ import { ReportsSection } from "@/components/reports/reports-section"
 import { UsersSection } from "@/components/users/users-section"
 import { AuditSection } from "@/components/users/audit-section"
 import { SettingsSection } from "@/components/settings/settings-section"
+import { AssessmentSection } from "@/components/assessment/assessment-section"
 
 const filterableSections = new Set<SectionKey>(["patients", "visits", "prescriptions", "documents", "reports", "users", "audit"])
-const composerSections = new Set<SectionKey>(["patients", "visits", "vitals", "records", "prescriptions", "documents", "users"])
+const composerSections = new Set<SectionKey>(["patients", "visits", "vitals", "assessment", "records", "prescriptions", "documents", "users"])
 
 function mapUserRoleToAppRole(role: string): RoleKey {
   const roleMap: Record<string, RoleKey> = {
@@ -78,6 +79,11 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
     title: "Tanda Vital",
     description: "Input pemeriksaan awal dengan struktur cepat dan mudah dicek ulang.",
     action: "Simpan tanda vital",
+  },
+  assessment: {
+    title: "Asesmen Klinis",
+    description: "Input diagnosa masuk, riwayat, diagnosa ICD-10, dan tindakan ICD-9-CM.",
+    action: "Simpan asesmen",
   },
   records: {
     title: "Rekam Medis",
@@ -290,6 +296,8 @@ function SectionRenderer({
       return <VisitsSection visits={visits} visitOptions={visitOptions} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "vitals":
       return <VitalsSection role={role} clinicalWorklist={clinicalWorklist} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
+    case "assessment":
+      return <AssessmentSection role={role} clinicalWorklist={clinicalWorklist} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "records":
       return <MedicalRecordsSection role={role} clinicalWorklist={clinicalWorklist} medicalRecordHistory={medicalRecordHistory} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "prescriptions":

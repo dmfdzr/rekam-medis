@@ -191,6 +191,26 @@ const saveMedicalRecordSchema = z.object({
   intent: z.enum(["draft", "final"]),
 })
 
+const diagnosisItemSchema = z.object({
+  code: z.string().trim().optional(),
+  name: z.string().trim().min(1, "Nama diagnosa wajib diisi."),
+})
+
+const treatmentItemSchema = z.object({
+  code: z.string().trim().optional(),
+  name: z.string().trim().min(1, "Nama tindakan wajib diisi."),
+})
+
+const saveAssessmentSchema = z.object({
+  visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
+  admissionDiagnosis: z.string().trim().optional(),
+  medicalHistory: z.string().trim().optional(),
+  primaryDiagnosisCode: z.string().trim().optional(),
+  primaryDiagnosisName: z.string().trim().optional(),
+  secondaryDiagnoses: z.array(diagnosisItemSchema).optional(),
+  procedures: z.array(treatmentItemSchema).optional(),
+})
+
 const addPrescriptionItemSchema = z.object({
   medicalRecordId: z.string().trim().min(1, "Rekam medis wajib dipilih."),
   medicineName: z.string().trim().min(1, "Obat wajib diisi."),
@@ -1133,6 +1153,184 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
   return {
     ok: true,
     message: isFinal ? `Rekam medis ${visit.patient.fullName} berhasil difinalisasi.` : `Draft rekam medis ${visit.patient.fullName} berhasil disimpan.`,
+  }
+}
+
+export async function saveAssessmentAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  const user = await getCurrentUser()
+
+  if (!user || !medicalRecordMutationRoles.has(user.role)) {
+    return {
+      ok: false,
+      message: "Anda tidak memiliki akses untuk menyimpan asesmen.",
+    }
+  }
+
+  // Parse dynamic arrays from form data
+  const secondaryDiagnoses: { code?: string; name: string }[] = []
+  const procedures: { code?: string; name: string }[] = []
+
+  let i = 0
+  while (formData.has(`secondaryDiagnoses[${i}][name]`)) {
+    const name = (formData.get(`secondaryDiagnoses[${i}][name]`) as string) ?? ""
+    const code = (formData.get(`secondaryDiagnoses[${i}][code]`) as string) ?? ""
+    if (name.trim()) {
+      secondaryDiagnoses.push({ code: code.trim() || undefined, name: name.trim() })
+    }
+    i++
+  }
+
+  let j = 0
+  while (formData.has(`procedures[${j}][name]`)) {
+    const name = (formData.get(`procedures[${j}][name]`) as string) ?? ""
+    const code = (formData.get(`procedures[${j}][code]`) as string) ?? ""
+    if (name.trim()) {
+      procedures.push({ code: code.trim() || undefined, name: name.trim() })
+    }
+    j++
+  }
+
+  const parsed = saveAssessmentSchema.safeParse({
+    visitId: formData.get("visitId"),
+    admissionDiagnosis: formData.get("admissionDiagnosis"),
+    medicalHistory: formData.get("medicalHistory"),
+    primaryDiagnosisCode: formData.get("primaryDiagnosisCode"),
+    primaryDiagnosisName: formData.get("primaryDiagnosisName"),
+    secondaryDiagnoses,
+    procedures,
+  })
+
+  if (!parsed.success) {
+    return {
+      ok: false,
+      message: "Data asesmen belum valid.",
+      errors: getFieldErrors(parsed.error),
+    }
+  }
+
+  const visit = await prisma.visit.findUnique({
+    where: { id: parsed.data.visitId },
+    select: {
+      id: true,
+      medicalRecord: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
+      patient: {
+        select: { fullName: true },
+      },
+    },
+  })
+
+  if (!visit) {
+    return {
+      ok: false,
+      message: "Kunjungan tidak ditemukan.",
+      errors: { visitId: ["Kunjungan tidak ditemukan."] },
+    }
+  }
+
+  if (visit.medicalRecord?.status === MedicalRecordStatus.FINAL) {
+    return {
+      ok: false,
+      message: "Rekam medis sudah final dan tidak dapat diubah.",
+      errors: { visitId: ["Rekam medis final terkunci."] },
+    }
+  }
+
+  await prisma.$transaction(async (tx) => {
+    const medicalRecord = await tx.medicalRecord.upsert({
+      where: { visitId: parsed.data.visitId },
+      update: {
+        assessment: optionalString(parsed.data.admissionDiagnosis),
+        subjective: optionalString(parsed.data.medicalHistory),
+        doctorId: user.id,
+      },
+      create: {
+        visitId: parsed.data.visitId,
+        assessment: optionalString(parsed.data.admissionDiagnosis),
+        subjective: optionalString(parsed.data.medicalHistory),
+        doctorId: user.id,
+      },
+    })
+
+    // Handle primary diagnosis
+    await tx.diagnosis.deleteMany({
+      where: {
+        medicalRecordId: medicalRecord.id,
+        type: DiagnosisType.PRIMARY,
+      },
+    })
+
+    if (parsed.data.primaryDiagnosisName) {
+      await tx.diagnosis.create({
+        data: {
+          medicalRecordId: medicalRecord.id,
+          code: optionalString(parsed.data.primaryDiagnosisCode),
+          name: parsed.data.primaryDiagnosisName,
+          type: DiagnosisType.PRIMARY,
+        },
+      })
+    }
+
+    // Replace secondary diagnoses
+    await tx.diagnosis.deleteMany({
+      where: {
+        medicalRecordId: medicalRecord.id,
+        type: DiagnosisType.SECONDARY,
+      },
+    })
+
+    if (parsed.data.secondaryDiagnoses && parsed.data.secondaryDiagnoses.length > 0) {
+      await tx.diagnosis.createMany({
+        data: parsed.data.secondaryDiagnoses.map((d) => ({
+          medicalRecordId: medicalRecord.id,
+          code: d.code ?? null,
+          name: d.name,
+          type: DiagnosisType.SECONDARY,
+        })),
+      })
+    }
+
+    // Replace procedures/treatments
+    await tx.treatment.deleteMany({
+      where: {
+        medicalRecordId: medicalRecord.id,
+      },
+    })
+
+    if (parsed.data.procedures && parsed.data.procedures.length > 0) {
+      await tx.treatment.createMany({
+        data: parsed.data.procedures.map((p) => ({
+          medicalRecordId: medicalRecord.id,
+          code: p.code ?? null,
+          name: p.name,
+          performerId: user.id,
+        })),
+      })
+    }
+  })
+
+  await writeAuditLog({
+    userId: user.id,
+    action: "SAVE_ASSESSMENT",
+    entityName: "Visit",
+    entityId: visit.id,
+    afterData: {
+      patientName: visit.patient.fullName,
+      primaryDiagnosis: parsed.data.primaryDiagnosisName,
+      secondaryCount: (parsed.data.secondaryDiagnoses ?? []).length,
+      procedureCount: (parsed.data.procedures ?? []).length,
+    },
+  })
+
+  revalidatePath("/")
+
+  return {
+    ok: true,
+    message: `Asesmen ${visit.patient.fullName} berhasil disimpan.`,
   }
 }
 

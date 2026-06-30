@@ -6,7 +6,7 @@ import { addPrescriptionItemAction, processPrescriptionAction, cancelPrescriptio
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextField, TextAreaField, FieldError, FormMessage } from "@/components/shared/forms"
+import { TextField, TextAreaField, FieldError, FormMessage, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -23,16 +23,12 @@ export function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOpti
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Rekam medis</span>
-        <select name="medicalRecordId" className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
-          {prescriptionOptions.records.map((record) => (
-            <option key={record.id} value={record.id}>
-              {record.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ComboboxField
+        name="medicalRecordId"
+        label="Rekam medis"
+        items={prescriptionOptions.records.map(r => ({ value: r.id, label: r.label }))}
+        placeholder="Pilih rekam medis"
+      />
       <TextField
         name="medicineName"
         label="Nama obat"

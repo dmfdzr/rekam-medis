@@ -295,7 +295,7 @@ export async function getVisitList() {
 }
 
 export async function getVisitFormOptions() {
-  const [patients, doctors, visits] = await Promise.all([
+  const [patients, doctors] = await Promise.all([
     prisma.patient.findMany({
       orderBy: { fullName: "asc" },
       take: 100,
@@ -318,14 +318,33 @@ export async function getVisitFormOptions() {
         name: true,
       },
     }),
-    prisma.visit.findMany({
-      select: {
-        service: true,
-      },
-      distinct: ["service"],
-      orderBy: { service: "asc" },
-    }),
   ])
+
+  const predefinedServices = [
+    "IGD (Instalasi Gawat Darurat)",
+    "Poli Umum",
+    "Poli Penyakit Dalam",
+    "Poli Anak",
+    "Poli Bedah",
+    "Poli Kandungan & Kebidanan",
+    "Poli Saraf",
+    "Poli Jantung",
+    "Poli Paru",
+    "Poli Mata",
+    "Poli THT",
+    "Poli Gigi",
+    "Poli Kulit & Kelamin",
+    "Poli Orthopedi",
+    "Poli Urologi",
+    "Poli Jiwa/Psikiatri",
+    "ICU/NICU/PICU",
+    "Kamar Operasi (post operasi)",
+    "Rujukan dari Puskesmas/Klinik",
+    "Pasien datang lewat Ambulans",
+    "MCU/check up lalu perlu dirawat",
+    "Hemodialisa/cuci darah lalu kondisi memburuk",
+    "Ruang bersalin/melahirkan lalu rawat inap"
+  ]
 
   return {
     patients: patients.map((patient) => ({
@@ -333,7 +352,7 @@ export async function getVisitFormOptions() {
       label: `${patient.medicalRecordNumber} - ${patient.fullName}`,
     })),
     doctors,
-    services: visits.map((v) => v.service),
+    services: predefinedServices,
   }
 }
 

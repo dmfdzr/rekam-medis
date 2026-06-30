@@ -6,7 +6,7 @@ import { createMedicalDocumentAction, type ClinicFormState } from "@/app/actions
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { FieldError, FormMessage, TextAreaField, TextField } from "@/components/shared/forms"
+import { FieldError, FormMessage, TextAreaField, TextField, ComboboxField } from "@/components/shared/forms"
 import { EmptyState } from "@/components/shared/feedback"
 import { Button } from "@/components/ui/button"
 
@@ -22,27 +22,21 @@ export function MedicalDocumentForm({ documentOptions }: { documentOptions: Docu
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Pasien</span>
-        <select name="patientId" className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
-          {documentOptions.patients.map((patient) => (
-            <option key={patient.id} value={patient.id}>
-              {patient.label}
-            </option>
-          ))}
-        </select>
-      </label>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Kunjungan terkait</span>
-        <select name="visitId" className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
-          <option value="">Tanpa kunjungan</option>
-          {documentOptions.visits.map((visit) => (
-            <option key={visit.id} value={visit.id}>
-              {visit.label}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ComboboxField
+        name="patientId"
+        label="Pasien"
+        items={documentOptions.patients.map(p => ({ value: p.id, label: p.label }))}
+        placeholder="Pilih pasien"
+      />
+      <ComboboxField
+        name="visitId"
+        label="Kunjungan terkait"
+        items={[
+          { value: "", label: "Tanpa kunjungan" },
+          ...documentOptions.visits.map(v => ({ value: v.id, label: v.label }))
+        ]}
+        placeholder="Pilih kunjungan"
+      />
       <label className="grid gap-1.5">
         <span className="text-sm font-medium">Tipe dokumen</span>
         <select name="type" className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">

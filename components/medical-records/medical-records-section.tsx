@@ -7,7 +7,7 @@ import { saveMedicalRecordAction, type ClinicFormState } from "@/app/actions/cli
 import * as React from "react"
 
 import { useRefreshOnSuccess, useListControls } from "@/lib/hooks"
-import { TextField, TextAreaField, FormMessage, DatePickerField } from "@/components/shared/forms"
+import { TextField, TextAreaField, DatePickerField, FormMessage, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, StatusBadge, PermissionNotice } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
@@ -189,21 +189,14 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Kunjungan</span>
-        <select
-          name="visitId"
-          value={selectedVisitId}
-          onChange={(event) => setSelectedVisitId(event.target.value)}
-          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-        >
-          {clinicalWorklist.map((visit) => (
-            <option key={visit.id} value={visit.id}>
-              {visit.medicalRecordNumber} - {visit.patientName} - {visit.status}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ComboboxField
+        name="visitId"
+        label="Kunjungan"
+        items={clinicalWorklist.map(v => ({ value: v.id, label: `${v.medicalRecordNumber} - ${v.patientName} - ${v.status}` }))}
+        placeholder="Pilih kunjungan"
+        value={selectedVisitId}
+        onValueChange={setSelectedVisitId}
+      />
 
       <div key={selectedVisitId} className="grid gap-3">
         {isSelectedRecordFinal ? (

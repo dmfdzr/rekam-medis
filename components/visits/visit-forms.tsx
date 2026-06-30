@@ -6,7 +6,7 @@ import { createVisitAction, updateVisitStatusAction, cancelVisitAction, type Cli
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextField, TextAreaField, FieldError, FormMessage, DatePickerField } from "@/components/shared/forms"
+import { TextField, TextAreaField, FieldError, FormMessage, DatePickerField, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -20,22 +20,13 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
   return (
     <form action={formAction} className="grid gap-4" noValidate>
       <div className="grid gap-3">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Pasien</span>
-          <select
-            name="patientId"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.patientId)}
-          >
-            <option value="">Pilih pasien</option>
-            {visitOptions.patients.map((patient) => (
-              <option key={patient.id} value={patient.id}>
-                {patient.label}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.patientId?.[0]} />
-        </label>
+      <ComboboxField
+        name="patientId"
+        label="Pasien"
+        items={visitOptions.patients.map(p => ({ value: p.id, label: p.label }))}
+        placeholder="Pilih pasien"
+        error={state.errors?.patientId}
+      />
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Registrasi pasien</span>
           <select
@@ -50,38 +41,23 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
           </select>
           <FieldError message={state.errors?.patientType?.[0]} />
         </label>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Dokter</span>
-          <select
-            name="doctorId"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.doctorId)}
-          >
-            <option value="">Belum ditentukan</option>
-            {visitOptions.doctors.map((doctor) => (
-              <option key={doctor.id} value={doctor.id}>
-                {doctor.name}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.doctorId?.[0]} />
-        </label>
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Layanan / poli</span>
-          <select
-            name="service"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.service)}
-          >
-            <option value="">Pilih layanan / poli</option>
-            {visitOptions.services.map((service) => (
-              <option key={service} value={service}>
-                {service}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.service?.[0]} />
-        </label>
+      <ComboboxField
+        name="doctorId"
+        label="Dokter"
+        items={[
+          { value: "", label: "Belum ditentukan" },
+          ...visitOptions.doctors.map(d => ({ value: d.id, label: d.name }))
+        ]}
+        placeholder="Pilih dokter"
+        error={state.errors?.doctorId}
+      />
+      <ComboboxField
+        name="service"
+        label="Layanan / poli"
+        items={visitOptions.services.map(s => ({ value: s, label: s }))}
+        placeholder="Pilih layanan / poli"
+        error={state.errors?.service}
+      />
         <TextAreaField name="chiefComplaint" label="Keluhan utama" error={state.errors?.chiefComplaint?.[0]} />
         <div className="grid gap-3 sm:grid-cols-2">
           <DatePickerField name="admissionDate" label="Tanggal masuk" error={state.errors?.admissionDate?.[0]} />
@@ -107,22 +83,13 @@ export function UpdateVisitStatusForm({ visits }: { visits: VisitListItem[] }) {
   return (
     <form action={formAction} className="grid gap-4" noValidate>
       <div className="grid gap-3">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Kunjungan</span>
-          <select
-            name="visitId"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.visitId)}
-          >
-            <option value="">Pilih kunjungan</option>
-            {visits.map((visit) => (
-              <option key={visit.id} value={visit.id}>
-                {visit.medicalRecordNumber} - {visit.patient} - {visit.service} - {visit.status}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.visitId?.[0]} />
-        </label>
+        <ComboboxField
+          name="visitId"
+          label="Kunjungan"
+          items={visits.map(v => ({ value: v.id, label: `${v.medicalRecordNumber} - ${v.patient} - ${v.service} - ${v.status}` }))}
+          placeholder="Pilih kunjungan"
+          error={state.errors?.visitId}
+        />
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Status baru</span>
           <select
@@ -160,22 +127,13 @@ export function CancelVisitForm({ visits }: { visits: VisitListItem[] }) {
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Kunjungan</span>
-        <select
-          name="visitId"
-          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-          aria-invalid={Boolean(state.errors?.visitId)}
-        >
-          <option value="">Pilih kunjungan</option>
-          {cancellableVisits.map((visit) => (
-            <option key={visit.id} value={visit.id}>
-              {visit.medicalRecordNumber} - {visit.patient} - {visit.service} - {visit.status}
-            </option>
-          ))}
-        </select>
-        <FieldError message={state.errors?.visitId?.[0]} />
-      </label>
+      <ComboboxField
+        name="visitId"
+        label="Kunjungan"
+        items={cancellableVisits.map(v => ({ value: v.id, label: `${v.medicalRecordNumber} - ${v.patient} - ${v.service} - ${v.status}` }))}
+        placeholder="Pilih kunjungan"
+        error={state.errors?.visitId}
+      />
       <DestructiveActionNotice message="Kunjungan tidak dihapus permanen. Statusnya menjadi dibatalkan agar alur layanan dan audit tetap bisa ditelusuri." />
       <FormMessage state={state} />
       <ConfirmSubmitButton

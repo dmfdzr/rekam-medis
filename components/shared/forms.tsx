@@ -6,6 +6,16 @@ import { Calendar } from "@/components/ui/calendar"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
 import { format as formatDate, parse as parseDate } from "date-fns"
 import { id } from "date-fns/locale"
+import { Button } from "@/components/ui/button"
+import {
+  Command,
+  CommandEmpty,
+  CommandGroup,
+  CommandInput,
+  CommandItem,
+  CommandList,
+} from "@/components/ui/command"
+import { Check, ChevronsUpDown } from "lucide-react"
 
 export function TextField({
   name,
@@ -277,8 +287,115 @@ export function FormMessage({ state }: { state: { ok?: boolean; message?: string
       )}
       role="status"
     >
-      {state.message}
     </div>
   )
 }
+
+export function ComboboxField({
+  name,
+  label,
+  items,
+  placeholder,
+  defaultValue = "",
+  value: controlledValue,
+  onValueChange,
+  error,
+}: {
+  name: string
+  label?: string
+  items: { value: string; label: string }[]
+  placeholder: string
+  defaultValue?: string
+  value?: string
+  onValueChange?: (val: string) => void
+  error?: string[]
+}) {
+  const [open, setOpen] = React.useState(false)
+  const [uncontrolledValue, setUncontrolledValue] = React.useState(defaultValue)
+  const [query, setQuery] = React.useState("")
+
+  const value = controlledValue !== undefined ? controlledValue : uncontrolledValue
+  const setValue = (val: string) => {
+    if (controlledValue === undefined) {
+      setUncontrolledValue(val)
+    }
+    onValueChange?.(val)
+  }
+
+  const selectedItem = React.useMemo(
+    () => items.find((item) => item.value === value),
+    [value, items]
+  )
+
+  return (
+    <div className="grid gap-1.5">
+      {label && <span className="text-sm font-medium">{label}</span>}
+      <input type="hidden" name={name} value={value} />
+      
+      <Popover open={open} onOpenChange={setOpen}>
+        <PopoverTrigger asChild>
+          <Button
+            variant="outline"
+            role="combobox"
+            aria-expanded={open}
+            className={cn(
+              "h-11 w-full justify-between font-normal bg-background",
+              !value && "text-muted-foreground",
+              error ? "border-destructive focus:border-destructive focus:ring-destructive/25" : ""
+            )}
+          >
+            <span className="truncate">
+              {selectedItem ? selectedItem.label : placeholder}
+            </span>
+            <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
+          </Button>
+        </PopoverTrigger>
+        <PopoverContent className="w-[min(40rem,calc(100vw-2rem))] p-0" align="start">
+          <Command>
+            <CommandInput 
+              placeholder={`Cari ${label ? label.toLowerCase() : "pilihan"}...`} 
+              value={query}
+              onValueChange={setQuery}
+            />
+            <CommandList>
+              <CommandEmpty>Tidak ada hasil ditemukan.</CommandEmpty>
+              <CommandGroup>
+                {items
+                  .filter((item) => 
+                    item.label.toLowerCase().includes(query.toLowerCase()) || 
+                    item.value.toLowerCase().includes(query.toLowerCase())
+                  )
+                  .slice(0, 100) // limit for performance
+                  .map((item) => (
+                    <CommandItem
+                      key={item.value}
+                      value={`${item.value} ${item.label}`}
+                      onSelect={() => {
+                        setValue(item.value)
+                        setOpen(false)
+                      }}
+                    >
+                      <Check
+                        className={cn(
+                          "mr-2 size-4 shrink-0",
+                          value === item.value ? "opacity-100" : "opacity-0"
+                        )}
+                      />
+                      <span>{item.label}</span>
+                    </CommandItem>
+                  ))}
+              </CommandGroup>
+            </CommandList>
+          </Command>
+        </PopoverContent>
+      </Popover>
+      {error ? (
+        <span className="text-xs text-destructive" role="alert">
+          {error.join(", ")}
+        </span>
+      ) : null}
+    </div>
+  )
+}
+
 

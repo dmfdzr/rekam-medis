@@ -29,6 +29,7 @@ export type SectionKey =
   | "patients"
   | "visits"
   | "vitals"
+  | "assessment"
   | "records"
   | "prescriptions"
   | "documents"
@@ -70,6 +71,7 @@ const navigation: NavigationItem[] = [
   { id: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { id: "patients", label: "Pasien", icon: UserRound },
   { id: "visits", label: "Kunjungan", icon: CalendarDays },
+  { id: "assessment", label: "Asesmen", icon: ClipboardCheck },
   { id: "vitals", label: "Tanda Vital", icon: Activity },
   { id: "prescriptions", label: "Resep", icon: ClipboardList },
   { id: "records", label: "Rekam Medis", icon: Stethoscope },
@@ -85,6 +87,7 @@ const roleAccess: Record<RoleKey, SectionKey[]> = {
     "dashboard",
     "patients",
     "visits",
+    "assessment",
     "vitals",
     "records",
     "prescriptions",
@@ -95,7 +98,7 @@ const roleAccess: Record<RoleKey, SectionKey[]> = {
     "settings",
   ],
   admin: ["dashboard", "patients", "visits", "settings"],
-  doctor: ["dashboard", "vitals", "records", "prescriptions", "documents", "reports", "settings"],
+  doctor: ["dashboard", "assessment", "vitals", "records", "prescriptions", "documents", "reports", "settings"],
 }
 
 export function getNavigationForRole(role: RoleKey) {
