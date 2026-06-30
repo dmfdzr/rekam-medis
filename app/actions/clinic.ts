@@ -173,7 +173,14 @@ const saveMedicalRecordSchema = z.object({
   plan: z.string().trim().optional(),
   physicalExam: z.string().trim().optional(),
   doctorNote: z.string().trim().optional(),
-  followUpDate: z.string().trim().optional(),
+  bloodPressureSystolic: optionalIntegerSchema("Sistolik harus berupa angka bulat."),
+  bloodPressureDiastolic: optionalIntegerSchema("Diastolik harus berupa angka bulat."),
+  temperature: optionalDecimalSchema("Suhu harus berupa angka."),
+  weight: optionalDecimalSchema("Berat badan harus berupa angka."),
+  height: optionalDecimalSchema("Tinggi badan harus berupa angka."),
+  pulse: optionalIntegerSchema("Nadi harus berupa angka bulat."),
+  respiration: optionalIntegerSchema("Respirasi harus berupa angka bulat."),
+  oxygenSaturation: optionalIntegerSchema("Saturasi oksigen harus berupa angka bulat."),
   diagnosisCode: z.string().trim().optional(),
   diagnosisName: z.string().trim().optional(),
   diagnosisNote: z.string().trim().optional(),
@@ -182,6 +189,13 @@ const saveMedicalRecordSchema = z.object({
   treatmentCost: z.string().trim().optional(),
   treatmentNote: z.string().trim().optional(),
   intent: z.enum(["draft", "final"]),
+}).refine(data => {
+  const hasSys = !!data.bloodPressureSystolic?.trim()
+  const hasDia = !!data.bloodPressureDiastolic?.trim()
+  return (hasSys && hasDia) || (!hasSys && !hasDia)
+}, {
+  message: "Tekanan darah harus diisi lengkap (Sistolik & Diastolik) atau dikosongkan keduanya.",
+  path: ["bloodPressureSystolic"]
 })
 
 const diagnosisItemSchema = z.object({
@@ -202,6 +216,21 @@ const saveAssessmentSchema = z.object({
   primaryDiagnosisName: z.string().trim().optional(),
   secondaryDiagnoses: z.array(diagnosisItemSchema).optional(),
   procedures: z.array(treatmentItemSchema).optional(),
+  bloodPressureSystolic: optionalIntegerSchema("Sistolik harus berupa angka bulat."),
+  bloodPressureDiastolic: optionalIntegerSchema("Diastolik harus berupa angka bulat."),
+  temperature: optionalDecimalSchema("Suhu harus berupa angka."),
+  weight: optionalDecimalSchema("Berat badan harus berupa angka."),
+  height: optionalDecimalSchema("Tinggi badan harus berupa angka."),
+  pulse: optionalIntegerSchema("Nadi harus berupa angka bulat."),
+  respiration: optionalIntegerSchema("Respirasi harus berupa angka bulat."),
+  oxygenSaturation: optionalIntegerSchema("Saturasi oksigen harus berupa angka bulat."),
+}).refine(data => {
+  const hasSys = !!data.bloodPressureSystolic?.trim()
+  const hasDia = !!data.bloodPressureDiastolic?.trim()
+  return (hasSys && hasDia) || (!hasSys && !hasDia)
+}, {
+  message: "Tekanan darah harus diisi lengkap (Sistolik & Diastolik) atau dikosongkan keduanya.",
+  path: ["bloodPressureSystolic"]
 })
 
 const addPrescriptionItemSchema = z.object({
@@ -976,6 +1005,14 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
     treatmentCost: formData.get("treatmentCost"),
     treatmentNote: formData.get("treatmentNote"),
     intent: formData.get("intent"),
+    bloodPressureSystolic: formData.get("bloodPressureSystolic"),
+    bloodPressureDiastolic: formData.get("bloodPressureDiastolic"),
+    temperature: formData.get("temperature"),
+    weight: formData.get("weight"),
+    height: formData.get("height"),
+    pulse: formData.get("pulse"),
+    respiration: formData.get("respiration"),
+    oxygenSaturation: formData.get("oxygenSaturation"),
   })
 
   if (!parsed.success) {
@@ -994,16 +1031,7 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
     }
   }
 
-  const followUpDate = parsed.data.followUpDate ? toDate(parsed.data.followUpDate) : null
   const treatmentCost = parseOptionalDecimalInput(parsed.data.treatmentCost)
-
-  if (parsed.data.followUpDate && !followUpDate) {
-    return {
-      ok: false,
-      message: "Tanggal kontrol tidak valid.",
-      errors: { followUpDate: ["Tanggal kontrol tidak valid."] },
-    }
-  }
 
   if (isInvalidOptionalDecimal(parsed.data.treatmentCost)) {
     return {
@@ -1060,7 +1088,7 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
         plan: optionalString(parsed.data.plan),
         physicalExam: optionalString(parsed.data.physicalExam),
         doctorNote: optionalString(parsed.data.doctorNote),
-        followUpDate,
+        followUpDate: null,
         status: isFinal ? MedicalRecordStatus.FINAL : MedicalRecordStatus.DRAFT,
         finalizedAt: isFinal ? new Date() : null,
         doctorId: user.id,
@@ -1073,12 +1101,41 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
         plan: optionalString(parsed.data.plan),
         physicalExam: optionalString(parsed.data.physicalExam),
         doctorNote: optionalString(parsed.data.doctorNote),
-        followUpDate,
+        followUpDate: null,
         status: isFinal ? MedicalRecordStatus.FINAL : MedicalRecordStatus.DRAFT,
         finalizedAt: isFinal ? new Date() : null,
         doctorId: user.id,
       },
     })
+
+    const bpSys = parsed.data.bloodPressureSystolic?.trim()
+    const bpDia = parsed.data.bloodPressureDiastolic?.trim()
+    const bloodPressureValue = (bpSys && bpDia) ? `${bpSys}/${bpDia}` : null
+
+    if (bloodPressureValue || parsed.data.temperature || parsed.data.weight || parsed.data.height || parsed.data.pulse || parsed.data.respiration || parsed.data.oxygenSaturation) {
+      await tx.vitalSign.upsert({
+        where: { visitId: parsed.data.visitId },
+        update: {
+          bloodPressure: bloodPressureValue,
+          temperature: parseOptionalDecimalInput(parsed.data.temperature),
+          weight: parseOptionalDecimalInput(parsed.data.weight),
+          height: parseOptionalDecimalInput(parsed.data.height),
+          pulse: parseOptionalIntegerInput(parsed.data.pulse),
+          respiration: parseOptionalIntegerInput(parsed.data.respiration),
+          oxygenSaturation: parseOptionalIntegerInput(parsed.data.oxygenSaturation),
+        },
+        create: {
+          visitId: parsed.data.visitId,
+          bloodPressure: bloodPressureValue,
+          temperature: parseOptionalDecimalInput(parsed.data.temperature),
+          weight: parseOptionalDecimalInput(parsed.data.weight),
+          height: parseOptionalDecimalInput(parsed.data.height),
+          pulse: parseOptionalIntegerInput(parsed.data.pulse),
+          respiration: parseOptionalIntegerInput(parsed.data.respiration),
+          oxygenSaturation: parseOptionalIntegerInput(parsed.data.oxygenSaturation),
+        },
+      })
+    }
 
     if (parsed.data.diagnosisName) {
       await tx.diagnosis.deleteMany({
@@ -1182,6 +1239,14 @@ export async function saveAssessmentAction(_state: ClinicFormState, formData: Fo
     primaryDiagnosisName: formData.get("primaryDiagnosisName"),
     secondaryDiagnoses,
     procedures,
+    bloodPressureSystolic: formData.get("bloodPressureSystolic"),
+    bloodPressureDiastolic: formData.get("bloodPressureDiastolic"),
+    temperature: formData.get("temperature"),
+    weight: formData.get("weight"),
+    height: formData.get("height"),
+    pulse: formData.get("pulse"),
+    respiration: formData.get("respiration"),
+    oxygenSaturation: formData.get("oxygenSaturation"),
   })
 
   if (!parsed.success) {
@@ -1239,6 +1304,35 @@ export async function saveAssessmentAction(_state: ClinicFormState, formData: Fo
         doctorId: user.id,
       },
     })
+
+    const bpSys = parsed.data.bloodPressureSystolic?.trim()
+    const bpDia = parsed.data.bloodPressureDiastolic?.trim()
+    const bloodPressureValue = (bpSys && bpDia) ? `${bpSys}/${bpDia}` : null
+
+    if (bloodPressureValue || parsed.data.temperature || parsed.data.weight || parsed.data.height || parsed.data.pulse || parsed.data.respiration || parsed.data.oxygenSaturation) {
+      await tx.vitalSign.upsert({
+        where: { visitId: parsed.data.visitId },
+        update: {
+          bloodPressure: bloodPressureValue,
+          temperature: parseOptionalDecimalInput(parsed.data.temperature),
+          weight: parseOptionalDecimalInput(parsed.data.weight),
+          height: parseOptionalDecimalInput(parsed.data.height),
+          pulse: parseOptionalIntegerInput(parsed.data.pulse),
+          respiration: parseOptionalIntegerInput(parsed.data.respiration),
+          oxygenSaturation: parseOptionalIntegerInput(parsed.data.oxygenSaturation),
+        },
+        create: {
+          visitId: parsed.data.visitId,
+          bloodPressure: bloodPressureValue,
+          temperature: parseOptionalDecimalInput(parsed.data.temperature),
+          weight: parseOptionalDecimalInput(parsed.data.weight),
+          height: parseOptionalDecimalInput(parsed.data.height),
+          pulse: parseOptionalIntegerInput(parsed.data.pulse),
+          respiration: parseOptionalIntegerInput(parsed.data.respiration),
+          oxygenSaturation: parseOptionalIntegerInput(parsed.data.oxygenSaturation),
+        },
+      })
+    }
 
     // Handle primary diagnosis
     await tx.diagnosis.deleteMany({

@@ -188,6 +188,7 @@ model Visit {
   createdAt       DateTime    @default(now())
   updatedAt       DateTime    @updatedAt
   laboratoryResult LaboratoryResult?
+  vitalSign       VitalSign?
   medicalRecord   MedicalRecord?
   documents       MedicalDocument[]
 
@@ -196,6 +197,24 @@ model Visit {
   @@index([visitDate])
   @@index([status])
   @@map("visits")
+}
+
+model VitalSign {
+  id               String   @id @default(cuid())
+  visitId          String   @unique
+  visit            Visit    @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  bloodPressure    String?          // mmHg
+  temperature      Decimal? @db.Decimal(4, 1)  // Celsius
+  weight           Decimal? @db.Decimal(5, 1)  // Kg
+  height           Decimal? @db.Decimal(5, 1)  // Cm
+  pulse            Int?             // /menit
+  respiration      Int?             // /menit
+  oxygenSaturation Int?             // %
+  nurseNote        String?
+  createdAt        DateTime @default(now())
+  updatedAt        DateTime @updatedAt
+
+  @@map("vital_signs")
 }
 
 model LaboratoryResult {

@@ -381,6 +381,7 @@ export async function getClinicalWorklist() {
         },
       },
       laboratoryResult: true,
+      vitalSign: true,
       medicalRecord: {
         include: {
           diagnoses: {
@@ -412,6 +413,17 @@ export async function getClinicalWorklist() {
           leukosit: visit.laboratoryResult.leukosit?.toString() ?? "",
           gds: visit.laboratoryResult.gds?.toString() ?? "",
           crp: visit.laboratoryResult.crp?.toString() ?? "",
+        }
+      : null,
+    vitalSign: visit.vitalSign
+      ? {
+          bloodPressure: visit.vitalSign.bloodPressure ?? "",
+          temperature: visit.vitalSign.temperature?.toString() ?? "",
+          weight: visit.vitalSign.weight?.toString() ?? "",
+          height: visit.vitalSign.height?.toString() ?? "",
+          pulse: visit.vitalSign.pulse?.toString() ?? "",
+          respiration: visit.vitalSign.respiration?.toString() ?? "",
+          oxygenSaturation: visit.vitalSign.oxygenSaturation?.toString() ?? "",
         }
       : null,
     medicalRecord: visit.medicalRecord

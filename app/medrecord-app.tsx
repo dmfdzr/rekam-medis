@@ -86,8 +86,8 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
     action: "Simpan asesmen",
   },
   records: {
-    title: "Rekam Medis",
-    description: "Catat SOAP, pemeriksaan fisik, diagnosa, tindakan, resep, dan finalisasi.",
+    title: "CPPT",
+    description: "Catatan rekam medis elektronik dan riwayat SOAP dari dokter.",
     action: "Finalisasi rekam medis",
   },
   prescriptions: {

@@ -7,7 +7,7 @@ import { saveAssessmentAction, type ClinicFormState } from "@/app/actions/clinic
 import { icdDiagnoses, icdProcedures } from "@/lib/icd-data"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextAreaField, FormMessage, ComboboxField as SharedComboboxField } from "@/components/shared/forms"
+import { TextField, TextAreaField, FormMessage, ComboboxField as SharedComboboxField } from "@/components/shared/forms"
 import { EmptyState, PermissionNotice } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
@@ -233,6 +233,22 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
             placeholder="Ketik ringkasan riwayat penyakit sebelumnya secara manual..."
             defaultValue={selectedVisit?.medicalRecord?.subjective} 
           />
+        </div>
+
+        <div className="rounded-md border border-border bg-card p-4">
+          <p className="text-sm font-semibold mb-3">Pemeriksaan Fisik</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2">
+              <TextField name="bloodPressureSystolic" label="Sistolik (mmHg)" placeholder="120" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.bloodPressure?.split('/')[0] || ""} />
+              <TextField name="bloodPressureDiastolic" label="Diastolik (mmHg)" placeholder="80" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.bloodPressure?.split('/')[1] || ""} />
+            </div>
+            <TextField name="temperature" label="Suhu Tubuh (°C)" placeholder="36.5" type="number" inputMode="decimal" step="0.1" min={30} max={45} defaultValue={selectedVisit?.vitalSign?.temperature} />
+            <TextField name="weight" label="Berat Badan (Kg)" placeholder="60.5" type="number" inputMode="decimal" step="0.1" min={0} defaultValue={selectedVisit?.vitalSign?.weight} />
+            <TextField name="height" label="Tinggi Badan (Cm)" placeholder="165" type="number" inputMode="decimal" step="0.1" min={0} defaultValue={selectedVisit?.vitalSign?.height} />
+            <TextField name="pulse" label="Nadi (/menit)" placeholder="80" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.pulse} />
+            <TextField name="respiration" label="Respirasi (/menit)" placeholder="20" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.respiration} />
+            <TextField name="oxygenSaturation" label="Saturasi Oksigen (%)" placeholder="98" type="number" inputMode="numeric" step="1" min={0} max={100} defaultValue={selectedVisit?.vitalSign?.oxygenSaturation} />
+          </div>
         </div>
 
         <div className="rounded-md border border-border bg-card p-4">

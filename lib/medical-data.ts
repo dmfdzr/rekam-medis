@@ -75,7 +75,7 @@ const navigation: NavigationItem[] = [
   { id: "assessment", label: "Asesmen", icon: ClipboardCheck },
   { id: "laboratory", label: "Laboratorium", icon: TestTube },
   { id: "prescriptions", label: "Resep", icon: ClipboardList },
-  { id: "records", label: "Rekam Medis", icon: Stethoscope },
+  { id: "records", label: "CPPT", icon: Stethoscope },
   { id: "documents", label: "Dokumen Medis", icon: Upload },
   { id: "reports", label: "Laporan", icon: BarChart3 },
   { id: "users", label: "Manajemen User", icon: Users },
@@ -327,7 +327,7 @@ export const workflowSteps = [
   { title: "Daftar pasien", detail: "Cari NIK/RM, validasi duplikasi, buat nomor RM otomatis.", icon: UserRound },
   { title: "Buat kunjungan", detail: "Pilih layanan, dokter, keluhan utama, dan status awal.", icon: CalendarDays },
   { title: "Tanda vital", detail: "Perawat mengisi pemeriksaan awal sebelum dokter.", icon: HeartPulse },
-  { title: "Pemeriksaan dokter", detail: "SOAP, diagnosa, tindakan, resep, lalu finalisasi.", icon: ClipboardCheck },
+  { title: "CPPT", detail: "SOAP, diagnosa, tindakan, resep, lalu finalisasi.", icon: ClipboardCheck },
   { title: "Resep & laporan", detail: "Apotek proses resep, sistem siap hitung stok dan laporan.", icon: FileText },
 ]
 

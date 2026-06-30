@@ -7,7 +7,7 @@ import { saveMedicalRecordAction, type ClinicFormState } from "@/app/actions/cli
 import * as React from "react"
 
 import { useRefreshOnSuccess, useListControls } from "@/lib/hooks"
-import { TextField, TextAreaField, DatePickerField, FormMessage, ComboboxField } from "@/components/shared/forms"
+import { DatePickerField, TextAreaField, TextField, FormMessage, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, StatusBadge, PermissionNotice } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
@@ -92,7 +92,6 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
             <DetailItem label="Plan" value={record.plan} />
             <DetailItem label="Pemeriksaan fisik" value={record.physicalExam} />
             <DetailItem label="Catatan dokter" value={record.doctorNote} />
-            <DetailItem label="Rencana kontrol" value={record.followUpDate} />
           </div>
 
           <DetailList
@@ -205,24 +204,24 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
         <TextAreaField name="objective" label="Objective" defaultValue={selectedVisit?.medicalRecord?.objective} />
         <TextAreaField name="assessment" label="Assessment" defaultValue={selectedVisit?.medicalRecord?.assessment} />
         <TextAreaField name="plan" label="Plan" defaultValue={selectedVisit?.medicalRecord?.plan} />
-        <TextAreaField name="physicalExam" label="Pemeriksaan fisik" defaultValue={selectedVisit?.medicalRecord?.physicalExam} />
-        <TextAreaField name="doctorNote" label="Catatan dokter" defaultValue={selectedVisit?.medicalRecord?.doctorNote} />
-        <DatePickerField name="followUpDate" label="Rencana kontrol" defaultValue={selectedVisit?.medicalRecord?.followUpDate} />
 
-        <div className="grid gap-3 rounded-md border border-border bg-card p-3 sm:grid-cols-2">
-          <TextField name="diagnosisCode" label="Kode diagnosa" defaultValue={primaryDiagnosis?.code} placeholder="J06.9" />
-          <TextField name="diagnosisName" label="Diagnosa utama" defaultValue={primaryDiagnosis?.name} />
-          <div className="sm:col-span-2">
-            <TextAreaField name="diagnosisNote" label="Catatan diagnosa" defaultValue={primaryDiagnosis?.note} />
+        <div className="rounded-md border border-border bg-card p-4">
+          <p className="text-sm font-semibold mb-3">Pemeriksaan Fisik</p>
+          <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
+            <div className="grid grid-cols-2 gap-2">
+              <TextField name="bloodPressureSystolic" label="Sistolik (mmHg)" placeholder="120" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.bloodPressure?.split('/')[0] || (selectedVisit?.medicalRecord?.physicalExam?.includes('/') ? selectedVisit?.medicalRecord?.physicalExam?.split('/')[0] : "")} />
+              <TextField name="bloodPressureDiastolic" label="Diastolik (mmHg)" placeholder="80" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.bloodPressure?.split('/')[1] || (selectedVisit?.medicalRecord?.physicalExam?.includes('/') ? selectedVisit?.medicalRecord?.physicalExam?.split('/')[1] : "")} />
+            </div>
+            <TextField name="temperature" label="Suhu Tubuh (°C)" placeholder="36.5" type="number" inputMode="decimal" step="0.1" min={30} max={45} defaultValue={selectedVisit?.vitalSign?.temperature} />
+            <TextField name="weight" label="Berat Badan (Kg)" placeholder="60.5" type="number" inputMode="decimal" step="0.1" min={0} defaultValue={selectedVisit?.vitalSign?.weight} />
+            <TextField name="height" label="Tinggi Badan (Cm)" placeholder="165" type="number" inputMode="decimal" step="0.1" min={0} defaultValue={selectedVisit?.vitalSign?.height} />
+            <TextField name="pulse" label="Nadi (/menit)" placeholder="80" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.pulse} />
+            <TextField name="respiration" label="Respirasi (/menit)" placeholder="20" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.respiration} />
+            <TextField name="oxygenSaturation" label="Saturasi Oksigen (%)" placeholder="98" type="number" inputMode="numeric" step="1" min={0} max={100} defaultValue={selectedVisit?.vitalSign?.oxygenSaturation} />
           </div>
         </div>
 
-        <div className="grid gap-3 rounded-md border border-border bg-card p-3 sm:grid-cols-2">
-          <TextField name="treatmentCode" label="Kode tindakan" defaultValue={latestTreatment?.code} placeholder="CONS-GP" />
-          <TextField name="treatmentName" label="Tindakan medis" defaultValue={latestTreatment?.name} />
-          <TextField name="treatmentCost" label="Biaya tindakan" defaultValue={latestTreatment?.cost} inputMode="decimal" />
-          <TextField name="treatmentNote" label="Catatan tindakan" defaultValue={latestTreatment?.note} />
-        </div>
+        <TextAreaField name="doctorNote" label="Catatan dokter" defaultValue={selectedVisit?.medicalRecord?.doctorNote} />
       </div>
       <FormMessage state={state} />
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -384,7 +383,7 @@ export function MedicalRecordsSection({
       <Panel title="Riwayat rekam medis pasien" description="Timeline membantu dokter membaca konteks tanpa membuka banyak halaman.">
         <MedicalRecordTimeline medicalRecordHistory={medicalRecordHistory} />
       </Panel>
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Pemeriksaan dokter" description="Struktur SOAP menjaga catatan tetap konsisten dan mudah diaudit.">
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Catatan Perkembangan Pasien Terintegrasi (CPPT)" description="Catatan CPPT, diagnosa, tindakan, resep, lalu finalisasi.">
         {canInput ? <MedicalRecordForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi rekam medis dokter." />}
       </ModalDialog>
     </div>
