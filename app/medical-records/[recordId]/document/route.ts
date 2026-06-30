@@ -94,7 +94,6 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       visit: {
         include: {
           patient: true,
-          vitalSign: true,
           documents: {
             orderBy: { uploadedAt: "desc" },
           },
@@ -119,7 +118,6 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   }
 
   const patient = record.visit.patient
-  const vitalSign = record.visit.vitalSign
   const html = `<!doctype html>
 <html lang="id">
   <head>
@@ -168,16 +166,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
         ["Status Rekam Medis", record.status],
         ["Finalisasi", record.finalizedAt ? dateTimeFormatter.format(record.finalizedAt) : "-"],
       ])}
-      ${vitalSign ? section("Tanda Vital", [
-        ["Tekanan Darah", vitalSign.bloodPressure],
-        ["Suhu", vitalSign.temperature ? `${vitalSign.temperature.toString()} C` : "-"],
-        ["Berat", vitalSign.weight ? `${vitalSign.weight.toString()} kg` : "-"],
-        ["Tinggi", vitalSign.height ? `${vitalSign.height.toString()} cm` : "-"],
-        ["Nadi", vitalSign.pulse ? `${vitalSign.pulse} x/menit` : "-"],
-        ["Respirasi", vitalSign.respiration ? `${vitalSign.respiration} x/menit` : "-"],
-        ["SpO2", vitalSign.oxygenSaturation ? `${vitalSign.oxygenSaturation}%` : "-"],
-        ["Catatan", vitalSign.nurseNote],
-      ]) : ""}
+
       ${section("SOAP", [
         ["Subjective", record.subjective],
         ["Objective", record.objective],

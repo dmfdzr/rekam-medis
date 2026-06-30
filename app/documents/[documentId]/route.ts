@@ -107,7 +107,6 @@ export async function GET(request: Request, context: { params: Promise<{ documen
               name: true,
             },
           },
-          vitalSign: true,
           medicalRecord: {
             include: {
               doctor: {
@@ -139,7 +138,6 @@ export async function GET(request: Request, context: { params: Promise<{ documen
 
   const referenceNote = decodeReferenceNote(document.fileUrl)
   const record = document.visit?.medicalRecord
-  const vitalSign = document.visit?.vitalSign
   const prescriptionItems =
     record?.prescription?.items.map((item) => `${item.medicineName} ${item.quantity} ${""} - ${item.dosage} - ${item.usageRule}`).join("; ") ?? "-"
 
@@ -192,16 +190,7 @@ export async function GET(request: Request, context: { params: Promise<{ documen
         ["Dokter", document.visit.doctor?.name],
         ["Status", document.visit.status],
       ]) : ""}
-      ${vitalSign ? section("Tanda Vital", [
-        ["Tekanan Darah", vitalSign.bloodPressure],
-        ["Suhu Tubuh", vitalSign.temperature ? `${vitalSign.temperature.toString()} C` : "-"],
-        ["Berat Badan", vitalSign.weight ? `${vitalSign.weight.toString()} kg` : "-"],
-        ["Tinggi Badan", vitalSign.height ? `${vitalSign.height.toString()} cm` : "-"],
-        ["Nadi", vitalSign.pulse ? `${vitalSign.pulse} x/menit` : "-"],
-        ["Respirasi", vitalSign.respiration ? `${vitalSign.respiration} x/menit` : "-"],
-        ["Saturasi Oksigen", vitalSign.oxygenSaturation ? `${vitalSign.oxygenSaturation}%` : "-"],
-        ["Catatan Perawat", vitalSign.nurseNote],
-      ]) : ""}
+
       ${record ? section("Rekam Medis", [
         ["Dokter Pemeriksa", record.doctor?.name],
         ["Subjective", record.subjective],
