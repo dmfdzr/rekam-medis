@@ -75,16 +75,13 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
             <DetailItem label="Keluhan utama" value={record.chiefComplaint} />
           </div>
 
-          {record.vitalSignDetail ? (
+          {record.laboratoryDetail ? (
             <div className="grid gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-2">
-              <DetailItem label="Tekanan darah" value={`${record.vitalSignDetail.bloodPressure} mmHg`} />
-              <DetailItem label="Suhu tubuh" value={`${record.vitalSignDetail.temperature} C`} />
-              <DetailItem label="Berat badan" value={`${record.vitalSignDetail.weight} kg`} />
-              <DetailItem label="Tinggi badan" value={`${record.vitalSignDetail.height} cm`} />
-              <DetailItem label="Nadi" value={`${record.vitalSignDetail.pulse} x/menit`} />
-              <DetailItem label="Respirasi" value={`${record.vitalSignDetail.respiration} x/menit`} />
-              <DetailItem label="Saturasi oksigen" value={`${record.vitalSignDetail.oxygenSaturation}%`} />
-              <DetailItem label="Catatan perawat" value={record.vitalSignDetail.nurseNote} />
+              <DetailItem label="Tanggal pemeriksaan" value={record.laboratoryDetail.examinationDate} />
+              <DetailItem label="Hemoglobin" value={`${record.laboratoryDetail.hemoglobin} g/dl`} />
+              <DetailItem label="Leukosit" value={`${record.laboratoryDetail.leukosit} micro/l`} />
+              <DetailItem label="GDS/GDP" value={`${record.laboratoryDetail.gds} mg/dl`} />
+              <DetailItem label="CRP" value={`${record.laboratoryDetail.crp} mg/dl`} />
             </div>
           ) : null}
 

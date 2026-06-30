@@ -11,6 +11,7 @@ import {
   LayoutDashboard,
   ShieldCheck,
   Stethoscope,
+  TestTube,
   Upload,
   UserRound,
   Users,
@@ -28,7 +29,7 @@ export type SectionKey =
   | "dashboard"
   | "patients"
   | "visits"
-  | "vitals"
+  | "laboratory"
   | "assessment"
   | "records"
   | "prescriptions"
@@ -72,7 +73,7 @@ const navigation: NavigationItem[] = [
   { id: "patients", label: "Pasien", icon: UserRound },
   { id: "visits", label: "Kunjungan", icon: CalendarDays },
   { id: "assessment", label: "Asesmen", icon: ClipboardCheck },
-  { id: "vitals", label: "Tanda Vital", icon: Activity },
+  { id: "laboratory", label: "Laboratorium", icon: TestTube },
   { id: "prescriptions", label: "Resep", icon: ClipboardList },
   { id: "records", label: "Rekam Medis", icon: Stethoscope },
   { id: "documents", label: "Dokumen Medis", icon: Upload },
@@ -88,7 +89,7 @@ const roleAccess: Record<RoleKey, SectionKey[]> = {
     "patients",
     "visits",
     "assessment",
-    "vitals",
+    "laboratory",
     "records",
     "prescriptions",
     "documents",
@@ -98,7 +99,7 @@ const roleAccess: Record<RoleKey, SectionKey[]> = {
     "settings",
   ],
   admin: ["dashboard", "patients", "visits", "settings"],
-  doctor: ["dashboard", "assessment", "vitals", "records", "prescriptions", "documents", "reports", "settings"],
+  doctor: ["dashboard", "assessment", "laboratory", "records", "prescriptions", "documents", "reports", "settings"],
 }
 
 export function getNavigationForRole(role: RoleKey) {

@@ -37,7 +37,7 @@ import { LogoutConfirmDialog } from "@/components/auth/logout-dialog"
 import { DashboardSection } from "@/components/dashboard/dashboard-section"
 import { PatientsSection } from "@/components/patients/patients-section"
 import { VisitsSection } from "@/components/visits/visits-section"
-import { VitalsSection } from "@/components/vitals/vitals-section"
+import { LaboratorySection } from "@/components/laboratory/laboratory-section"
 import { MedicalRecordsSection } from "@/components/medical-records/medical-records-section"
 import { PrescriptionsSection } from "@/components/prescriptions/prescriptions-section"
 import { DocumentsSection } from "@/components/documents/documents-section"
@@ -48,7 +48,7 @@ import { SettingsSection } from "@/components/settings/settings-section"
 import { AssessmentSection } from "@/components/assessment/assessment-section"
 
 const filterableSections = new Set<SectionKey>(["patients", "visits", "prescriptions", "documents", "reports", "users", "audit"])
-const composerSections = new Set<SectionKey>(["patients", "visits", "vitals", "assessment", "records", "prescriptions", "documents", "users"])
+const composerSections = new Set<SectionKey>(["patients", "visits", "laboratory", "assessment", "records", "prescriptions", "documents", "users"])
 
 function mapUserRoleToAppRole(role: string): RoleKey {
   const roleMap: Record<string, RoleKey> = {
@@ -75,10 +75,10 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
     description: "Buat kunjungan baru, cek status layanan, dan arahkan pasien ke role berikutnya.",
     action: "Kelola kunjungan",
   },
-  vitals: {
-    title: "Tanda Vital",
-    description: "Input pemeriksaan awal dengan struktur cepat dan mudah dicek ulang.",
-    action: "Simpan tanda vital",
+  laboratory: {
+    title: "Input Laboratorium",
+    description: "Input hasil tes laboratorium pasien.",
+    action: "Simpan hasil lab",
   },
   assessment: {
     title: "Asesmen Klinis",
@@ -294,8 +294,8 @@ function SectionRenderer({
       return <PatientsSection patients={patients} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "visits":
       return <VisitsSection visits={visits} visitOptions={visitOptions} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
-    case "vitals":
-      return <VitalsSection role={role} clinicalWorklist={clinicalWorklist} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
+    case "laboratory":
+      return <LaboratorySection role={role} clinicalWorklist={clinicalWorklist} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "assessment":
       return <AssessmentSection role={role} clinicalWorklist={clinicalWorklist} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "records":

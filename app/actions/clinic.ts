@@ -156,20 +156,13 @@ const optionalIntegerSchema = (message: string) =>
     .refine(isOptionalIntegerInputValid, message)
     .optional()
 
-const upsertVitalSignSchema = z.object({
+const upsertLaboratorySchema = z.object({
   visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
-  bloodPressure: z
-    .string()
-    .trim()
-    .refine(isBloodPressureInputValid, "Tekanan darah harus berupa angka dengan format 120/80.")
-    .optional(),
-  temperature: optionalDecimalSchema("Suhu tubuh harus berupa angka."),
-  weight: optionalDecimalSchema("Berat badan harus berupa angka."),
-  height: optionalDecimalSchema("Tinggi badan harus berupa angka."),
-  pulse: optionalIntegerSchema("Nadi harus berupa angka."),
-  respiration: optionalIntegerSchema("Respirasi harus berupa angka."),
-  oxygenSaturation: optionalIntegerSchema("Saturasi oksigen harus berupa angka."),
-  nurseNote: z.string().trim().optional(),
+  examinationDate: z.string().trim().min(1, "Tanggal pemeriksaan wajib diisi."),
+  hemoglobin: optionalDecimalSchema("Hemoglobin harus berupa angka."),
+  leukosit: optionalDecimalSchema("Leukosit harus berupa angka."),
+  gds: optionalDecimalSchema("GDS/GDP harus berupa angka."),
+  crp: optionalDecimalSchema("CRP harus berupa angka."),
 })
 
 const saveMedicalRecordSchema = z.object({
@@ -271,7 +264,7 @@ const deactivateUserSchema = z.object({
 
 const patientMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.ADMIN])
 const visitMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.ADMIN])
-const vitalSignMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
+const laboratoryMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const medicalRecordMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const prescriptionMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const prescriptionCancelRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
@@ -863,32 +856,29 @@ export async function cancelVisitAction(_state: ClinicFormState, formData: FormD
   }
 }
 
-export async function upsertVitalSignAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+export async function upsertLaboratoryAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
   const user = await getCurrentUser()
 
-  if (!user || !vitalSignMutationRoles.has(user.role)) {
+  if (!user || !laboratoryMutationRoles.has(user.role)) {
     return {
       ok: false,
-      message: "Anda tidak memiliki akses untuk menyimpan tanda vital.",
+      message: "Anda tidak memiliki akses untuk menyimpan data laboratorium.",
     }
   }
 
-  const parsed = upsertVitalSignSchema.safeParse({
+  const parsed = upsertLaboratorySchema.safeParse({
     visitId: formData.get("visitId"),
-    bloodPressure: formData.get("bloodPressure"),
-    temperature: formData.get("temperature"),
-    weight: formData.get("weight"),
-    height: formData.get("height"),
-    pulse: formData.get("pulse"),
-    respiration: formData.get("respiration"),
-    oxygenSaturation: formData.get("oxygenSaturation"),
-    nurseNote: formData.get("nurseNote"),
+    examinationDate: formData.get("examinationDate"),
+    hemoglobin: formData.get("hemoglobin"),
+    leukosit: formData.get("leukosit"),
+    gds: formData.get("gds"),
+    crp: formData.get("crp"),
   })
 
   if (!parsed.success) {
     return {
       ok: false,
-      message: "Data tanda vital belum valid.",
+      message: "Data laboratorium belum valid.",
       errors: getFieldErrors(parsed.error),
     }
   }
@@ -914,28 +904,22 @@ export async function upsertVitalSignAction(_state: ClinicFormState, formData: F
   }
 
   await prisma.$transaction(async (tx) => {
-    await tx.vitalSign.upsert({
+    await tx.laboratoryResult.upsert({
       where: { visitId: parsed.data.visitId },
       update: {
-        bloodPressure: optionalString(parsed.data.bloodPressure),
-        temperature: parseOptionalDecimalInput(parsed.data.temperature),
-        weight: parseOptionalDecimalInput(parsed.data.weight),
-        height: parseOptionalDecimalInput(parsed.data.height),
-        pulse: parseOptionalIntegerInput(parsed.data.pulse),
-        respiration: parseOptionalIntegerInput(parsed.data.respiration),
-        oxygenSaturation: parseOptionalIntegerInput(parsed.data.oxygenSaturation),
-        nurseNote: optionalString(parsed.data.nurseNote),
+        examinationDate: new Date(parsed.data.examinationDate),
+        hemoglobin: parseOptionalDecimalInput(parsed.data.hemoglobin),
+        leukosit: parseOptionalDecimalInput(parsed.data.leukosit),
+        gds: parseOptionalDecimalInput(parsed.data.gds),
+        crp: parseOptionalDecimalInput(parsed.data.crp),
       },
       create: {
         visitId: parsed.data.visitId,
-        bloodPressure: optionalString(parsed.data.bloodPressure),
-        temperature: parseOptionalDecimalInput(parsed.data.temperature),
-        weight: parseOptionalDecimalInput(parsed.data.weight),
-        height: parseOptionalDecimalInput(parsed.data.height),
-        pulse: parseOptionalIntegerInput(parsed.data.pulse),
-        respiration: parseOptionalIntegerInput(parsed.data.respiration),
-        oxygenSaturation: parseOptionalIntegerInput(parsed.data.oxygenSaturation),
-        nurseNote: optionalString(parsed.data.nurseNote),
+        examinationDate: new Date(parsed.data.examinationDate),
+        hemoglobin: parseOptionalDecimalInput(parsed.data.hemoglobin),
+        leukosit: parseOptionalDecimalInput(parsed.data.leukosit),
+        gds: parseOptionalDecimalInput(parsed.data.gds),
+        crp: parseOptionalDecimalInput(parsed.data.crp),
       },
     })
 
@@ -947,13 +931,13 @@ export async function upsertVitalSignAction(_state: ClinicFormState, formData: F
 
   await writeAuditLog({
     userId: user.id,
-    action: "UPSERT_VITAL_SIGN",
+    action: "UPSERT_LABORATORY_RESULT",
     entityName: "Visit",
     entityId: visit.id,
     afterData: {
       patientName: visit.patient.fullName,
-      bloodPressure: parsed.data.bloodPressure,
-      temperature: parsed.data.temperature,
+      hemoglobin: parsed.data.hemoglobin,
+      leukosit: parsed.data.leukosit,
     },
   })
 
@@ -961,7 +945,7 @@ export async function upsertVitalSignAction(_state: ClinicFormState, formData: F
 
   return {
     ok: true,
-    message: `Tanda vital ${visit.patient.fullName} berhasil disimpan.`,
+    message: `Hasil laboratorium ${visit.patient.fullName} berhasil disimpan.`,
   }
 }
 

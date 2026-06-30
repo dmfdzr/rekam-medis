@@ -380,7 +380,7 @@ export async function getClinicalWorklist() {
           name: true,
         },
       },
-      vitalSign: true,
+      laboratoryResult: true,
       medicalRecord: {
         include: {
           diagnoses: {
@@ -405,16 +405,13 @@ export async function getClinicalWorklist() {
     chiefComplaint: visit.chiefComplaint,
     status: visitStatusLabels[visit.status],
     time: timeFormatter.format(visit.visitDate),
-    vitalSign: visit.vitalSign
+    laboratoryResult: visit.laboratoryResult
       ? {
-          bloodPressure: visit.vitalSign.bloodPressure ?? "",
-          temperature: visit.vitalSign.temperature?.toString() ?? "",
-          weight: visit.vitalSign.weight?.toString() ?? "",
-          height: visit.vitalSign.height?.toString() ?? "",
-          pulse: visit.vitalSign.pulse?.toString() ?? "",
-          respiration: visit.vitalSign.respiration?.toString() ?? "",
-          oxygenSaturation: visit.vitalSign.oxygenSaturation?.toString() ?? "",
-          nurseNote: visit.vitalSign.nurseNote ?? "",
+          examinationDate: visit.laboratoryResult.examinationDate.toISOString().slice(0, 10),
+          hemoglobin: visit.laboratoryResult.hemoglobin?.toString() ?? "",
+          leukosit: visit.laboratoryResult.leukosit?.toString() ?? "",
+          gds: visit.laboratoryResult.gds?.toString() ?? "",
+          crp: visit.laboratoryResult.crp?.toString() ?? "",
         }
       : null,
     medicalRecord: visit.medicalRecord
@@ -470,7 +467,7 @@ export async function getMedicalRecordHistory() {
               allergies: true,
             },
           },
-          vitalSign: true,
+          laboratoryResult: true,
           documents: {
             orderBy: { uploadedAt: "desc" },
             take: 3,
@@ -547,19 +544,16 @@ export async function getMedicalRecordHistory() {
           quantity: String(item.quantity),
           note: item.note ?? "-",
         })) ?? [],
-      vitalSign: record.visit.vitalSign
-        ? `${record.visit.vitalSign.bloodPressure ?? "-"} mmHg, ${record.visit.vitalSign.temperature?.toString() ?? "-"} C`
+      laboratoryResult: record.visit.laboratoryResult
+        ? `Hb: ${record.visit.laboratoryResult.hemoglobin?.toString() ?? "-"} g/dl, Leu: ${record.visit.laboratoryResult.leukosit?.toString() ?? "-"} micro/l`
         : "-",
-      vitalSignDetail: record.visit.vitalSign
+      laboratoryDetail: record.visit.laboratoryResult
         ? {
-            bloodPressure: record.visit.vitalSign.bloodPressure ?? "-",
-            temperature: record.visit.vitalSign.temperature?.toString() ?? "-",
-            weight: record.visit.vitalSign.weight?.toString() ?? "-",
-            height: record.visit.vitalSign.height?.toString() ?? "-",
-            pulse: record.visit.vitalSign.pulse?.toString() ?? "-",
-            respiration: record.visit.vitalSign.respiration?.toString() ?? "-",
-            oxygenSaturation: record.visit.vitalSign.oxygenSaturation?.toString() ?? "-",
-            nurseNote: record.visit.vitalSign.nurseNote ?? "-",
+            examinationDate: record.visit.laboratoryResult.examinationDate.toISOString().slice(0, 10),
+            hemoglobin: record.visit.laboratoryResult.hemoglobin?.toString() ?? "-",
+            leukosit: record.visit.laboratoryResult.leukosit?.toString() ?? "-",
+            gds: record.visit.laboratoryResult.gds?.toString() ?? "-",
+            crp: record.visit.laboratoryResult.crp?.toString() ?? "-",
           }
         : null,
       documents: record.visit.documents.map((document) => `${documentTypeLabels[document.type]}: ${document.fileName}`).join(", ") || "-",

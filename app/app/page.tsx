@@ -45,7 +45,7 @@ export default async function Page() {
 
   const canViewPatients = canAccess(user.role, "patients")
   const canViewVisits = canAccess(user.role, "visits")
-  const canViewVitals = canAccess(user.role, "vitals")
+  const canViewLaboratory = canAccess(user.role, "laboratory")
   const canViewRecords = canAccess(user.role, "records")
   const canViewPrescriptions = canAccess(user.role, "prescriptions")
     const canViewDocuments = canAccess(user.role, "documents")
@@ -74,7 +74,7 @@ export default async function Page() {
     canViewPatients ? getPatientList() : [],
     canViewVisits ? getVisitList() : [],
     canViewVisits ? getVisitFormOptions() : emptyVisitOptions,
-    canViewVitals || canViewRecords ? getClinicalWorklist() : [],
+    canViewLaboratory || canViewRecords ? getClinicalWorklist() : [],
     canViewRecords ? getMedicalRecordHistory() : [],
     canViewPrescriptions ? getPrescriptionList() : [],
     canViewPrescriptions ? getPrescriptionFormOptions() : emptyPrescriptionOptions,
