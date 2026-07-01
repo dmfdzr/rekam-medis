@@ -78,7 +78,7 @@ test.describe('Master Workflow', () => {
     expect(patientOptionValue).toBeTruthy();
     await patientSelect.selectOption(patientOptionValue!);
 
-    await page.getByLabel('Tipe dokumen').selectOption('SUPPORTING_DOCUMENT');
+    await page.getByLabel('Tipe dokumen').selectOption('OTHER');
     await page.getByLabel('Nama dokumen').fill(documentName);
     await page.getByLabel('Catatan referensi').fill('Arsip fisik tersimpan di ruang rekam medis.');
     await page.getByRole('button', { name: 'Simpan dokumen' }).click();
@@ -93,7 +93,7 @@ test.describe('Master Workflow', () => {
     await expect(generatedPage.getByText('MedNote').first()).toBeVisible();
   });
 });
-import { test, expect } from '@playwright/test';
+
 
 test.describe('Admin Workflow', () => {
   test('Admin should be able to view audit logs and reports', async ({ page }) => {

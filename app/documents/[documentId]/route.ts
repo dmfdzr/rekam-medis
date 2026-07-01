@@ -4,16 +4,16 @@ import { writeAuditLog } from "@/lib/auth/audit-log"
 import { getCurrentUser } from "@/lib/auth/current-user"
 import { canAccess } from "@/lib/auth/permissions"
 import { prisma } from "@/lib/prisma"
+import { DocumentType } from "@prisma/client"
 
 export const dynamic = "force-dynamic"
 
 const documentTypeLabels = {
-  LAB_RESULT: "Hasil lab",
-  REFERRAL_LETTER: "Surat rujukan",
-  CONTROL_LETTER: "Surat kontrol",
-  EXAMINATION_PHOTO: "Foto pemeriksaan",
-  SUPPORTING_DOCUMENT: "Dokumen pendukung",
-  OTHER: "Lainnya",
+  [DocumentType.LAB_RESULT]: "Hasil lab",
+  [DocumentType.REFERRAL_LETTER]: "Surat rujukan",
+  [DocumentType.CONTROL_LETTER]: "Surat kontrol",
+  [DocumentType.EXAMINATION_PHOTO]: "Foto pemeriksaan",
+  [DocumentType.OTHER]: "Lainnya",
 } as const
 
 const genderLabels = {

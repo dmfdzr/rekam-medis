@@ -52,7 +52,6 @@ const documentTypeLabels = {
   REFERRAL_LETTER: "Surat rujukan",
   CONTROL_LETTER: "Surat kontrol",
   EXAMINATION_PHOTO: "Foto pemeriksaan",
-  SUPPORTING_DOCUMENT: "Dokumen pendukung",
   OTHER: "Lainnya",
 } as const
 
@@ -269,6 +268,14 @@ export async function getVisitList() {
           name: true,
         },
       },
+      companionDoctors: {
+        orderBy: { order: "asc" },
+        include: {
+          doctor: {
+            select: { name: true },
+          },
+        },
+      },
     },
   })
 
@@ -290,6 +297,8 @@ export async function getVisitList() {
       dischargeDate: visit.dischargeDate ? dateFormatter.format(visit.dischargeDate) : "-",
       lengthOfStay: lengthOfStayDays !== null ? `${lengthOfStayDays} hari` : "Masih dirawat",
       patientType: patientTypeLabels[visit.patientType],
+      isJointCare: visit.isJointCare,
+      companionDoctors: visit.companionDoctors.map((c) => c.doctor.name),
     }
   })
 }
@@ -670,23 +679,26 @@ export async function getPrescriptionFormOptions() {
 }
 
 export async function getMedicalDocumentList() {
-  const documents = await prisma.medicalDocument.findMany({
-    orderBy: { uploadedAt: "desc" },
+  const records = await prisma.medicalRecord.findMany({
+    orderBy: { updatedAt: "desc" },
     take: 30,
     include: {
-      patient: {
-        select: {
-          fullName: true,
-          medicalRecordNumber: true,
-        },
-      },
       visit: {
-        select: {
-          service: true,
-          visitDate: true,
+        include: {
+          patient: {
+            select: {
+              fullName: true,
+              medicalRecordNumber: true,
+            },
+          },
         },
       },
-      uploadedBy: {
+      doctor: {
+        select: {
+          name: true,
+        },
+      },
+      verifiedBy: {
         select: {
           name: true,
         },
@@ -694,16 +706,18 @@ export async function getMedicalDocumentList() {
     },
   })
 
-  return documents.map((document) => ({
-    id: document.id,
-    patient: document.patient.fullName,
-    medicalRecordNumber: document.patient.medicalRecordNumber,
-    visit: document.visit ? `${document.visit.service} - ${dateFormatter.format(document.visit.visitDate)}` : "-",
-    type: documentTypeLabels[document.type],
-    fileName: document.fileName,
-    fileUrl: `/documents/${document.id}`,
-    uploadedBy: document.uploadedBy?.name ?? "-",
-    uploadedAt: dateFormatter.format(document.uploadedAt),
+  return records.map((record) => ({
+    id: record.id,
+    patient: record.visit.patient.fullName,
+    medicalRecordNumber: record.visit.patient.medicalRecordNumber,
+    visit: `${record.visit.service} - ${dateFormatter.format(record.visit.visitDate)}`,
+    doctor: record.doctor?.name ?? "-",
+    status: record.status,
+    isVerified: record.isVerified,
+    verifiedBy: record.verifiedBy?.name ?? "-",
+    verifiedAt: record.verifiedAt ? dateFormatter.format(record.verifiedAt) : "-",
+    documentUrl: `/medical-records/${record.id}/document`,
+    updatedAt: dateFormatter.format(record.updatedAt),
   }))
 }
 

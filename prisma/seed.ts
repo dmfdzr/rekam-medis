@@ -319,7 +319,7 @@ async function main() {
       id: "document-initial-001",
       patientId: patient.id,
       visitId: visit.id,
-      type: DocumentType.SUPPORTING_DOCUMENT,
+      type: DocumentType.OTHER,
       fileName: "Ringkasan pemeriksaan awal Siti Aminah",
       fileUrl: "generated:medical-document",
       uploadedById: doctor.id,

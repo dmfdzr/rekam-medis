@@ -54,9 +54,9 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
     <>
       <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
         <FileText className="size-3" aria-hidden="true" />
-        Detail rekam medis
+        Detail CPPT
       </Button>
-      <ModalDialog open={open} onOpenChange={setOpen} title={`Rekam medis ${record.patient}`} description={`${record.medicalRecordNumber} - ${record.visitDate} ${record.visitTime}`}>
+      <ModalDialog open={open} onOpenChange={setOpen} title={`Detail CPPT - ${record.patient}`} description={`${record.medicalRecordNumber} - ${record.visitDate} ${record.visitTime}`}>
         <div className="grid gap-4">
           <div className="flex flex-wrap items-center gap-2">
             <StatusBadge label={record.status} />
@@ -137,33 +137,6 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
             )}
           />
 
-          <DetailList
-            title="Dokumen pendukung"
-            items={record.documentItems}
-            renderItem={(document: MedicalRecordHistoryItem["documentItems"][number]) => (
-              <div className="flex flex-wrap items-center justify-between gap-2 rounded-md bg-muted p-3 text-sm">
-                <div>
-                  <p className="font-medium">{document.fileName}</p>
-                  <p className="text-muted-foreground">
-                    {document.type} - {document.uploadedAt}
-                  </p>
-                </div>
-                <Button asChild variant="outline" size="sm">
-                  <a href={document.fileUrl} target="_blank" rel="noreferrer">
-                    <Download className="size-3" aria-hidden="true" />
-                    Buka
-                  </a>
-                </Button>
-              </div>
-            )}
-          />
-
-          <Button asChild size="lg" className="w-full sm:w-fit">
-            <a href={record.documentUrl} target="_blank" rel="noreferrer">
-              <Download className="size-4" aria-hidden="true" />
-              Generate dokumen rekam medis
-            </a>
-          </Button>
         </div>
       </ModalDialog>
     </>
@@ -300,51 +273,7 @@ export function MedicalRecordTimeline({ medicalRecordHistory }: { medicalRecordH
                 <StatusBadge label={record.status} />
               </div>
 
-              <div className="mt-4 grid gap-4 text-sm leading-6 sm:grid-cols-2">
-                <div>
-                  <p className="font-medium">Keluhan & Diagnosa</p>
-                  <p className="mt-1 text-muted-foreground">{record.chiefComplaint}</p>
-                  <p className="mt-1 font-medium text-foreground">{record.diagnosis}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Tindakan</p>
-                  <p className="mt-1 text-muted-foreground">{record.treatments || "-"}</p>
-                </div>
-                {record.prescriptions ? (
-                  <div className="sm:col-span-2">
-                    <p className="font-medium">Resep & Edukasi</p>
-                    <p className="mt-1 text-muted-foreground">{record.prescriptions}</p>
-                  </div>
-                ) : null}
-                {record.documentItems.length > 0 ? (
-                  <div className="sm:col-span-2">
-                    <p className="font-medium">Dokumen Pendukung</p>
-                    <div className="mt-2 flex flex-wrap gap-2">
-                      <Button asChild variant="outline" size="sm">
-                        <a href={record.documentItems[0]?.fileUrl ?? record.documentUrl} target="_blank" rel="noreferrer">
-                          <FileText className="size-3" aria-hidden="true" />
-                          {record.documents}
-                        </a>
-                      </Button>
-                      <Button asChild variant="outline" size="sm">
-                        <a href={record.documentUrl} target="_blank" rel="noreferrer">
-                          <Download className="size-3" aria-hidden="true" />
-                          Generate rekam medis
-                        </a>
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="sm:col-span-2">
-                    <Button asChild variant="outline" size="sm">
-                      <a href={record.documentUrl} target="_blank" rel="noreferrer">
-                        <FileText className="size-3" aria-hidden="true" />
-                        Generate dokumen rekam medis
-                      </a>
-                    </Button>
-                  </div>
-                )}
-              </div>
+
               <div className="mt-4 flex flex-wrap gap-2">
                 <MedicalRecordDetailDialog record={record} />
               </div>

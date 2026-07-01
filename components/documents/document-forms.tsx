@@ -44,7 +44,6 @@ export function MedicalDocumentForm({ documentOptions }: { documentOptions: Docu
           <option value="REFERRAL_LETTER">Surat rujukan</option>
           <option value="CONTROL_LETTER">Surat kontrol</option>
           <option value="EXAMINATION_PHOTO">Foto pemeriksaan</option>
-          <option value="SUPPORTING_DOCUMENT">Dokumen pendukung</option>
           <option value="OTHER">Lainnya</option>
         </select>
       </label>

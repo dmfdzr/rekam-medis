@@ -84,7 +84,7 @@ const DocumentType = {
   REFERRAL_LETTER: "REFERRAL_LETTER",
   CONTROL_LETTER: "CONTROL_LETTER",
   EXAMINATION_PHOTO: "EXAMINATION_PHOTO",
-  SUPPORTING_DOCUMENT: "SUPPORTING_DOCUMENT",
+
   OTHER: "OTHER",
 } as const
 
@@ -129,8 +129,9 @@ const createVisitSchema = z.object({
   service: z.string().trim().min(2, "Layanan wajib diisi."),
   chiefComplaint: z.string().trim().min(3, "Keluhan utama minimal 3 karakter."),
   admissionDate: z.string().trim().min(1, "Tanggal masuk wajib diisi."),
-  dischargeDate: z.string().trim().optional(),
   patientType: z.enum(PatientType, "Registrasi pasien wajib dipilih."),
+  isJointCare: z.string().optional(),
+  companionDoctorIds: z.array(z.string().trim()).optional(),
 })
 
 const updateVisitStatusSchema = z.object({
@@ -648,8 +649,9 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
     service: formData.get("service"),
     chiefComplaint: formData.get("chiefComplaint"),
     admissionDate: formData.get("admissionDate"),
-    dischargeDate: formData.get("dischargeDate"),
     patientType: formData.get("patientType"),
+    isJointCare: formData.get("isJointCare"),
+    companionDoctorIds: formData.getAll("companionDoctorIds[]").map(String).filter(Boolean),
   })
 
   if (!parsed.success) {
@@ -674,7 +676,6 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
   }
 
   const admissionDate = new Date(parsed.data.admissionDate)
-  const dischargeDate = parsed.data.dischargeDate ? new Date(parsed.data.dischargeDate) : null
 
   if (isNaN(admissionDate.getTime())) {
     return {
@@ -684,13 +685,10 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
     }
   }
 
-  if (dischargeDate && isNaN(dischargeDate.getTime())) {
-    return {
-      ok: false,
-      message: "Format tanggal keluar tidak valid.",
-      errors: { dischargeDate: ["Format tanggal keluar tidak valid."] },
-    }
-  }
+  const isJointCare = parsed.data.isJointCare === "on"
+  const companionDoctorIds = isJointCare
+    ? (parsed.data.companionDoctorIds ?? []).filter(Boolean).slice(0, 3)
+    : []
 
   const visit = await prisma.visit.create({
     data: {
@@ -699,10 +697,18 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
       service: parsed.data.service,
       chiefComplaint: parsed.data.chiefComplaint,
       admissionDate,
-      dischargeDate,
       patientType: parsed.data.patientType,
+      isJointCare,
       status: VisitStatus.WAITING,
       createdById: user.id,
+      ...(companionDoctorIds.length > 0 && {
+        companionDoctors: {
+          create: companionDoctorIds.map((doctorId, index) => ({
+            doctorId,
+            order: index + 1,
+          })),
+        },
+      }),
     },
   })
 
@@ -1172,7 +1178,10 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
     if (isFinal) {
       await tx.visit.update({
         where: { id: parsed.data.visitId },
-        data: { status: VisitStatus.PHARMACY },
+        data: {
+          status: VisitStatus.PHARMACY,
+          dischargeDate: new Date(),
+        },
       })
     }
   })
@@ -2325,5 +2334,55 @@ export async function deactivateUserAction(_state: ClinicFormState, formData: Fo
   }
 }
 
+export async function verifyMedicalRecordAction(state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
+  try {
+    const user = await getCurrentUser()
+    if (!user || (user.role !== UserRole.DOCTOR && user.role !== UserRole.MASTER)) {
+      return { ok: false, message: "Hanya dokter yang dapat memverifikasi rekam medis." }
+    }
 
+    const recordId = formData.get("recordId")?.toString()
+    if (!recordId) {
+      return { ok: false, message: "Rekam medis tidak valid." }
+    }
 
+    const record = await prisma.medicalRecord.findUnique({
+      where: { id: recordId },
+    })
+
+    if (!record) {
+      return { ok: false, message: "Rekam medis tidak ditemukan." }
+    }
+
+    if (record.status !== "FINAL") {
+      return { ok: false, message: "Hanya rekam medis final yang dapat diverifikasi." }
+    }
+
+    if (record.isVerified) {
+      return { ok: false, message: "Rekam medis sudah diverifikasi." }
+    }
+
+    await prisma.medicalRecord.update({
+      where: { id: recordId },
+      data: {
+        isVerified: true,
+        verifiedAt: new Date(),
+        verifiedById: user.id,
+      },
+    })
+
+    await writeAuditLog({
+      userId: user.id,
+      action: "VERIFY_MEDICAL_RECORD",
+      entityName: "MedicalRecord",
+      entityId: record.id,
+      afterData: { isVerified: true, verifiedById: user.id },
+    })
+
+    revalidatePath("/documents")
+    return { ok: true, message: "Berhasil memverifikasi rekam medis." }
+  } catch (error) {
+    console.error("verifyMedicalRecord error:", error)
+    return { ok: false, message: "Terjadi kesalahan sistem saat memverifikasi rekam medis." }
+  }
+}

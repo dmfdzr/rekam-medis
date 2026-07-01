@@ -32,7 +32,10 @@ export function VisitDetailDialog({ visit }: { visit: VisitListItem }) {
           <div className="grid gap-3 sm:grid-cols-2">
             <PatientDetailItem label="Pasien" value={visit.patient} />
             <PatientDetailItem label="No. rekam medis" value={visit.medicalRecordNumber} />
-            <PatientDetailItem label="Dokter" value={visit.doctor} />
+            <PatientDetailItem label="DPJP" value={visit.doctor} />
+            {visit.isJointCare && visit.companionDoctors?.length > 0 && (
+              <PatientDetailItem label="DPJP Pendamping" value={visit.companionDoctors.join(", ")} />
+            )}
             <PatientDetailItem label="Layanan / poli" value={visit.service} />
             <PatientDetailItem label="Registrasi pasien" value={visit.patientType} />
             <PatientDetailItem label="Lama dirawat" value={visit.lengthOfStay} />
@@ -134,8 +137,13 @@ export function ResponsiveVisitsTable({
                 <td className="py-4 pr-4">
                   <p className="font-medium">{visit.patient}</p>
                   <p className="mt-1 text-xs text-muted-foreground">
-                    {visit.medicalRecordNumber} - {visit.doctor}
+                    DPJP: {visit.doctor}
                   </p>
+                  {visit.isJointCare && visit.companionDoctors?.length > 0 && (
+                    <p className="mt-0.5 text-[11px] text-muted-foreground">
+                      DPJP Pendamping: {visit.companionDoctors.join(", ")}
+                    </p>
+                  )}
                 </td>
                 <td className="py-4 pr-4">{visit.service}</td>
                 <td className="py-4 pr-4">{visit.patientType}</td>
@@ -164,7 +172,17 @@ export function ResponsiveVisitsTable({
               </div>
               <StatusBadge label={visit.status} />
             </div>
-            <div className="mt-3 grid gap-1 text-sm">
+            <div className="mt-3 grid gap-2 text-sm">
+              <p>
+                <span className="text-muted-foreground">DPJP: </span>
+                {visit.doctor}
+              </p>
+              {visit.isJointCare && visit.companionDoctors?.length > 0 && (
+                <p>
+                  <span className="text-muted-foreground">DPJP Pendamping: </span>
+                  {visit.companionDoctors.join(", ")}
+                </p>
+              )}
               <p>
                 <span className="text-muted-foreground">Registrasi: </span>
                 {visit.patientType}

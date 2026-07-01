@@ -62,7 +62,6 @@ enum DocumentType {
   REFERRAL_LETTER
   CONTROL_LETTER
   EXAMINATION_PHOTO
-  SUPPORTING_DOCUMENT
   OTHER
 }
 
@@ -105,6 +104,8 @@ model User {
   createdPrescriptions  Prescription[]  @relation("PrescriptionDoctor")
   processedPrescriptions Prescription[] @relation("PrescriptionPharmacist")
   uploadedDocuments     MedicalDocument[] @relation("DocumentUploader")
+  verifiedMedicalRecords MedicalRecord[]  @relation("MedicalRecordVerifier")
+  companionDoctorVisits VisitCompanionDoctor[] @relation("CompanionDoctor")
 
   @@index([roleId])
   @@index([status])
@@ -183,6 +184,7 @@ model Visit {
   service         String
   chiefComplaint  String
   status          VisitStatus @default(WAITING)
+  isJointCare     Boolean     @default(false)
   createdById     String?
   createdBy       User?       @relation("VisitCreatedBy", fields: [createdById], references: [id], onDelete: SetNull)
   createdAt       DateTime    @default(now())
@@ -191,12 +193,27 @@ model Visit {
   vitalSign       VitalSign?
   medicalRecord   MedicalRecord?
   documents       MedicalDocument[]
+  companionDoctors VisitCompanionDoctor[]
 
   @@index([patientId])
   @@index([doctorId])
   @@index([visitDate])
   @@index([status])
   @@map("visits")
+}
+
+model VisitCompanionDoctor {
+  id       String @id @default(cuid())
+  visitId  String
+  visit    Visit  @relation(fields: [visitId], references: [id], onDelete: Cascade)
+  doctorId String
+  doctor   User   @relation("CompanionDoctor", fields: [doctorId], references: [id], onDelete: Cascade)
+  order    Int    @default(1)
+
+  @@unique([visitId, doctorId])
+  @@index([visitId])
+  @@index([doctorId])
+  @@map("visit_companion_doctors")
 }
 
 model VitalSign {
@@ -252,6 +269,10 @@ model MedicalRecord {
   diagnoses          Diagnosis[]
   treatments         Treatment[]
   prescription       Prescription?
+  isVerified         Boolean             @default(false)
+  verifiedAt         DateTime?
+  verifiedById       String?
+  verifiedBy         User?               @relation("MedicalRecordVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
 
   @@index([doctorId])
   @@index([status])
