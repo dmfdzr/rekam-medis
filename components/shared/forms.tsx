@@ -16,6 +16,7 @@ import {
   CommandList,
 } from "@/components/ui/command"
 import { Check, ChevronsUpDown } from "lucide-react"
+import { ToastBridge } from "@/components/shared/toast"
 
 export function TextField({
   name,
@@ -61,8 +62,24 @@ export function TextField({
   showPasswordToggle?: boolean
 }) {
   const [showPassword, setShowPassword] = React.useState(false)
+  const [internalValue, setInternalValue] = React.useState(defaultValue ?? "")
   const isPassword = type === "password"
   const resolvedType = isPassword && showPasswordToggle ? (showPassword ? "text" : "password") : type
+  const resolvedValue = value ?? internalValue
+
+  React.useEffect(() => {
+    if (value === undefined) {
+      setInternalValue(defaultValue ?? "")
+    }
+  }, [defaultValue, value])
+
+  function handleChange(event: React.ChangeEvent<HTMLInputElement>) {
+    if (value === undefined) {
+      setInternalValue(event.target.value)
+    }
+
+    onValueChange?.(event.target.value)
+  }
 
   function handleKeyDown(event: React.KeyboardEvent<HTMLInputElement>) {
     const key = event.key
@@ -88,9 +105,8 @@ export function TextField({
           min={min}
           pattern={pattern}
           step={step}
-          defaultValue={defaultValue}
-          value={value}
-          onChange={onValueChange ? (event) => onValueChange(event.target.value) : undefined}
+          value={resolvedValue}
+          onChange={handleChange}
           onKeyDown={numbersOnly || lettersOnly ? handleKeyDown : undefined}
           className={cn(
             "h-11 rounded-md border border-input bg-background text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25",
@@ -133,12 +149,19 @@ export function TextAreaField({
   placeholder?: string
   defaultValue?: string
 }) {
+  const [internalValue, setInternalValue] = React.useState(defaultValue ?? "")
+
+  React.useEffect(() => {
+    setInternalValue(defaultValue ?? "")
+  }, [defaultValue])
+
   return (
     <label className="grid gap-1.5">
       <span className="text-sm font-medium">{label}</span>
       <textarea
         name={name}
-        defaultValue={defaultValue}
+        value={internalValue}
+        onChange={(event) => setInternalValue(event.target.value)}
         className="w-full min-h-24 rounded-md border border-input bg-background px-3 py-2 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
         placeholder={placeholder ?? `Isi ${label.toLowerCase()}`}
         aria-invalid={Boolean(error)}
@@ -270,23 +293,7 @@ function CalendarIcon() {
 }
 
 export function FormMessage({ state }: { state: { ok?: boolean; message?: string } }) {
-  if (!state.message) {
-    return null
-  }
-
-  return (
-    <div
-      className={cn(
-        "rounded-md border p-3 text-sm leading-6",
-        state.ok
-          ? "border-emerald-200 bg-emerald-50 text-emerald-900 dark:border-emerald-400/20 dark:bg-emerald-400/10 dark:text-emerald-100"
-          : "border-destructive/30 bg-destructive/10 text-destructive",
-      )}
-      role="status"
-    >
-      {state.message}
-    </div>
-  )
+  return <ToastBridge state={state} />
 }
 
 export function ComboboxField({

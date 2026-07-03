@@ -48,7 +48,7 @@ import { SettingsSection } from "@/components/settings/settings-section"
 import { AssessmentSection } from "@/components/assessment/assessment-section"
 
 const filterableSections = new Set<SectionKey>(["patients", "visits", "prescriptions", "documents", "reports", "users", "audit"])
-const composerSections = new Set<SectionKey>(["patients", "visits", "laboratory", "assessment", "records", "prescriptions", "documents", "users"])
+const composerSections = new Set<SectionKey>(["patients", "visits", "laboratory", "assessment", "records", "prescriptions", "users"])
 
 function mapUserRoleToAppRole(role: string): RoleKey {
   const roleMap: Record<string, RoleKey> = {
@@ -97,8 +97,7 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
   },
   documents: {
     title: "Dokumen Medis",
-    description: "Kelola dokumen pendukung pasien dengan akses terbatas sesuai role.",
-    action: "Kelola dokumen",
+    description: "Lihat, unduh, dan verifikasi dokumen medis pasien sesuai role.",
   },
   reports: {
     title: "Laporan",
@@ -139,10 +138,10 @@ function SidebarContent({
     <div className="flex h-full flex-col gap-0">
       <div className={cn("flex h-11 w-full shrink-0 items-center justify-between gap-3", collapsed ? "justify-center" : "")}>
         <div className={cn("flex min-w-0 items-center gap-3", collapsed ? "justify-center" : "")}>
-          <Image src="/assets/health.png" alt="MedNote Logo" width={32} height={32} className="size-8 shrink-0 bg-transparent" />
+          <Image src="/assets/ueu.png" alt="UEU Logo" width={32} height={32} className="size-8 shrink-0 bg-transparent" />
           <div className={cn("min-w-0", collapsed ? "sr-only" : "")}>
             <p className="truncate text-sm font-semibold">MedNote</p>
-            <p className="truncate text-xs text-muted-foreground">Standalone EHR</p>
+            <p className="truncate text-xs text-muted-foreground">Rekam Medis Elektronik</p>
           </div>
         </div>
         {onClose ? (
@@ -187,7 +186,7 @@ function SidebarContent({
       {user ? (
         <div className="mt-2 grid w-full shrink-0 gap-3 border-t border-sidebar-border pb-3 pt-4">
           <div className="flex min-w-0 items-center gap-3 rounded-md border border-sidebar-border bg-background/70 p-2.5">
-            <Image src="/assets/health.png" alt="MedNote Logo" width={24} height={24} className="size-6 shrink-0 bg-transparent" />
+            <Image src="/assets/ueu.png" alt="UEU Logo" width={24} height={24} className="size-6 shrink-0 bg-transparent" />
             <div className="min-w-0">
               <p className="truncate text-sm font-medium">{user.name}</p>
               <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>
@@ -465,7 +464,7 @@ export function MedRecordApp({
               <ThemeToggle />
 
               <div className="hidden min-w-0 items-center gap-3 rounded-md border border-border bg-card px-3 py-2 lg:flex">
-                <Image src="/assets/health.png" alt="MedNote Logo" width={24} height={24} className="size-6 shrink-0 bg-transparent" />
+                <Image src="/assets/ueu.png" alt="UEU Logo" width={24} height={24} className="size-6 shrink-0 bg-transparent" />
                 <div className="min-w-0 text-right">
                   <p className="truncate text-sm font-medium">{user.name}</p>
                   <p className="truncate text-xs text-muted-foreground">{user.roleName}</p>

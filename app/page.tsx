@@ -1,7 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Activity, ArrowRight, ClipboardCheck, FileText, LockKeyhole, Pill, ShieldCheck, Stethoscope, UsersRound } from "lucide-react"
+import { Activity, ArrowRight, ClipboardCheck, FileText, FlaskConical, LockKeyhole, Pill, ShieldCheck, Stethoscope, UsersRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -9,23 +9,28 @@ import { getCurrentUser } from "@/lib/auth/current-user"
 
 const workflowItems = [
   {
-    title: "Pendaftaran pasien",
+    title: "Pasien",
     description: "Data pasien, NIK, kontak, alergi, dan nomor rekam medis tersusun dalam satu sumber data.",
     icon: UsersRound,
   },
   {
-    title: "Kunjungan dan pemeriksaan",
-    description: "Alur pendaftaran, asesmen, pemeriksaan dokter, diagnosa, dan tindakan saling terhubung.",
+    title: "Kunjungan",
+    description: "Kunjungan dibuat dari data pasien dengan layanan, dokter, keluhan utama, dan status alur.",
     icon: Stethoscope,
   },
   {
-    title: "Resep pasien",
-    description: "Resep dari dokter dapat diproses dalam alur klinis dengan riwayat penggunaan obat yang jelas.",
+    title: "Asesmen dan laboratorium",
+    description: "Dokter mengisi asesmen, lalu hasil laboratorium dicatat sebagai dasar layanan berikutnya.",
+    icon: FlaskConical,
+  },
+  {
+    title: "Resep dan CPPT",
+    description: "Resep dibuat setelah laboratorium, lalu CPPT difinalisasi sebagai catatan perkembangan pasien.",
     icon: Pill,
   },
   {
-    title: "Laporan dan audit",
-    description: "Ringkasan operasional, export laporan, dan audit log membantu kontrol data medis.",
+    title: "Verifikasi dokumen medis",
+    description: "Resume medis diverifikasi dengan kondisi pulang, instruksi pulang, nama verifier, dan waktu verifikasi.",
     icon: ClipboardCheck,
   },
 ]
@@ -47,7 +52,7 @@ export default async function LandingPage() {
     <main className="min-h-dvh bg-background text-foreground">
       <section className="relative isolate overflow-hidden border-b border-border">
         <Image
-          src="/assets/health.png"
+          src="/assets/ueu.png"
           alt=""
           width={520}
           height={520}
@@ -57,7 +62,7 @@ export default async function LandingPage() {
         <div className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
           <header className="flex items-center justify-between gap-4">
             <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="MedNote">
-              <Image src="/assets/health.png" alt="MedNote Logo" width={36} height={36} className="size-9 shrink-0 bg-transparent" />
+              <Image src="/assets/ueu.png" alt="UEU Logo" width={36} height={36} className="size-9 shrink-0 bg-transparent" />
               <div className="min-w-0">
                 <p className="truncate text-sm font-semibold">MedNote</p>
                 <p className="truncate text-xs text-muted-foreground">Rekam medis elektronik</p>
@@ -110,25 +115,26 @@ export default async function LandingPage() {
                 </div>
                 <div className="mt-4 grid grid-cols-2 gap-3">
                   {[
-                    ["Pasien aktif", "128", UsersRound],
-                    ["Kunjungan", "42", Activity],
-                    ["Rekam medis", "36", FileText],
-                    ["Resep diproses", "18", Pill],
-                  ].map(([label, value, Icon]) => (
+                    ["Pasien aktif", "128", "Data pasien aktif", UsersRound],
+                    ["Kunjungan hari ini", "42", "Hari berjalan", Activity],
+                    ["Kunjungan Aktif", "14", "Belum selesai", Stethoscope],
+                    ["Dokumen Medis", "36", "Seluruh dokumen medis", FileText],
+                  ].map(([label, value, detail, Icon]) => (
                     <div key={label as string} className="rounded-md border border-border bg-card p-3">
                       <Icon className="size-4 text-primary" aria-hidden="true" />
                       <p className="mt-3 text-xs text-muted-foreground">{label as string}</p>
                       <p className="mt-1 text-2xl font-semibold tabular-nums">{value as string}</p>
+                      <p className="mt-1 text-[0.7rem] leading-4 text-muted-foreground">{detail as string}</p>
                     </div>
                   ))}
                 </div>
                 <div className="mt-4 rounded-md border border-border bg-card p-3">
                   <div className="flex items-center justify-between gap-3">
-                    <p className="text-sm font-medium">Alur pasien</p>
+                    <p className="text-sm font-medium">Alur layanan</p>
                     <span className="text-xs text-muted-foreground">Tersinkron</span>
                   </div>
                   <div className="mt-3 grid gap-2">
-                    {["Pendaftaran", "Asesmen", "Pemeriksaan dokter", "Resep"].map((step, index) => (
+                    {["Pasien", "Kunjungan", "Asesmen", "Laboratorium", "Resep", "CPPT", "Verifikasi dokumen medis"].map((step, index) => (
                       <div key={step} className="flex items-center gap-3 rounded-md bg-muted px-3 py-2 text-sm">
                         <span className="grid size-6 place-items-center rounded-md bg-background text-xs font-semibold tabular-nums">{index + 1}</span>
                         <span className="min-w-0 flex-1 truncate">{step}</span>

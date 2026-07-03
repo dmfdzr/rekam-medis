@@ -8,30 +8,92 @@ import { CheckCircle2, Download, Eye } from "lucide-react"
 import { useListControls, useRefreshOnSuccess } from "@/lib/hooks"
 import { Button } from "@/components/ui/button"
 import { EmptyState, StatusBadge, PermissionNotice } from "@/components/shared/feedback"
-import { Panel } from "@/components/shared/layout"
+import { ModalDialog, Panel } from "@/components/shared/layout"
 import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
 import { verifyMedicalRecordAction } from "@/app/actions/clinic"
+import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
+import { DatePickerField, TextAreaField, FieldError, FormMessage } from "@/components/shared/forms"
+
+const dischargeConditionOptions = [
+  { value: "ALLOWED_HOME", label: "Diijinkan Pulang" },
+  { value: "REFERRED", label: "Dirujuk" },
+  { value: "OWN_REQUEST", label: "Atas Permintaan Sendiri" },
+  { value: "DIED", label: "Meninggal" },
+  { value: "LEFT_WITHOUT_NOTICE", label: "Melarikan Diri" },
+]
 
 function VerifyForm({ recordId, canVerify }: { recordId: string; canVerify: boolean }) {
   const [state, formAction, pending] = React.useActionState(verifyMedicalRecordAction, {})
+  const [open, setOpen] = React.useState(false)
   useRefreshOnSuccess(state)
+
+  React.useEffect(() => {
+    if (state.ok) {
+      setOpen(false)
+    }
+  }, [state.ok])
 
   if (!canVerify) return null
 
   return (
-    <form action={formAction} className="inline-block">
-      <input type="hidden" name="recordId" value={recordId} />
-      <Button type="submit" variant="outline" size="sm" className="w-fit" disabled={pending}>
-        <CheckCircle2 className="size-3 mr-1" aria-hidden="true" />
-        {pending ? "Memverifikasi..." : "Verifikasi"}
-      </Button>
-    </form>
+    <Dialog open={open} onOpenChange={setOpen}>
+      <DialogTrigger asChild>
+        <Button type="button" variant="outline" size="sm" className="w-fit">
+          <CheckCircle2 className="size-3 mr-1" aria-hidden="true" />
+          Verifikasi
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="sm:max-w-lg" onPointerDownOutside={(event) => event.preventDefault()} onEscapeKeyDown={(event) => event.preventDefault()}>
+        <DialogHeader>
+          <DialogTitle>Verifikasi dokumen medis</DialogTitle>
+          <DialogDescription>
+            Lengkapi kondisi pulang dan instruksi pulang sebelum dokumen dinyatakan terverifikasi.
+          </DialogDescription>
+        </DialogHeader>
+        <form action={formAction} className="grid gap-4">
+          <input type="hidden" name="recordId" value={recordId} />
+          <div className="grid gap-2">
+            <span className="text-sm font-medium">Kondisi pulang</span>
+            <div className="grid gap-2 sm:grid-cols-2">
+              {dischargeConditionOptions.map((option) => (
+                <label key={option.value} className="flex items-center gap-2 rounded-md border border-border bg-background px-3 py-2 text-sm">
+                  <input
+                    type="radio"
+                    name="dischargeCondition"
+                    value={option.value}
+                    className="size-4 accent-primary"
+                    disabled={pending}
+                  />
+                  <span>{option.label}</span>
+                </label>
+              ))}
+            </div>
+            <FieldError message={state.errors?.dischargeCondition?.[0]} />
+          </div>
+          <TextAreaField
+            name="dischargeInstruction"
+            label="Instruksi pulang"
+            placeholder="Isi instruksi pulang pasien"
+            error={state.errors?.dischargeInstruction?.[0]}
+          />
+          <FormMessage state={state} />
+          <DialogFooter>
+            <Button type="submit" disabled={pending}>
+              <CheckCircle2 className="size-4" aria-hidden="true" />
+              {pending ? "Memverifikasi..." : "Simpan verifikasi"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
   )
 }
 
 export function DocumentsSection({
   role,
   documents,
+  filtersOpen,
+  onFiltersOpenChange,
 }: {
   role: RoleKey
   documents: MedicalDocumentListItem[]
@@ -42,6 +104,9 @@ export function DocumentsSection({
   onComposerOpenChange: (open: boolean) => void
 }) {
   const canVerify = role === "master" || role === "doctor"
+  const [verificationFilter, setVerificationFilter] = React.useState("all")
+  const [startDate, setStartDate] = React.useState("")
+  const [endDate, setEndDate] = React.useState("")
   
   const searchSelector = React.useCallback(
     (record: MedicalDocumentListItem) => [
@@ -53,15 +118,71 @@ export function DocumentsSection({
     ],
     [],
   )
+  const filteredDocuments = React.useMemo(() => {
+    return documents.filter((record) => {
+      const matchesVerification =
+        verificationFilter === "all" ||
+        (verificationFilter === "verified" && record.isVerified) ||
+        (verificationFilter === "unverified" && !record.isVerified)
+      const matchesStartDate = !startDate || record.filterDate >= startDate
+      const matchesEndDate = !endDate || record.filterDate <= endDate
+
+      return matchesVerification && matchesStartDate && matchesEndDate
+    })
+  }, [documents, endDate, startDate, verificationFilter])
 
   const controls = useListControls({
-    items: documents,
+    items: filteredDocuments,
     pageSize: 6,
     search: searchSelector,
   })
+  const { setPage } = controls
+
+  React.useEffect(() => {
+    setPage(1)
+  }, [endDate, setPage, startDate, verificationFilter])
+
+  function resetFilters() {
+    setVerificationFilter("all")
+    setStartDate("")
+    setEndDate("")
+  }
 
   return (
     <div className="grid gap-5">
+      <ModalDialog
+        open={filtersOpen}
+        onOpenChange={onFiltersOpenChange}
+        title="Filter dokumen medis"
+        description="Saring dokumen berdasarkan status verifikasi dan tanggal perubahan data."
+      >
+        <div className="grid gap-4">
+          <label className="grid gap-1.5">
+            <span className="text-sm font-medium">Status verifikasi</span>
+            <select
+              value={verificationFilter}
+              onChange={(event) => setVerificationFilter(event.target.value)}
+              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
+            >
+              <option value="all">Semua dokumen</option>
+              <option value="verified">Terverifikasi</option>
+              <option value="unverified">Belum verifikasi</option>
+            </select>
+          </label>
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DatePickerField name="" label="Tanggal mulai" value={startDate} onValueChange={setStartDate} placeholder="Semua tanggal" />
+            <DatePickerField name="" label="Tanggal akhir" value={endDate} onValueChange={setEndDate} placeholder="Semua tanggal" />
+          </div>
+          <div className="flex justify-end gap-2 border-t border-border pt-4">
+            <Button type="button" variant="outline" size="lg" onClick={resetFilters}>
+              Reset
+            </Button>
+            <Button type="button" size="lg" onClick={() => onFiltersOpenChange(false)}>
+              Terapkan
+            </Button>
+          </div>
+        </div>
+      </ModalDialog>
       <Panel title="Rangkuman & Verifikasi Dokumen Medis" description="Daftar CPPT pasien yang dapat dilihat, diunduh, dan diverifikasi oleh dokter.">
         <ListToolbar
           query={controls.query}

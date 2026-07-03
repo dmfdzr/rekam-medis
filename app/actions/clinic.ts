@@ -256,6 +256,20 @@ const createMedicalDocumentSchema = z.object({
   referenceNote: z.string().trim().max(500, "Catatan referensi maksimal 500 karakter.").optional(),
 })
 
+const DischargeCondition = {
+  ALLOWED_HOME: "ALLOWED_HOME",
+  REFERRED: "REFERRED",
+  OWN_REQUEST: "OWN_REQUEST",
+  DIED: "DIED",
+  LEFT_WITHOUT_NOTICE: "LEFT_WITHOUT_NOTICE",
+} as const
+
+const verifyMedicalRecordSchema = z.object({
+  recordId: z.string().trim().min(1, "Rekam medis tidak valid."),
+  dischargeCondition: z.enum(DischargeCondition, "Kondisi pulang wajib dipilih."),
+  dischargeInstruction: z.string().trim().min(1, "Instruksi pulang wajib diisi.").max(1000, "Instruksi pulang maksimal 1000 karakter."),
+})
+
 const createUserSchema = z.object({
   name: z.string().trim().min(2, "Nama user minimal 2 karakter."),
   email: z.email("Email tidak valid.").trim().toLowerCase(),
@@ -2383,13 +2397,22 @@ export async function verifyMedicalRecordAction(state: ClinicFormState, formData
       return { ok: false, message: "Hanya dokter yang dapat memverifikasi rekam medis." }
     }
 
-    const recordId = formData.get("recordId")?.toString()
-    if (!recordId) {
-      return { ok: false, message: "Rekam medis tidak valid." }
+    const parsed = verifyMedicalRecordSchema.safeParse({
+      recordId: formData.get("recordId"),
+      dischargeCondition: formData.get("dischargeCondition"),
+      dischargeInstruction: formData.get("dischargeInstruction"),
+    })
+
+    if (!parsed.success) {
+      return {
+        ok: false,
+        message: "Data verifikasi belum lengkap.",
+        errors: getFieldErrors(parsed.error),
+      }
     }
 
     const record = await prisma.medicalRecord.findUnique({
-      where: { id: recordId },
+      where: { id: parsed.data.recordId },
     })
 
     if (!record) {
@@ -2404,13 +2427,26 @@ export async function verifyMedicalRecordAction(state: ClinicFormState, formData
       return { ok: false, message: "Rekam medis sudah diverifikasi." }
     }
 
-    await prisma.medicalRecord.update({
-      where: { id: recordId },
-      data: {
-        isVerified: true,
-        verifiedAt: new Date(),
-        verifiedById: user.id,
-      },
+    const verifiedAt = new Date()
+
+    await prisma.$transaction(async (tx) => {
+      await tx.medicalRecord.update({
+        where: { id: parsed.data.recordId },
+        data: {
+          isVerified: true,
+          verifiedAt,
+          verifiedBy: {
+            connect: { id: user.id },
+          },
+        },
+      })
+
+      await tx.$executeRaw`
+        UPDATE "medical_records"
+        SET "dischargeCondition" = ${parsed.data.dischargeCondition},
+            "dischargeInstruction" = ${parsed.data.dischargeInstruction}
+        WHERE "id" = ${parsed.data.recordId}
+      `
     })
 
     await writeAuditLog({
@@ -2418,13 +2454,22 @@ export async function verifyMedicalRecordAction(state: ClinicFormState, formData
       action: "VERIFY_MEDICAL_RECORD",
       entityName: "MedicalRecord",
       entityId: record.id,
-      afterData: { isVerified: true, verifiedById: user.id },
+      afterData: {
+        isVerified: true,
+        verifiedById: user.id,
+        dischargeCondition: parsed.data.dischargeCondition,
+      },
     })
 
-    revalidatePath("/documents")
+    revalidatePath("/")
+    revalidatePath("/app")
     return { ok: true, message: "Berhasil memverifikasi rekam medis." }
   } catch (error) {
     console.error("verifyMedicalRecord error:", error)
+    if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2022") {
+      return { ok: false, message: "Database belum memiliki kolom verifikasi dokumen. Jalankan migration terbaru terlebih dahulu." }
+    }
+
     return { ok: false, message: "Terjadi kesalahan sistem saat memverifikasi rekam medis." }
   }
 }

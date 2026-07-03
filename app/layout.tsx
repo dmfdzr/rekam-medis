@@ -4,6 +4,7 @@ import { Geist_Mono, Outfit } from "next/font/google"
 import "./globals.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { PageTransition } from "@/components/page-transition"
+import { ToastProvider } from "@/components/shared/toast"
 import { cn } from "@/lib/utils";
 
 const outfit = Outfit({subsets:['latin'],variable:'--font-sans'})
@@ -17,9 +18,9 @@ export const metadata: Metadata = {
   title: "MedNote",
   description: "Aplikasi rekam medis elektronik standalone untuk operasional klinik.",
   icons: {
-    icon: "/assets/health.png",
-    shortcut: "/assets/health.png",
-    apple: "/assets/health.png",
+    icon: "/assets/ueu.png",
+    shortcut: "/assets/ueu.png",
+    apple: "/assets/ueu.png",
   },
 }
 
@@ -37,7 +38,9 @@ export default function RootLayout({
     >
       <body>
         <ThemeProvider>
-          <PageTransition>{children}</PageTransition>
+          <ToastProvider>
+            <PageTransition>{children}</PageTransition>
+          </ToastProvider>
         </ThemeProvider>
       </body>
     </html>

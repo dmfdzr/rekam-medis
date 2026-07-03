@@ -1,4 +1,7 @@
 import { NextResponse } from "next/server"
+import { readFileSync } from "node:fs"
+import { join } from "node:path"
+import { deflateSync, inflateSync } from "node:zlib"
 
 import { writeAuditLog } from "@/lib/auth/audit-log"
 import { getCurrentUser } from "@/lib/auth/current-user"
@@ -6,6 +9,144 @@ import { canAccess } from "@/lib/auth/permissions"
 import { prisma } from "@/lib/prisma"
 
 export const dynamic = "force-dynamic"
+
+type PdfPngImage = {
+  width: number
+  height: number
+  data: Buffer
+  alpha?: Buffer
+}
+
+type MedicalRecordDischargeRow = {
+  dischargeCondition: string | null
+  dischargeInstruction: string | null
+}
+
+let cachedLogoImage: PdfPngImage | null | undefined
+
+function paethPredictor(left: number, up: number, upperLeft: number) {
+  const estimate = left + up - upperLeft
+  const leftDistance = Math.abs(estimate - left)
+  const upDistance = Math.abs(estimate - up)
+  const upperLeftDistance = Math.abs(estimate - upperLeft)
+
+  if (leftDistance <= upDistance && leftDistance <= upperLeftDistance) {
+    return left
+  }
+
+  return upDistance <= upperLeftDistance ? up : upperLeft
+}
+
+function decodePngForPdf(buffer: Buffer): PdfPngImage {
+  if (buffer.subarray(0, 8).toString("hex") !== "89504e470d0a1a0a") {
+    throw new Error("Logo file is not a PNG.")
+  }
+
+  let offset = 8
+  let imageWidth = 0
+  let imageHeight = 0
+  let bitDepth = 0
+  let colorType = 0
+  let interlaceMethod = 0
+  const idatChunks: Buffer[] = []
+
+  while (offset < buffer.length) {
+    const length = buffer.readUInt32BE(offset)
+    const type = buffer.subarray(offset + 4, offset + 8).toString("ascii")
+    const data = buffer.subarray(offset + 8, offset + 8 + length)
+
+    if (type === "IHDR") {
+      imageWidth = data.readUInt32BE(0)
+      imageHeight = data.readUInt32BE(4)
+      bitDepth = data[8]
+      colorType = data[9]
+      interlaceMethod = data[12]
+    } else if (type === "IDAT") {
+      idatChunks.push(data)
+    } else if (type === "IEND") {
+      break
+    }
+
+    offset += 12 + length
+  }
+
+  if (!imageWidth || !imageHeight || bitDepth !== 8 || interlaceMethod !== 0 || ![2, 6].includes(colorType)) {
+    throw new Error("Unsupported PNG format for PDF logo.")
+  }
+
+  const bytesPerPixel = colorType === 6 ? 4 : 3
+  const sourceStride = imageWidth * bytesPerPixel
+  const raw = inflateSync(Buffer.concat(idatChunks))
+  const rgb = Buffer.alloc(imageWidth * imageHeight * 3)
+  const alpha = colorType === 6 ? Buffer.alloc(imageWidth * imageHeight) : undefined
+  let rawOffset = 0
+  let rgbOffset = 0
+  let alphaOffset = 0
+  let previous = Buffer.alloc(sourceStride)
+
+  for (let row = 0; row < imageHeight; row += 1) {
+    const filter = raw[rawOffset]
+    rawOffset += 1
+    const current = Buffer.alloc(sourceStride)
+
+    for (let index = 0; index < sourceStride; index += 1) {
+      const value = raw[rawOffset + index]
+      const left = index >= bytesPerPixel ? current[index - bytesPerPixel] : 0
+      const up = previous[index] ?? 0
+      const upperLeft = index >= bytesPerPixel ? previous[index - bytesPerPixel] : 0
+
+      if (filter === 0) {
+        current[index] = value
+      } else if (filter === 1) {
+        current[index] = (value + left) & 255
+      } else if (filter === 2) {
+        current[index] = (value + up) & 255
+      } else if (filter === 3) {
+        current[index] = (value + Math.floor((left + up) / 2)) & 255
+      } else if (filter === 4) {
+        current[index] = (value + paethPredictor(left, up, upperLeft)) & 255
+      } else {
+        throw new Error("Unsupported PNG filter.")
+      }
+    }
+
+    for (let index = 0; index < sourceStride; index += bytesPerPixel) {
+      rgb[rgbOffset] = current[index]
+      rgb[rgbOffset + 1] = current[index + 1]
+      rgb[rgbOffset + 2] = current[index + 2]
+      rgbOffset += 3
+
+      if (alpha) {
+        alpha[alphaOffset] = current[index + 3]
+        alphaOffset += 1
+      }
+    }
+
+    rawOffset += sourceStride
+    previous = current
+  }
+
+  return {
+    width: imageWidth,
+    height: imageHeight,
+    data: deflateSync(rgb),
+    alpha: alpha ? deflateSync(alpha) : undefined,
+  }
+}
+
+function getLogoImageForPdf() {
+  if (cachedLogoImage !== undefined) {
+    return cachedLogoImage
+  }
+
+  try {
+    cachedLogoImage = decodePngForPdf(readFileSync(join(process.cwd(), "public", "assets", "ueu.png")))
+  } catch {
+    cachedLogoImage = null
+  }
+
+  return cachedLogoImage
+}
 
 const genderLabels = {
   MALE: "Laki-laki",
@@ -28,6 +169,20 @@ const dateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
   hour: "2-digit",
   minute: "2-digit",
 })
+
+const dischargeConditionLabels = {
+  ALLOWED_HOME: "Diijinkan Pulang",
+  REFERRED: "Dirujuk",
+  OWN_REQUEST: "Atas Permintaan Sendiri",
+  DIED: "Meninggal",
+  LEFT_WITHOUT_NOTICE: "Melarikan Diri",
+} as const
+
+type DischargeConditionKey = keyof typeof dischargeConditionLabels
+
+function isDischargeCondition(value: string | null | undefined, condition: DischargeConditionKey) {
+  return value === condition
+}
 
 function escapeHtml(value: string | number | null | undefined) {
   return String(value ?? "-")
@@ -124,15 +279,17 @@ type ResumePdfData = {
     oxygenSaturation: string
   }
   discharge: {
-    conditionFinal: boolean
+    condition: string | null
     instruction: string
   }
+  verifiedAt: string
   signatureDoctor: string
 }
 
 function buildResumeMedicalPdf(data: ResumePdfData) {
   const width = 595
   const height = 842
+  const logoImage = getLogoImageForPdf()
   const marginX = 40
   let y = 812
   const tableWidth = 515
@@ -151,6 +308,12 @@ function buildResumeMedicalPdf(data: ResumePdfData) {
 
   function rect(x: number, yBottom: number, w: number, h: number) {
     commands.push(`${x} ${yBottom} ${w} ${h} re S`)
+  }
+
+  function image(x: number, yBottom: number, w: number, h: number) {
+    if (logoImage) {
+      commands.push(`q ${w} 0 0 ${h} ${x} ${yBottom} cm /Logo Do Q`)
+    }
   }
 
   function text(x: number, yText: number, value: string | number | null | undefined, size = 9, font = "F1") {
@@ -203,26 +366,39 @@ function buildResumeMedicalPdf(data: ResumePdfData) {
   text(480, 824, data.documentCode, 10, "F2")
 
   const headerTop = y
-  rect(x1, headerTop - 80, col1, 80)
-  text(x1 + 66, headerTop - 31, "MedNote", 16, "F2")
-  text(x1 + 61, headerTop - 45, "Electronic Health Record", 7)
-  cell(x2, y, col2, 20, "Nomor RM", { bold: true })
-  cell(x3, y, col3, 20, data.patient.medicalRecordNumber)
-  y -= 20
-  cell(x2, y, col2, 20, "Nama Pasien", { bold: true })
-  cell(x3, y, col3, 20, data.patient.name)
-  y -= 20
-  cell(x2, y, col2, 20, "Tanggal Lahir", { bold: true })
-  cell(x3, y, col3, 20, data.patient.birthDate)
-  y -= 20
-  cell(x2, y, col2, 20, "Jenis Kelamin", { bold: true })
-  rect(x3, y - 20, col3, 20)
-  drawCheck(x3 + 6, y - 5, data.patient.gender === "MALE", "L")
-  drawCheck(x3 + 42, y - 5, data.patient.gender === "FEMALE", "P")
-  y -= 20
-  cell(x1, y, col1, 24, "RESUME MEDIS", { bold: true, center: true })
-  cell(x2, y, col2 + col3, 24, "")
-  y -= 24
+  const logoHeight = 80
+  const titleHeight = 24
+  const headerHeight = logoHeight + titleHeight
+  const patientRowHeight = headerHeight / 4
+
+  rect(x1, headerTop - headerHeight, col1, headerHeight)
+  line(x1, headerTop - logoHeight, x2, headerTop - logoHeight)
+  if (logoImage) {
+    const logoBoxWidth = 120
+    const logoBoxHeight = 64
+    const logoRatio = logoImage.width / logoImage.height
+    const logoDrawWidth = logoRatio >= logoBoxWidth / logoBoxHeight ? logoBoxWidth : logoBoxHeight * logoRatio
+    const logoDrawHeight = logoRatio >= logoBoxWidth / logoBoxHeight ? logoBoxWidth / logoRatio : logoBoxHeight
+    image(x1 + (col1 - logoDrawWidth) / 2, headerTop - 8 - logoDrawHeight, logoDrawWidth, logoDrawHeight)
+  } else {
+    text(x1 + 58, headerTop - 34, "Universitas Esa Unggul", 11, "F2")
+  }
+  text(x1 + Math.max(6, (col1 - "RESUME MEDIS".length * 5.2) / 2), headerTop - logoHeight - titleHeight / 2 - 3, "RESUME MEDIS", 11, "F2")
+  rect(x2, headerTop - headerHeight, col2 + col3, headerHeight)
+  line(x3, headerTop, x3, headerTop - headerHeight)
+  ;["Nomor RM", "Nama Pasien", "Tanggal Lahir", "Jenis Kelamin"].forEach((label, index) => {
+    const rowTop = headerTop - index * patientRowHeight
+    if (index > 0) {
+      line(x2, rowTop, x4, rowTop)
+    }
+    text(x2 + 6, rowTop - 17, label, 9, "F2")
+  })
+  text(x3 + 6, headerTop - 17, data.patient.medicalRecordNumber, 9)
+  text(x3 + 6, headerTop - patientRowHeight - 17, data.patient.name, 9)
+  text(x3 + 6, headerTop - patientRowHeight * 2 - 17, data.patient.birthDate, 9)
+  drawCheck(x3 + 6, headerTop - patientRowHeight * 3 - 8, data.patient.gender === "MALE", "L")
+  drawCheck(x3 + 42, headerTop - patientRowHeight * 3 - 8, data.patient.gender === "FEMALE", "P")
+  y -= headerHeight
 
   rect(x1, y - 116, tableWidth, 116)
   text(x1 + 6, y - 13, `Tanggal Masuk : ${data.visit.admissionDate}`, 9)
@@ -238,7 +414,7 @@ function buildResumeMedicalPdf(data: ResumePdfData) {
   drawCheck(x1 + 88, y - 58, data.visit.jointCare, "Ya")
   drawCheck(x1 + 128, y - 58, !data.visit.jointCare, "Tidak")
   const companions = data.visit.companionDoctors.length ? data.visit.companionDoctors : ["", "", ""]
-  companions.slice(0, 3).forEach((doctor, index) => text(x1 + 110, y - 77 - index * 14, `${index + 1}. ${doctor}`, 9))
+  companions.slice(0, 3).forEach((doctor, index) => text(x1 + 110, y - 75 - index * 12, `${index + 1}. ${doctor}`, 9))
   y -= 116
 
   fullRow("Diagnosa Masuk", data.assessment.admissionDiagnosis, 28)
@@ -254,27 +430,47 @@ function buildResumeMedicalPdf(data: ResumePdfData) {
   rect(x1, y - 34, col1, 34)
   text(x1 + 6, y - 13, "Kondisi Pulang", 9, "F2")
   rect(x2, y - 34, col2 + col3, 34)
-  drawCheck(x2 + 6, y - 7, data.discharge.conditionFinal, "Diijinkan Pulang")
-  drawCheck(x2 + 120, y - 7, false, "Dirujuk")
-  drawCheck(x2 + 184, y - 7, false, "Atas Permintaan Sendiri")
-  drawCheck(x2 + 6, y - 22, false, "Meninggal")
-  drawCheck(x2 + 84, y - 22, false, "Melarikan Diri")
+  drawCheck(x2 + 6, y - 7, isDischargeCondition(data.discharge.condition, "ALLOWED_HOME"), "Diijinkan Pulang")
+  drawCheck(x2 + 120, y - 7, isDischargeCondition(data.discharge.condition, "REFERRED"), "Dirujuk")
+  drawCheck(x2 + 184, y - 7, isDischargeCondition(data.discharge.condition, "OWN_REQUEST"), "Atas Permintaan Sendiri")
+  drawCheck(x2 + 6, y - 22, isDischargeCondition(data.discharge.condition, "DIED"), "Meninggal")
+  drawCheck(x2 + 84, y - 22, isDischargeCondition(data.discharge.condition, "LEFT_WITHOUT_NOTICE"), "Melarikan Diri")
   y -= 34
 
   fullRow("Instruksi Pulang", data.discharge.instruction, 34)
 
-  text(388, 94, "........................,........................", 9)
-  text(420, 32, `(${data.signatureDoctor || "Nama DPJP"})`, 9, "F2")
+  const signatureName = `(${data.signatureDoctor || "Nama DPJP"})`
+  const signatureWidth = Math.max(88, signatureName.length * 4.8)
+  const signatureX = x4 - 22 - signatureWidth
+  text(signatureX - 88, 54, `Telah diverifikasi pada ${data.verifiedAt}`, 8)
+  line(signatureX, 50, signatureX + signatureWidth, 50)
+  text(signatureX + Math.max(0, (signatureWidth - signatureName.length * 4.6) / 2), 32, signatureName, 9, "F2")
 
   const content = ["q", "0.8 w", ...commands, "Q"].join("\n")
+  const resources = logoImage ? "/Font << /F1 3 0 R /F2 6 0 R >> /XObject << /Logo 7 0 R >>" : "/Font << /F1 3 0 R /F2 6 0 R >>"
   const objects: string[] = [
     "<< /Type /Catalog /Pages 2 0 R >>",
     "<< /Type /Pages /Kids [4 0 R] /Count 1 >>",
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>",
-    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << /Font << /F1 3 0 R /F2 6 0 R >> >> /Contents 5 0 R >>`,
+    `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 ${width} ${height}] /Resources << ${resources} >> /Contents 5 0 R >>`,
     `<< /Length ${Buffer.byteLength(content, "utf8")} >>\nstream\n${content}\nendstream`,
     "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica-Bold >>",
   ]
+
+  if (logoImage) {
+    const hexImage = `${logoImage.data.toString("hex")}>`
+    const softMaskRef = logoImage.alpha ? " /SMask 8 0 R" : ""
+    objects.push(
+      `<< /Type /XObject /Subtype /Image /Width ${logoImage.width} /Height ${logoImage.height} /ColorSpace /DeviceRGB /BitsPerComponent 8${softMaskRef} /Filter [/ASCIIHexDecode /FlateDecode] /Length ${hexImage.length} >>\nstream\n${hexImage}\nendstream`,
+    )
+
+    if (logoImage.alpha) {
+      const hexAlpha = `${logoImage.alpha.toString("hex")}>`
+      objects.push(
+        `<< /Type /XObject /Subtype /Image /Width ${logoImage.width} /Height ${logoImage.height} /ColorSpace /DeviceGray /BitsPerComponent 8 /Filter [/ASCIIHexDecode /FlateDecode] /Length ${hexAlpha.length} >>\nstream\n${hexAlpha}\nendstream`,
+      )
+    }
+  }
   const chunks = ["%PDF-1.4\n"]
   const offsets = [0]
 
@@ -304,6 +500,11 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
     where: { id: recordId },
     include: {
       doctor: {
+        select: {
+          name: true,
+        },
+      },
+      verifiedBy: {
         select: {
           name: true,
         },
@@ -351,6 +552,13 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
     return NextResponse.json({ message: "Rekam medis tidak ditemukan." }, { status: 404 })
   }
 
+  const [dischargeData] = await prisma.$queryRaw<MedicalRecordDischargeRow[]>`
+    SELECT "dischargeCondition", "dischargeInstruction"
+    FROM "medical_records"
+    WHERE "id" = ${record.id}
+    LIMIT 1
+  `
+
   const patient = record.visit.patient
   const primaryDiagnosis = record.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
   const secondaryDiagnoses = record.diagnoses.filter((diagnosis) => diagnosis.type === "SECONDARY")
@@ -364,6 +572,8 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   const primaryDiagnosisCode = primaryDiagnosis?.code || "-"
   const secondaryDiagnosisCodes = secondaryDiagnoses.map((diagnosis) => diagnosis.code || "-")
   const treatmentCodes = record.treatments.map((treatment) => treatment.code || "-")
+  const verifierName = record.verifiedBy?.name ?? record.visit.doctor?.name ?? record.doctor?.name ?? "Nama DPJP"
+  const verifiedAtLabel = record.verifiedAt ? dateTimeFormatter.format(record.verifiedAt) : "-"
   const physicalExam = [
     vital?.bloodPressure ? `Tekanan darah ${vital.bloodPressure} mmHg` : null,
     vital?.temperature ? `Suhu ${vital.temperature.toString()} C` : null,
@@ -389,13 +599,14 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       .resume-table { width: 100%; border-collapse: collapse; table-layout: fixed; border: 1px solid #111827; }
       .resume-table td, .resume-table th { border: 1px solid #111827; vertical-align: top; padding: 6px 8px; font-size: 12px; line-height: 1.7; overflow-wrap: anywhere; }
       .resume-table th { text-align: left; font-weight: 700; width: 34%; }
-      .logo-cell { height: 76px; text-align: center; vertical-align: middle !important; }
-      .logo-mark { display: inline-grid; width: 42px; height: 42px; place-items: center; border: 3px solid #0ea5e9; border-radius: 999px; color: #0f766e; font-weight: 800; font-size: 18px; margin-right: 8px; }
-      .brand { display: inline-flex; align-items: center; justify-content: center; gap: 8px; text-align: left; }
-      .brand strong { display: block; font-size: 15px; color: #2563eb; line-height: 1; }
-      .brand small { display: block; font-size: 8px; color: #111827; line-height: 1.2; margin-top: 2px; }
-      .title-cell { text-align: center; font-size: 18px !important; font-weight: 800; vertical-align: middle !important; }
-      .field-label { font-weight: 700; width: 30%; }
+      .logo-cell { height: 96px; text-align: center; vertical-align: middle !important; }
+      .logo-img { width: auto; height: auto; max-width: 168px; max-height: 74px; object-fit: contain; }
+      .title-cell { height: 38px; text-align: center; font-size: 18px !important; font-weight: 800; vertical-align: middle !important; }
+      .patient-info { height: 134px; padding: 0 !important; }
+      .patient-table { width: 100%; height: 134px; border-collapse: collapse; table-layout: fixed; }
+      .patient-table td { height: 33.5px; border: 0; border-bottom: 1px solid #111827; padding: 6px 8px; font-size: 12px; line-height: 1.5; vertical-align: middle; }
+      .patient-table tr:last-child td { border-bottom: 0; }
+      .patient-table td:first-child { width: 42%; border-right: 1px solid #111827; font-weight: 700; }
       .gender-box { display: flex; gap: 10px; align-items: center; }
       .check { display: inline-block; width: 14px; height: 14px; border: 1px solid #111827; margin: 0 3px 0 0; vertical-align: -2px; position: relative; }
       .check.checked::after { content: ""; position: absolute; left: 3px; top: 0px; width: 5px; height: 9px; border: solid #111827; border-width: 0 2px 2px 0; transform: rotate(45deg); }
@@ -408,8 +619,10 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       .fill-lg { min-height: 72px; }
       .physical { display: grid; grid-template-columns: 42px 42px 42px 42px 1fr; gap: 20px; }
       .codes { width: 35%; }
-      .signature { position: absolute; right: 22mm; bottom: 18mm; width: 58mm; text-align: center; font-size: 12px; }
-      .signature .line { margin-bottom: 62px; }
+      .signature { position: absolute; right: 22mm; bottom: 18mm; text-align: center; font-size: 12px; }
+      .signature-box { display: inline-block; min-width: 44mm; }
+      .verified-line { margin-bottom: 8px; font-size: 11px; white-space: nowrap; }
+      .signature-line { border-top: 1px solid #111827; margin-bottom: 14px; }
       @media print {
         @page { size: A4; margin: 0; }
         body { background: white; padding: 0; }
@@ -435,30 +648,32 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
           <col style="width:35%" />
         </colgroup>
         <tr>
-          <td rowspan="4" class="logo-cell">
-            <div class="brand">
-              <span class="logo-mark">M</span>
-              <span><strong>MedNote</strong><small>Electronic Health Record</small></span>
-            </div>
+          <td class="logo-cell">
+            <img class="logo-img" src="/assets/ueu.png" alt="UEU Logo" />
           </td>
-          <th class="field-label">Nomor RM</th>
-          <td>${escapeHtml(patient.medicalRecordNumber)}</td>
-        </tr>
-        <tr>
-          <th class="field-label">Nama Pasien</th>
-          <td>${escapeHtml(patient.fullName)}</td>
-        </tr>
-        <tr>
-          <th class="field-label">Tanggal Lahir</th>
-          <td>${escapeHtml(dateFormatter.format(patient.birthDate))}</td>
-        </tr>
-        <tr>
-          <th class="field-label">Jenis Kelamin</th>
-          <td class="gender-box">${checkbox(patient.gender === "MALE", "L")} ${checkbox(patient.gender === "FEMALE", "P")}</td>
+          <td rowspan="2" colspan="2" class="patient-info">
+            <table class="patient-table" aria-label="Identitas pasien">
+              <tr>
+                <td>Nomor RM</td>
+                <td>${escapeHtml(patient.medicalRecordNumber)}</td>
+              </tr>
+              <tr>
+                <td>Nama Pasien</td>
+                <td>${escapeHtml(patient.fullName)}</td>
+              </tr>
+              <tr>
+                <td>Tanggal Lahir</td>
+                <td>${escapeHtml(dateFormatter.format(patient.birthDate))}</td>
+              </tr>
+              <tr>
+                <td>Jenis Kelamin</td>
+                <td class="gender-box">${checkbox(patient.gender === "MALE", "L")} ${checkbox(patient.gender === "FEMALE", "P")}</td>
+              </tr>
+            </table>
+          </td>
         </tr>
         <tr>
           <td class="title-cell">RESUME MEDIS</td>
-          <td colspan="2"></td>
         </tr>
         <tr>
           <td colspan="3" class="wide-cell">
@@ -525,22 +740,25 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
         <tr>
           <th>Kondisi Pulang</th>
           <td colspan="2">
-            ${checkbox(record.status === "FINAL", "Diijinkan Pulang")}
-            ${checkbox(false, "Dirujuk")}
-            ${checkbox(false, "Atas Permintaan Sendiri")}
+            ${checkbox(isDischargeCondition(dischargeData?.dischargeCondition, "ALLOWED_HOME"), "Diijinkan Pulang")}
+            ${checkbox(isDischargeCondition(dischargeData?.dischargeCondition, "REFERRED"), "Dirujuk")}
+            ${checkbox(isDischargeCondition(dischargeData?.dischargeCondition, "OWN_REQUEST"), "Atas Permintaan Sendiri")}
             <br />
-            ${checkbox(false, "Meninggal")}
-            ${checkbox(false, "Melarikan Diri")}
+            ${checkbox(isDischargeCondition(dischargeData?.dischargeCondition, "DIED"), "Meninggal")}
+            ${checkbox(isDischargeCondition(dischargeData?.dischargeCondition, "LEFT_WITHOUT_NOTICE"), "Melarikan Diri")}
           </td>
         </tr>
         <tr>
           <th>Instruksi Pulang</th>
-          <td colspan="2">${escapeHtml(record.doctorNote)}</td>
+          <td colspan="2">${escapeHtml(dischargeData?.dischargeInstruction)}</td>
         </tr>
       </table>
         <div class="signature">
-          <div class="line">........................,........................</div>
-          <div>(${escapeHtml(record.visit.doctor?.name ?? record.doctor?.name ?? "Nama DPJP")})</div>
+          <div class="signature-box">
+            <div class="verified-line">Telah diverifikasi pada ${escapeHtml(verifiedAtLabel)}</div>
+            <div class="signature-line"></div>
+            <div>(${escapeHtml(verifierName)})</div>
+          </div>
         </div>
       </div>
     </main>
@@ -606,10 +824,11 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
         oxygenSaturation: vital?.oxygenSaturation?.toString() ?? "-",
       },
       discharge: {
-        conditionFinal: record.status === "FINAL",
-        instruction: record.doctorNote ?? "-",
+        condition: dischargeData?.dischargeCondition ?? null,
+        instruction: dischargeData?.dischargeInstruction ?? "-",
       },
-      signatureDoctor: record.visit.doctor?.name ?? record.doctor?.name ?? "Nama DPJP",
+      verifiedAt: verifiedAtLabel,
+      signatureDoctor: verifierName,
     })
 
     return new Response(pdf, {

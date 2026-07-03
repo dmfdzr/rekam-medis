@@ -29,14 +29,16 @@ export function DashboardSection({
         ))}
       </div>
 
-      <div className="grid gap-5 xl:grid-cols-[1.4fr_0.8fr]">
+      <div className="grid gap-5 xl:grid-cols-2">
         <Panel title="Antrean layanan" description="Status pasien berjalan hari ini.">
-          <div className="grid gap-3 sm:grid-cols-2">
+          <div className="grid gap-3">
             {dashboardSummary.queue.map((item) => (
-              <div key={item.status} className="rounded-md border border-border bg-card p-4">
-                <StatusBadge label={item.status} />
-                <p className="mt-4 text-3xl font-semibold tabular-nums">{item.count}</p>
-                <p className="mt-1 text-sm text-muted-foreground">pasien</p>
+              <div key={item.status} className="flex min-h-28 items-center justify-between gap-4 rounded-md border border-border bg-card p-4">
+                <div className="min-w-0">
+                  <StatusBadge label={item.status} />
+                  <p className="mt-3 text-sm text-muted-foreground">{item.unit ?? "pasien"}</p>
+                </div>
+                <p className="text-3xl font-semibold tabular-nums">{item.count}</p>
               </div>
             ))}
           </div>

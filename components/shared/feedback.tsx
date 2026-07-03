@@ -21,6 +21,7 @@ export const statusTone: Record<string, string> = {
   Pending: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
   "Validasi stok": "bg-red-100 text-red-800 dark:bg-red-400/15 dark:text-red-200",
   Diproses: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
+  "Proses Verifikasi": "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
   Aman: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200",
   "Stok rendah": "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200",
   Kritis: "bg-red-100 text-red-800 dark:bg-red-400/15 dark:text-red-200",

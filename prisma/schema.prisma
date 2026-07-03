@@ -273,6 +273,8 @@ model MedicalRecord {
   verifiedAt         DateTime?
   verifiedById       String?
   verifiedBy         User?               @relation("MedicalRecordVerifier", fields: [verifiedById], references: [id], onDelete: SetNull)
+  dischargeCondition String?
+  dischargeInstruction String?
 
   @@index([doctorId])
   @@index([status])

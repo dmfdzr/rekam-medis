@@ -128,11 +128,11 @@ export const dashboardMetrics = [
     detail: "11 pemeriksaan masih draft",
   },
   {
-    label: "Resep pending",
+    label: "Dokumen terverifikasi",
     value: "9",
-    change: "-3",
+    change: "+3",
     tone: "text-amber-700 dark:text-amber-300",
-    detail: "4 menunggu validasi stok",
+    detail: "Resume medis selesai diverifikasi",
   },
   {
     label: "Obat stok rendah",
@@ -156,7 +156,7 @@ export const patients = [
     name: "Siti Aminah",
     nik: "3273********0001",
     gender: "Perempuan",
-    age: "34 th",
+    age: "34 tahun",
     phone: "0812-4432-1180",
     allergy: "Amoxicillin",
     status: "Aktif",
@@ -167,7 +167,7 @@ export const patients = [
     name: "Bima Pratama",
     nik: "3273********0032",
     gender: "Laki-laki",
-    age: "9 th",
+    age: "9 tahun",
     phone: "0821-7789-1044",
     allergy: "Tidak ada",
     status: "Aktif",
@@ -178,7 +178,7 @@ export const patients = [
     name: "Hendra Wijaya",
     nik: "3174********0088",
     gender: "Laki-laki",
-    age: "51 th",
+    age: "51 tahun",
     phone: "0857-2218-9031",
     allergy: "Sulfa",
     status: "Observasi",
@@ -189,7 +189,7 @@ export const patients = [
     name: "Ratna Laksmi",
     nik: "3276********0020",
     gender: "Perempuan",
-    age: "45 th",
+    age: "45 tahun",
     phone: "0813-9033-2401",
     allergy: "Tidak ada",
     status: "Aktif",
@@ -324,11 +324,13 @@ export const auditLogs = [
 ]
 
 export const workflowSteps = [
-  { title: "Daftar pasien", detail: "Cari NIK/RM, validasi duplikasi, buat nomor RM otomatis.", icon: UserRound },
-  { title: "Buat kunjungan", detail: "Pilih layanan, dokter, keluhan utama, dan status awal.", icon: CalendarDays },
-  { title: "Asesmen", detail: "Dokter mengisi pemeriksaan awal dan data klinis pendukung.", icon: HeartPulse },
-  { title: "CPPT", detail: "SOAP, diagnosa, tindakan, resep, lalu finalisasi.", icon: ClipboardCheck },
-  { title: "Resep & laporan", detail: "Resep diproses dalam alur klinis dan siap masuk laporan.", icon: FileText },
+  { title: "Pasien", detail: "Identitas pasien, NIK, kontak, dan nomor RM menjadi dasar alur layanan.", icon: UserRound },
+  { title: "Kunjungan", detail: "Petugas membuat kunjungan dari data pasien dan menentukan layanan.", icon: CalendarDays },
+  { title: "Asesmen", detail: "Dokter mengisi diagnosa masuk, riwayat penyakit, dan data klinis awal.", icon: HeartPulse },
+  { title: "Laboratorium", detail: "Hasil pemeriksaan laboratorium dicatat setelah asesmen tersimpan.", icon: TestTube },
+  { title: "Resep", detail: "Obat dan aturan pakai dibuat setelah hasil laboratorium tersedia.", icon: ClipboardList },
+  { title: "CPPT", detail: "Catatan perkembangan pasien difinalisasi setelah resep diproses.", icon: ClipboardCheck },
+  { title: "Verifikasi dokumen medis", detail: "Dokumen resume medis diverifikasi dengan kondisi dan instruksi pulang.", icon: FileText },
 ]
 
 export type AppUser = { id: string; name: string; email: string; username: string; role: string; roleName: string; }

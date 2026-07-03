@@ -1,17 +1,29 @@
 "use client"
 
-import { useActionState, useState } from "react"
+import { useActionState, useEffect, useState } from "react"
 import { Dialog } from "radix-ui"
 import { LoaderCircle, LockKeyhole, LogIn, Mail } from "lucide-react"
 
 import { loginAction, type LoginFormState } from "@/app/actions/auth"
 import { Button } from "@/components/ui/button"
+import { useToast } from "@/components/shared/toast"
 
 const initialState: LoginFormState = {}
 
 export function LoginForm() {
   const [state, formAction, pending] = useActionState(loginAction, initialState)
   const [showPassword, setShowPassword] = useState(false)
+  const [identifier, setIdentifier] = useState("")
+  const [password, setPassword] = useState("")
+  const { notify } = useToast()
+
+  useEffect(() => {
+    if (!state.message) {
+      return
+    }
+
+    notify({ tone: "error", message: state.message })
+  }, [notify, state])
 
   return (
     <>
@@ -27,6 +39,8 @@ export function LoginForm() {
               name="identifier"
               type="text"
               autoComplete="username"
+              value={identifier}
+              onChange={(event) => setIdentifier(event.target.value)}
               className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
               placeholder="Email atau username"
               aria-describedby={state.errors?.identifier ? "identifier-error" : undefined}
@@ -51,6 +65,8 @@ export function LoginForm() {
               name="password"
               type={showPassword ? "text" : "password"}
               autoComplete="current-password"
+              value={password}
+              onChange={(event) => setPassword(event.target.value)}
               className="h-10 min-w-0 flex-1 bg-transparent text-sm outline-none"
               placeholder="Masukkan password"
               aria-describedby={state.errors?.password ? "password-error" : undefined}
@@ -76,12 +92,6 @@ export function LoginForm() {
             </p>
           ) : null}
         </div>
-
-        {state.message ? (
-          <div className="rounded-md border border-destructive/30 bg-destructive/10 p-3 text-sm text-destructive" role="alert">
-            {state.message}
-          </div>
-        ) : null}
 
         <Button type="submit" size="lg" className="min-h-11 w-full" disabled={pending}>
           <LogIn className="size-4" aria-hidden="true" />

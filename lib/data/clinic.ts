@@ -15,6 +15,18 @@ const timeFormatter = new Intl.DateTimeFormat("id-ID", {
   minute: "2-digit",
 })
 
+const dateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
+  day: "2-digit",
+  month: "short",
+  year: "numeric",
+  hour: "2-digit",
+  minute: "2-digit",
+})
+
+function toDateInputValue(date: Date) {
+  return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
+}
+
 const genderLabels = {
   MALE: "Laki-laki",
   FEMALE: "Perempuan",
@@ -86,7 +98,7 @@ function calculateAge(birthDate: Date) {
     age -= 1
   }
 
-  return `${age} th`
+  return `${age} tahun`
 }
 
 function startOfToday() {
@@ -111,7 +123,7 @@ export async function getDashboardSummary() {
   const nextDay = new Date(startOfDay)
   nextDay.setDate(nextDay.getDate() + 1)
 
-  const [todayVisits, activePatients, pendingPrescriptions, visitStatusGroups] = await Promise.all([
+  const [todayVisits, activePatients, activeVisits, documentSummary, visitStatusGroups] = await Promise.all([
     prisma.visit.count({
       where: {
         visitDate: {
@@ -125,10 +137,22 @@ export async function getDashboardSummary() {
         status: "ACTIVE",
       },
     }),
-    prisma.prescription.count({
+    prisma.visit.count({
       where: {
-        status: "PENDING",
+        status: {
+          in: ["WAITING", "VITAL_SIGN", "EXAMINATION", "PHARMACY"],
+        },
       },
+    }),
+    prisma.medicalRecord.groupBy({
+      by: ["isVerified"],
+      where: {
+        status: "FINAL",
+        visit: {
+          status: "COMPLETED",
+        },
+      },
+      _count: { isVerified: true },
     }),
     prisma.visit.groupBy({
       by: ["status"],
@@ -141,16 +165,28 @@ export async function getDashboardSummary() {
     }),
   ])
 
-  const queue = ["WAITING", "VITAL_SIGN", "EXAMINATION", "PHARMACY"].map((status) => ({
-    status: visitStatusLabels[status as keyof typeof visitStatusLabels],
-    count: String(visitStatusGroups.find((group) => group.status === status)?._count.status ?? 0),
-  }))
+  const verifiedDocuments = documentSummary.find((group) => group.isVerified)?._count.isVerified ?? 0
+  const unverifiedDocuments = documentSummary.find((group) => !group.isVerified)?._count.isVerified ?? 0
+  const totalDocuments = verifiedDocuments + unverifiedDocuments
+  const queue = [
+    ...["WAITING", "VITAL_SIGN", "EXAMINATION", "PHARMACY"].map((status) => ({
+      status: visitStatusLabels[status as keyof typeof visitStatusLabels],
+      count: String(visitStatusGroups.find((group) => group.status === status)?._count.status ?? 0),
+      unit: "pasien",
+    })),
+    {
+      status: "Proses Verifikasi",
+      count: String(unverifiedDocuments),
+      unit: "dokumen",
+    },
+  ]
 
   return {
     metrics: [
-      { label: "Kunjungan hari ini", value: String(todayVisits), change: "Realtime", detail: "Hari berjalan", tone: "text-sky-700 dark:text-sky-300" },
       { label: "Pasien aktif", value: String(activePatients), change: "Total", detail: "Data pasien aktif", tone: "text-teal-700 dark:text-teal-300" },
-      { label: "Resep pending", value: String(pendingPrescriptions), change: "Resep", detail: "Menunggu proses", tone: "text-violet-700 dark:text-violet-300" },
+      { label: "Kunjungan hari ini", value: String(todayVisits), change: "Realtime", detail: "Hari berjalan", tone: "text-sky-700 dark:text-sky-300" },
+      { label: "Kunjungan Aktif", value: String(activeVisits), change: "Berjalan", detail: "Belum selesai atau dibatalkan", tone: "text-indigo-700 dark:text-indigo-300" },
+      { label: "Dokumen Medis", value: String(totalDocuments), change: "Total", detail: "Seluruh dokumen medis", tone: "text-amber-700 dark:text-amber-300" },
     ],
     queue,
   }
@@ -800,9 +836,10 @@ export async function getMedicalDocumentList() {
     status: record.status,
     isVerified: record.isVerified,
     verifiedBy: record.verifiedBy?.name ?? "-",
-    verifiedAt: record.verifiedAt ? dateFormatter.format(record.verifiedAt) : "-",
+    verifiedAt: record.verifiedAt ? dateTimeFormatter.format(record.verifiedAt) : "-",
     documentUrl: `/medical-records/${record.id}/document`,
     updatedAt: dateFormatter.format(record.updatedAt),
+    filterDate: toDateInputValue(record.updatedAt),
   }))
 }
 
