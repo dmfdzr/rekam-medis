@@ -12,7 +12,7 @@ import { EmptyState, PermissionNotice } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
-import { Check, ChevronsUpDown, Plus, Trash2 } from "lucide-react"
+import { Check, ChevronsUpDown, FileText, Plus, Trash2 } from "lucide-react"
 
 import { cn } from "@/lib/utils"
 import {
@@ -135,20 +135,23 @@ function DynamicList({
   placeholder: string
   buttonLabel: string
 }) {
+  const nextFieldId = React.useRef(1)
   const [fields, setFields] = React.useState<{ id: number; value: string; initialName?: string; initialCode?: string }[]>([
-    { id: Date.now(), value: "" }
+    { id: 0, value: "" }
   ])
 
   const addField = () => {
-    setFields([...fields, { id: Date.now(), value: "" }])
+    setFields((currentFields) => [...currentFields, { id: nextFieldId.current++, value: "" }])
   }
 
   const removeField = (id: number) => {
-    if (fields.length > 1) {
-      setFields(fields.filter((field) => field.id !== id))
-    } else {
-      setFields([{ id: Date.now(), value: "" }])
-    }
+    setFields((currentFields) => {
+      if (currentFields.length > 1) {
+        return currentFields.filter((field) => field.id !== id)
+      }
+
+      return [{ id: nextFieldId.current++, value: "" }]
+    })
   }
 
   return (
@@ -199,7 +202,7 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
   const isSelectedRecordFinal = selectedVisit?.medicalRecord?.status === "Final"
 
   if (clinicalWorklist.length === 0) {
-    return <EmptyState title="Belum ada pasien untuk asesmen" detail="Kunjungan aktif akan muncul setelah pasien didaftarkan." />
+    return <EmptyState title="Belum ada kunjungan siap asesmen" detail="Kunjungan baru dari pendaftaran akan muncul di sini." />
   }
 
   return (
@@ -294,14 +297,157 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
   )
 }
 
+function AssessmentList({ assessmentList }: { assessmentList: ClinicalWorklistItem[] }) {
+  if (assessmentList.length === 0) {
+    return <EmptyState title="Belum ada asesmen tersimpan" detail="Asesmen yang sudah disimpan akan tampil di sini." />
+  }
+
+  return (
+    <div className="grid gap-4 xl:grid-cols-2">
+      {assessmentList.map((visit) => {
+        const primaryDiagnosis = visit.medicalRecord?.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
+
+        return (
+          <div key={visit.id} className="rounded-md border border-border bg-background p-4">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="font-semibold">{visit.patientName}</p>
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {visit.medicalRecordNumber} - {visit.service} - {visit.time}
+                </p>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-2 text-sm leading-6">
+              <p>
+                <span className="font-medium">Keluhan: </span>
+                {visit.chiefComplaint}
+              </p>
+              <p>
+                <span className="font-medium">Diagnosa masuk: </span>
+                {visit.medicalRecord?.assessment || "-"}
+              </p>
+              <p>
+                <span className="font-medium">Diagnosa utama: </span>
+                {primaryDiagnosis ? `${primaryDiagnosis.code || "-"} - ${primaryDiagnosis.name}` : "-"}
+              </p>
+            </div>
+            <div className="mt-4 flex flex-wrap gap-2">
+              <AssessmentDetailDialog visit={visit} />
+            </div>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
+function DetailItem({ label, value }: { label: string; value: string | number }) {
+  return (
+    <div className="rounded-md border border-border bg-background p-3">
+      <p className="text-xs text-muted-foreground">{label}</p>
+      <p className="mt-1 break-words text-sm leading-6">{value}</p>
+    </div>
+  )
+}
+
+function DetailList({
+  title,
+  items,
+  renderItem,
+}: {
+  title: string
+  items: readonly unknown[]
+  renderItem: (item: never) => React.ReactNode
+}) {
+  return (
+    <div className="rounded-md border border-border bg-card p-4">
+      <p className="text-sm font-semibold">{title}</p>
+      {items.length === 0 ? (
+        <p className="mt-2 text-sm text-muted-foreground">Tidak ada data.</p>
+      ) : (
+        <div className="mt-3 grid gap-2">{items.map((item, index) => <React.Fragment key={index}>{renderItem(item as never)}</React.Fragment>)}</div>
+      )}
+    </div>
+  )
+}
+
+function AssessmentDetailDialog({ visit }: { visit: ClinicalWorklistItem }) {
+  const [open, setOpen] = React.useState(false)
+  const primaryDiagnosis = visit.medicalRecord?.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
+  const secondaryDiagnoses = visit.medicalRecord?.diagnoses.filter((diagnosis) => diagnosis.type === "SECONDARY") ?? []
+  const vitalSign = visit.vitalSign
+
+  return (
+    <>
+      <Button type="button" variant="outline" size="sm" onClick={() => setOpen(true)}>
+        <FileText className="size-3" aria-hidden="true" />
+        Detail Asesmen
+      </Button>
+      <ModalDialog open={open} onOpenChange={setOpen} title={`Detail Asesmen - ${visit.patientName}`} description={`${visit.medicalRecordNumber} - ${visit.service} - ${visit.time}`}>
+        <div className="grid gap-4">
+          <div className="grid gap-3 sm:grid-cols-2">
+            <DetailItem label="Pasien" value={visit.patientName} />
+            <DetailItem label="No. RM" value={visit.medicalRecordNumber} />
+            <DetailItem label="Profil pasien" value={visit.patientMeta} />
+            <DetailItem label="Alergi" value={visit.allergies} />
+            <DetailItem label="Dokter" value={visit.doctor} />
+            <DetailItem label="Layanan" value={visit.service} />
+          </div>
+
+          <div className="grid gap-3">
+            <DetailItem label="Keluhan utama" value={visit.chiefComplaint} />
+            <DetailItem label="Diagnosa masuk" value={visit.medicalRecord?.assessment || "-"} />
+            <DetailItem label="Riwayat penyakit" value={visit.medicalRecord?.subjective || "-"} />
+            <DetailItem label="Diagnosa utama" value={primaryDiagnosis ? `${primaryDiagnosis.code || "-"} - ${primaryDiagnosis.name}` : "-"} />
+          </div>
+
+          <div className="grid gap-3 rounded-md border border-border bg-card p-4 sm:grid-cols-2 lg:grid-cols-3">
+            <DetailItem label="Tekanan darah" value={vitalSign?.bloodPressure || "-"} />
+            <DetailItem label="Suhu tubuh" value={vitalSign?.temperature ? `${vitalSign.temperature} C` : "-"} />
+            <DetailItem label="Berat badan" value={vitalSign?.weight ? `${vitalSign.weight} Kg` : "-"} />
+            <DetailItem label="Tinggi badan" value={vitalSign?.height ? `${vitalSign.height} Cm` : "-"} />
+            <DetailItem label="Nadi" value={vitalSign?.pulse ? `${vitalSign.pulse} /menit` : "-"} />
+            <DetailItem label="Respirasi" value={vitalSign?.respiration ? `${vitalSign.respiration} /menit` : "-"} />
+            <DetailItem label="Saturasi oksigen" value={vitalSign?.oxygenSaturation ? `${vitalSign.oxygenSaturation}%` : "-"} />
+          </div>
+
+          <DetailList
+            title="Diagnosa sekunder"
+            items={secondaryDiagnoses}
+            renderItem={(diagnosis: NonNullable<ClinicalWorklistItem["medicalRecord"]>["diagnoses"][number]) => (
+              <div className="rounded-md bg-muted p-3 text-sm leading-6">
+                <p className="font-medium">{diagnosis.code || "-"} - {diagnosis.name}</p>
+                <p className="text-muted-foreground">{diagnosis.note || "-"}</p>
+              </div>
+            )}
+          />
+
+          <DetailList
+            title="Tindakan"
+            items={visit.medicalRecord?.treatments ?? []}
+            renderItem={(treatment: NonNullable<ClinicalWorklistItem["medicalRecord"]>["treatments"][number]) => (
+              <div className="rounded-md bg-muted p-3 text-sm leading-6">
+                <p className="font-medium">{treatment.code || "-"} - {treatment.name}</p>
+                <p className="text-muted-foreground">{treatment.note || "-"}</p>
+              </div>
+            )}
+          />
+        </div>
+      </ModalDialog>
+    </>
+  )
+}
+
 export function AssessmentSection({
   role,
-  clinicalWorklist,
+  assessmentList,
+  assessmentOptions,
   composerOpen,
   onComposerOpenChange,
 }: {
   role: RoleKey
-  clinicalWorklist: ClinicalWorklistItem[]
+  assessmentList: ClinicalWorklistItem[]
+  assessmentOptions: ClinicalWorklistItem[]
   composerOpen: boolean
   onComposerOpenChange: (open: boolean) => void
 }) {
@@ -309,20 +455,11 @@ export function AssessmentSection({
 
   return (
     <div className="grid gap-5">
-      <Panel title="Daftar pasien untuk asesmen" description="Pilih pasien untuk melakukan asesmen dan menentukan diagnosa ICD-10 serta tindakan ICD-9-CM.">
-        {clinicalWorklist.length > 0 ? (
-          <div className="grid gap-4">
-            <div className="rounded-md border border-border bg-background p-4 text-center">
-              <p className="text-sm text-muted-foreground mb-4">Ada {clinicalWorklist.length} pasien menunggu asesmen.</p>
-              <Button onClick={() => onComposerOpenChange(true)}>Buka Form Asesmen</Button>
-            </div>
-          </div>
-        ) : (
-          <EmptyState title="Tidak ada pasien" detail="Daftar pasien kosong saat ini." />
-        )}
+      <Panel title="Data asesmen tersimpan" description="Daftar asesmen yang sudah dibuat dari kunjungan pasien.">
+        <AssessmentList assessmentList={assessmentList} />
       </Panel>
       <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Asesmen Klinis" description="Pengisian diagnosa masuk, riwayat penyakit, diagnosa ICD-10, dan tindakan ICD-9-CM.">
-        {canInput ? <AssessmentForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi asesmen." />}
+        {canInput ? <AssessmentForm clinicalWorklist={assessmentOptions} /> : <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi asesmen." />}
       </ModalDialog>
     </div>
   )

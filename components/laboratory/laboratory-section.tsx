@@ -8,11 +8,17 @@ import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
 import { TextField, FormMessage, ComboboxField, DatePickerField } from "@/components/shared/forms"
-import { EmptyState, StatusBadge, PermissionNotice } from "@/components/shared/feedback"
+import { EmptyState, PermissionNotice } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
 
 const initialClinicFormState: ClinicFormState = {}
+
+function todayISO() {
+  const today = new Date()
+
+  return `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}-${String(today.getDate()).padStart(2, "0")}`
+}
 
 export function VisitSummaryCard({ visit }: { visit: ClinicalWorklistItem }) {
   return (
@@ -24,7 +30,6 @@ export function VisitSummaryCard({ visit }: { visit: ClinicalWorklistItem }) {
             {visit.medicalRecordNumber} - {visit.service} - {visit.time}
           </p>
         </div>
-        <StatusBadge label={visit.status} />
       </div>
       <p className="mt-4 text-sm leading-6">{visit.chiefComplaint}</p>
       <p className="mt-2 text-xs text-muted-foreground">Alergi: {visit.allergies}</p>
@@ -66,7 +71,7 @@ export function LaboratoryForm({ clinicalWorklist }: { clinicalWorklist: Clinica
   const selectedVisit = clinicalWorklist.find((visit) => visit.id === selectedVisitId)
 
   if (clinicalWorklist.length === 0) {
-    return <EmptyState title="Belum ada kunjungan untuk laboratorium" detail="Buat kunjungan terlebih dahulu agar perawat dapat mengisi hasil laboratorium awal." />
+    return <EmptyState title="Belum ada pasien siap laboratorium" detail="Pasien akan muncul setelah asesmen disimpan." />
   }
 
   return (
@@ -82,7 +87,7 @@ export function LaboratoryForm({ clinicalWorklist }: { clinicalWorklist: Clinica
 
       <div key={selectedVisitId} className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-           <DatePickerField name="examinationDate" label="Tanggal pemeriksaan" defaultValue={selectedVisit?.laboratoryResult?.examinationDate} />
+           <DatePickerField name="examinationDate" label="Tanggal pemeriksaan" defaultValue={selectedVisit?.laboratoryResult?.examinationDate ?? todayISO()} />
         </div>
         <TextField name="hemoglobin" label="Hemoglobin (g/dl)" type="number" defaultValue={selectedVisit?.laboratoryResult?.hemoglobin} inputMode="decimal" step="0.1" min={0} placeholder="14.0" />
         <TextField name="leukosit" label="Leukosit (micro/l)" type="number" defaultValue={selectedVisit?.laboratoryResult?.leukosit} inputMode="decimal" step="0.1" min={0} placeholder="10000" />
@@ -99,12 +104,14 @@ export function LaboratoryForm({ clinicalWorklist }: { clinicalWorklist: Clinica
 
 export function LaboratorySection({
   role,
-  clinicalWorklist,
+  laboratoryList,
+  laboratoryOptions,
   composerOpen,
   onComposerOpenChange,
 }: {
   role: RoleKey
-  clinicalWorklist: ClinicalWorklistItem[]
+  laboratoryList: ClinicalWorklistItem[]
+  laboratoryOptions: ClinicalWorklistItem[]
   composerOpen: boolean
   onComposerOpenChange: (open: boolean) => void
 }) {
@@ -112,10 +119,10 @@ export function LaboratorySection({
 
   return (
     <div className="grid gap-5">
-      <Panel title="Daftar pasien aktif" description="Ringkasan kunjungan dan hasil laboratorium pasien yang masih berada dalam alur layanan.">
-        {clinicalWorklist.length > 0 ? (
+      <Panel title="Data laboratorium tersimpan" description="Hasil laboratorium yang sudah disimpan dari asesmen pasien.">
+        {laboratoryList.length > 0 ? (
           <div className="grid gap-4 xl:grid-cols-2">
-            {clinicalWorklist.map((visit) => (
+            {laboratoryList.map((visit) => (
               <div key={visit.id} className="rounded-md border border-border bg-background p-3">
                 <VisitSummaryCard visit={visit} />
                 <LaboratoryGrid visit={visit} />
@@ -123,11 +130,11 @@ export function LaboratorySection({
             ))}
           </div>
         ) : (
-          <EmptyState title="Tidak ada kunjungan aktif" detail="Kunjungan dengan status menunggu atau pemeriksaan akan muncul di sini." />
+          <EmptyState title="Belum ada hasil laboratorium" detail="Hasil lab yang sudah disimpan akan tampil di sini." />
         )}
       </Panel>
       <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Input laboratorium" description="Form hasil tes lab yang penting.">
-        {canInput ? <LaboratoryForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini hanya dapat melihat hasil laboratorium. Input laboratorium dibatasi untuk master dan dokter." />}
+        {canInput ? <LaboratoryForm clinicalWorklist={laboratoryOptions} /> : <PermissionNotice message="Role ini hanya dapat melihat hasil laboratorium. Input laboratorium dibatasi untuk master dan dokter." />}
       </ModalDialog>
     </div>
   )

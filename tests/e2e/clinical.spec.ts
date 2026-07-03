@@ -1,7 +1,7 @@
 import { test, expect } from '@playwright/test';
 
 test.describe('Clinical Workflow', () => {
-  test('Doctor should be able to record vitals', async ({ page }) => {
+  test('Doctor should be able to record laboratory results', async ({ page }) => {
     // Login as doctor
     await page.goto('/login');
     await page.getByLabel('Email atau username').fill('dokter');
@@ -9,22 +9,19 @@ test.describe('Clinical Workflow', () => {
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page.getByRole('heading', { name: /Dashboard/ })).toBeVisible({ timeout: 15000 });
 
-    await page.getByRole('button', { name: 'Tanda Vital' }).click();
-    await expect(page.getByRole('heading', { name: 'Tanda Vital' })).toBeVisible();
-    await page.getByRole('button', { name: 'Simpan tanda vital' }).click();
+    await page.getByRole('button', { name: 'Laboratorium' }).click();
+    await expect(page.getByRole('heading', { name: 'Input Laboratorium' })).toBeVisible();
+    await page.getByRole('button', { name: 'Simpan hasil lab' }).click();
 
-    if (await page.getByText('Belum ada kunjungan untuk tanda vital').isVisible()) {
-      await expect(page.getByText('Buat kunjungan terlebih dahulu')).toBeVisible();
+    if (await page.getByText('Belum ada pasien siap laboratorium').isVisible()) {
+      await expect(page.getByText('Pasien akan muncul setelah asesmen disimpan')).toBeVisible();
     } else {
-      // Fill vitals
-      await page.getByLabel('Tekanan darah').fill('120/80');
-      await page.getByLabel('Suhu tubuh').fill('36.5');
-      await page.getByLabel('Nadi').fill('75');
-      await page.getByLabel('Respirasi').fill('18');
-      await page.getByLabel('Berat badan').fill('65');
-      await page.getByLabel('Tinggi badan').fill('170');
+      await page.getByLabel('Hemoglobin (g/dl)').fill('14.0');
+      await page.getByLabel('Leukosit (micro/l)').fill('9000');
+      await page.getByLabel('GDS/GDP (mg/dl)').fill('110');
+      await page.getByLabel('CRP (mg/dl)').fill('0.5');
 
-      await page.getByRole('button', { name: 'Simpan tanda vital' }).click();
+      await page.getByRole('button', { name: 'Simpan laboratorium' }).click();
       await expect(page.getByText('berhasil disimpan')).toBeVisible({ timeout: 15000 });
     }
   });
@@ -37,12 +34,12 @@ test.describe('Clinical Workflow', () => {
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page.getByRole('heading', { name: /Dashboard/ })).toBeVisible({ timeout: 15000 });
 
-    await page.getByRole('button', { name: 'Rekam Medis' }).click();
-    await expect(page.getByRole('heading', { name: 'Rekam Medis', exact: true })).toBeVisible();
-    await page.getByRole('button', { name: 'Finalisasi rekam medis' }).click();
+    await page.getByRole('button', { name: 'CPPT' }).click();
+    await expect(page.getByRole('heading', { name: 'CPPT', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'Finalisasi CPPT' }).click();
 
-    if (await page.getByText('Belum ada pasien pemeriksaan').isVisible()) {
-      await expect(page.getByText('Pasien akan muncul setelah tanda vital')).toBeVisible();
+    if (await page.getByText('Belum ada pasien untuk pemeriksaan').isVisible()) {
+      await expect(page.getByText('Kunjungan aktif akan muncul setelah pasien didaftarkan')).toBeVisible();
     } else {
       // Fill SOAP
       await page.getByLabel('Subjective').fill('Sakit kepala berdenyut');
@@ -62,23 +59,20 @@ test.describe('Clinical Workflow', () => {
     await page.getByRole('button', { name: 'Masuk' }).click();
     await expect(page.getByRole('heading', { name: /Dashboard/ })).toBeVisible({ timeout: 15000 });
 
-    await page.getByRole('button', { name: 'Rekam Medis' }).click();
-    await expect(page.getByRole('heading', { name: 'Rekam Medis', exact: true })).toBeVisible();
+    await page.getByRole('button', { name: 'CPPT' }).click();
+    await expect(page.getByRole('heading', { name: 'CPPT', exact: true })).toBeVisible();
 
-    if (await page.getByText('Belum ada rekam medis').isVisible()) {
-      await expect(page.getByText('Draft dan finalisasi rekam medis')).toBeVisible();
+    if (await page.getByText('Belum ada CPPT').isVisible()) {
+      await expect(page.getByText('Draft dan finalisasi CPPT')).toBeVisible();
       return;
     }
 
-    await page.getByRole('button', { name: 'Detail rekam medis' }).first().click();
+    await page.getByRole('button', { name: 'Detail CPPT' }).first().click();
     const detailDialog = page.getByRole('dialog');
     await expect(detailDialog.getByText('Subjective')).toBeVisible();
     await expect(detailDialog.getByText('Diagnosa', { exact: true })).toBeVisible();
     await expect(detailDialog.getByText('Tindakan', { exact: true })).toBeVisible();
 
-    const generatedPagePromise = page.waitForEvent('popup');
-    await detailDialog.getByRole('link', { name: 'Generate dokumen rekam medis' }).click();
-    const generatedPage = await generatedPagePromise;
-    await expect(generatedPage.getByRole('heading', { name: 'Rekam Medis Pasien' })).toBeVisible({ timeout: 15000 });
+    await expect(detailDialog.getByText('Resep')).toBeVisible();
   });
 });

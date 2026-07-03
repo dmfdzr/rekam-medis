@@ -45,10 +45,11 @@ export default async function Page() {
 
   const canViewPatients = canAccess(user.role, "patients")
   const canViewVisits = canAccess(user.role, "visits")
+  const canViewAssessment = canAccess(user.role, "assessment")
   const canViewLaboratory = canAccess(user.role, "laboratory")
   const canViewRecords = canAccess(user.role, "records")
   const canViewPrescriptions = canAccess(user.role, "prescriptions")
-    const canViewDocuments = canAccess(user.role, "documents")
+  const canViewDocuments = canAccess(user.role, "documents")
   const canViewReports = canAccess(user.role, "reports")
   const canViewAudit = canAccess(user.role, "audit")
   const canViewUsers = canAccess(user.role, "users")
@@ -58,7 +59,11 @@ export default async function Page() {
     patients,
     visits,
     visitOptions,
-    clinicalWorklist,
+    assessmentList,
+    assessmentOptions,
+    laboratoryList,
+    laboratoryOptions,
+    medicalRecordWorklist,
     medicalRecordHistory,
     prescriptions,
     prescriptionOptions,
@@ -74,7 +79,11 @@ export default async function Page() {
     canViewPatients ? getPatientList() : [],
     canViewVisits ? getVisitList() : [],
     canViewVisits ? getVisitFormOptions() : emptyVisitOptions,
-    canViewLaboratory || canViewRecords ? getClinicalWorklist() : [],
+    canViewAssessment ? getClinicalWorklist("assessmentList") : [],
+    canViewAssessment ? getClinicalWorklist("assessmentOptions") : [],
+    canViewLaboratory ? getClinicalWorklist("laboratoryList") : [],
+    canViewLaboratory ? getClinicalWorklist("laboratoryOptions") : [],
+    canViewRecords ? getClinicalWorklist("recordable") : [],
     canViewRecords ? getMedicalRecordHistory() : [],
     canViewPrescriptions ? getPrescriptionList() : [],
     canViewPrescriptions ? getPrescriptionFormOptions() : emptyPrescriptionOptions,
@@ -94,7 +103,11 @@ export default async function Page() {
       patients={patients}
       visits={visits}
       visitOptions={visitOptions}
-      clinicalWorklist={clinicalWorklist}
+      assessmentList={assessmentList}
+      assessmentOptions={assessmentOptions}
+      laboratoryList={laboratoryList}
+      laboratoryOptions={laboratoryOptions}
+      medicalRecordWorklist={medicalRecordWorklist}
       medicalRecordHistory={medicalRecordHistory}
       prescriptions={prescriptions}
       prescriptionOptions={prescriptionOptions}

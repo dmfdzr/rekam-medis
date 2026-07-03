@@ -18,7 +18,7 @@ export function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOpti
   useRefreshOnSuccess(state)
 
   if (prescriptionOptions.records.length === 0) {
-    return <EmptyState title="Belum siap membuat resep" detail="Pastikan ada rekam medis sebelum membuat resep." />
+    return <EmptyState title="Belum siap membuat resep" detail="Pasien akan muncul setelah asesmen dan laboratorium selesai." />
   }
 
   return (
@@ -54,7 +54,7 @@ export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Pres
   const selectedPrescription = pendingPrescriptions.find((prescription) => prescription.id === selectedPrescriptionId)
 
   if (pendingPrescriptions.length === 0) {
-    return <EmptyState title="Tidak ada resep pending" detail="Resep yang belum diproses akan muncul untuk divalidasi oleh apoteker." />
+    return <EmptyState title="Tidak ada resep pending" detail="Resep yang belum diproses akan muncul untuk divalidasi oleh dokter." />
   }
 
   return (

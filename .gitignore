@@ -32,6 +32,8 @@ yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 debug.log
+update_docs.cjs
+update_docs.ts
 
 # env files (can opt-in for committing if needed)
 .env*

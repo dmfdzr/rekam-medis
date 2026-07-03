@@ -28,7 +28,7 @@ export function PrescriptionDetailDialog({ prescription }: { prescription: Presc
             <PatientDetailItem label="Pasien" value={prescription.patient} />
             <PatientDetailItem label="No. rekam medis" value={prescription.medicalRecordNumber} />
             <PatientDetailItem label="Dokter" value={prescription.doctor} />
-            <PatientDetailItem label="Apoteker" value={prescription.pharmacist} />
+            <PatientDetailItem label="Diproses oleh" value={prescription.pharmacist} />
           </div>
 
           <div className="rounded-md border border-border bg-card p-4">

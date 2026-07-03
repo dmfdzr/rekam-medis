@@ -87,8 +87,8 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
   },
   records: {
     title: "CPPT",
-    description: "Catatan rekam medis elektronik dan riwayat SOAP dari dokter.",
-    action: "Finalisasi rekam medis",
+    description: "Perkembangan pasien terintegrasi dan riwayat SOAP dari dokter.",
+    action: "Finalisasi CPPT",
   },
   prescriptions: {
     title: "Resep",
@@ -252,7 +252,11 @@ function SectionRenderer({
   patients,
   visits,
   visitOptions,
-  clinicalWorklist,
+  assessmentList,
+  assessmentOptions,
+  laboratoryList,
+  laboratoryOptions,
+  medicalRecordWorklist,
   medicalRecordHistory,
   prescriptions,
   prescriptionOptions,
@@ -275,7 +279,11 @@ function SectionRenderer({
   patients: PatientListItem[]
   visits: VisitListItem[]
   visitOptions: VisitFormOptions
-  clinicalWorklist: ClinicalWorklistItem[]
+  assessmentList: ClinicalWorklistItem[]
+  assessmentOptions: ClinicalWorklistItem[]
+  laboratoryList: ClinicalWorklistItem[]
+  laboratoryOptions: ClinicalWorklistItem[]
+  medicalRecordWorklist: ClinicalWorklistItem[]
   medicalRecordHistory: MedicalRecordHistoryItem[]
   prescriptions: PrescriptionListItem[]
   prescriptionOptions: PrescriptionFormOptions
@@ -295,11 +303,11 @@ function SectionRenderer({
     case "visits":
       return <VisitsSection visits={visits} visitOptions={visitOptions} role={role} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "laboratory":
-      return <LaboratorySection role={role} clinicalWorklist={clinicalWorklist} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
+      return <LaboratorySection role={role} laboratoryList={laboratoryList} laboratoryOptions={laboratoryOptions} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "assessment":
-      return <AssessmentSection role={role} clinicalWorklist={clinicalWorklist} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
+      return <AssessmentSection role={role} assessmentList={assessmentList} assessmentOptions={assessmentOptions} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "records":
-      return <MedicalRecordsSection role={role} clinicalWorklist={clinicalWorklist} medicalRecordHistory={medicalRecordHistory} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
+      return <MedicalRecordsSection role={role} clinicalWorklist={medicalRecordWorklist} medicalRecordHistory={medicalRecordHistory} composerOpen={composerOpen} onComposerOpenChange={onComposerOpenChange} />
     case "prescriptions":
       return <PrescriptionsSection role={role} prescriptions={prescriptions} prescriptionOptions={prescriptionOptions} filtersOpen={filtersOpen} composerOpen={composerOpen} onFiltersOpenChange={onFiltersOpenChange} onComposerOpenChange={onComposerOpenChange} />
     case "documents":
@@ -323,7 +331,11 @@ export function MedRecordApp({
   patients,
   visits,
   visitOptions,
-  clinicalWorklist,
+  assessmentList,
+  assessmentOptions,
+  laboratoryList,
+  laboratoryOptions,
+  medicalRecordWorklist,
   medicalRecordHistory,
   prescriptions,
   prescriptionOptions,
@@ -340,7 +352,11 @@ export function MedRecordApp({
   patients: PatientListItem[]
   visits: VisitListItem[]
   visitOptions: VisitFormOptions
-  clinicalWorklist: ClinicalWorklistItem[]
+  assessmentList: ClinicalWorklistItem[]
+  assessmentOptions: ClinicalWorklistItem[]
+  laboratoryList: ClinicalWorklistItem[]
+  laboratoryOptions: ClinicalWorklistItem[]
+  medicalRecordWorklist: ClinicalWorklistItem[]
   medicalRecordHistory: MedicalRecordHistoryItem[]
   prescriptions: PrescriptionListItem[]
   prescriptionOptions: PrescriptionFormOptions
@@ -480,7 +496,11 @@ export function MedRecordApp({
               patients={patients}
               visits={visits}
               visitOptions={visitOptions}
-              clinicalWorklist={clinicalWorklist}
+              assessmentList={assessmentList}
+              assessmentOptions={assessmentOptions}
+              laboratoryList={laboratoryList}
+              laboratoryOptions={laboratoryOptions}
+              medicalRecordWorklist={medicalRecordWorklist}
               medicalRecordHistory={medicalRecordHistory}
               prescriptions={prescriptions}
               prescriptionOptions={prescriptionOptions}

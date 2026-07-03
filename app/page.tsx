@@ -15,12 +15,12 @@ const workflowItems = [
   },
   {
     title: "Kunjungan dan pemeriksaan",
-    description: "Alur pendaftaran, tanda vital, pemeriksaan dokter, diagnosa, dan tindakan saling terhubung.",
+    description: "Alur pendaftaran, asesmen, pemeriksaan dokter, diagnosa, dan tindakan saling terhubung.",
     icon: Stethoscope,
   },
   {
-    title: "Resep dan farmasi",
-    description: "Resep dari dokter dapat diproses apotek dengan sinyal stok dan riwayat penggunaan obat.",
+    title: "Resep pasien",
+    description: "Resep dari dokter dapat diproses dalam alur klinis dengan riwayat penggunaan obat yang jelas.",
     icon: Pill,
   },
   {
@@ -31,7 +31,7 @@ const workflowItems = [
 ]
 
 const accessItems = [
-  "Akses berbasis role untuk admin, pendaftaran, dokter, perawat, dan apoteker.",
+  "Akses berbasis role untuk master, admin, dan dokter.",
   "Session memakai cookie HTTP-only dan aktivitas penting dicatat ke audit log.",
   "Dokumen medis dibuat saat dibutuhkan agar penyimpanan tetap ringan.",
 ]
@@ -84,7 +84,7 @@ export default async function LandingPage() {
                 MedNote membantu klinik mencatat rekam medis dengan alur yang rapi.
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Kelola pasien, kunjungan, tanda vital, pemeriksaan dokter, resep, obat, dokumen medis, laporan, dan audit aktivitas dalam satu aplikasi web standalone.
+                Kelola pasien, kunjungan, asesmen, laboratorium, pemeriksaan dokter, resep, dokumen medis, laporan, dan audit aktivitas dalam satu aplikasi web standalone.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-11 w-full sm:w-fit">
@@ -128,7 +128,7 @@ export default async function LandingPage() {
                     <span className="text-xs text-muted-foreground">Tersinkron</span>
                   </div>
                   <div className="mt-3 grid gap-2">
-                    {["Pendaftaran", "Tanda vital", "Pemeriksaan dokter", "Farmasi"].map((step, index) => (
+                    {["Pendaftaran", "Asesmen", "Pemeriksaan dokter", "Resep"].map((step, index) => (
                       <div key={step} className="flex items-center gap-3 rounded-md bg-muted px-3 py-2 text-sm">
                         <span className="grid size-6 place-items-center rounded-md bg-background text-xs font-semibold tabular-nums">{index + 1}</span>
                         <span className="min-w-0 flex-1 truncate">{step}</span>

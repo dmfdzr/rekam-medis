@@ -7,7 +7,7 @@ import * as React from "react"
 
 import { Panel, ModalDialog, ChoiceFormSwitch } from "@/components/shared/layout"
 import { ResponsiveVisitsTable } from "./visits-table"
-import { CreateVisitForm, UpdateVisitStatusForm, CancelVisitForm } from "./visit-forms"
+import { CreateVisitForm, CancelVisitForm } from "./visit-forms"
 
 export function VisitsSection({
   visits,
@@ -30,7 +30,7 @@ export function VisitsSection({
 
   return (
     <div className="grid gap-5">
-      <Panel title="Daftar kunjungan" description="Status kunjungan dibuat eksplisit agar handoff antar role tidak ambigu.">
+      <Panel title="Daftar kunjungan" description="Status kunjungan diperbarui otomatis sesuai alur: asesmen, laboratorium, resep, CPPT.">
         <ResponsiveVisitsTable visits={visits} filtersOpen={filtersOpen} onFiltersOpenChange={onFiltersOpenChange} />
       </Panel>
       <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola kunjungan" description="Pilih aksi pengelolaan kunjungan yang ingin dikerjakan.">
@@ -45,12 +45,6 @@ export function VisitsSection({
                     title: "Buat kunjungan",
                     description: "Daftarkan kunjungan pasien dengan layanan, dokter, keluhan, dan status awal.",
                     content: <CreateVisitForm visitOptions={visitOptions} />,
-                  },
-                  {
-                    id: "update-visit",
-                    title: "Update status kunjungan",
-                    description: "Ubah status kunjungan untuk pembatalan, penyelesaian, atau koreksi handoff layanan.",
-                    content: <UpdateVisitStatusForm visits={visits} />,
                   },
                   {
                     id: "cancel-visit",

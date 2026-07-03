@@ -190,22 +190,11 @@ export function DatePickerField({
     return isNaN(parsed.getTime()) ? undefined : parsed
   }, [raw])
 
-  const [selected, setSelected] = React.useState<Date | undefined>(initialDate)
-
-  // Sync with external controlled value
-  React.useEffect(() => {
-    if (value !== undefined) {
-      if (!value) {
-        setSelected(undefined)
-      } else {
-        const parsed = parseDate(value, "yyyy-MM-dd", new Date())
-        if (!isNaN(parsed.getTime())) setSelected(parsed)
-      }
-    }
-  }, [value])
+  const [uncontrolledSelected, setUncontrolledSelected] = React.useState<Date | undefined>(initialDate)
+  const selected = value !== undefined ? initialDate : uncontrolledSelected
 
   function handleSelect(date: Date | undefined) {
-    setSelected(date)
+    setUncontrolledSelected(date)
     const iso = date ? toISO(date) : ""
     onValueChange?.(iso)
   }
@@ -214,6 +203,12 @@ export function DatePickerField({
   const displayText = selected
     ? formatDate(selected, "d MMMM yyyy", { locale: id })
     : ""
+  const calendarStartMonth = React.useMemo(() => new Date(1900, 0), [])
+  const calendarEndMonth = React.useMemo(() => {
+    const today = new Date()
+
+    return new Date(today.getFullYear() + 20, 11)
+  }, [])
 
   return (
     <div className="grid gap-1.5">
@@ -226,7 +221,6 @@ export function DatePickerField({
               "flex h-11 w-full items-center justify-between rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25",
               !displayText && "text-muted-foreground",
             )}
-            aria-invalid={Boolean(error)}
           >
             <span>{displayText || placeholder || `Pilih ${label.toLowerCase()}`}</span>
             <CalendarIcon />
@@ -241,6 +235,9 @@ export function DatePickerField({
               setOpen(false)
             }}
             defaultMonth={initialDate}
+            captionLayout="dropdown"
+            startMonth={calendarStartMonth}
+            endMonth={calendarEndMonth}
             locale={id}
           />
         </PopoverContent>
@@ -287,6 +284,7 @@ export function FormMessage({ state }: { state: { ok?: boolean; message?: string
       )}
       role="status"
     >
+      {state.message}
     </div>
   )
 }
@@ -397,5 +395,3 @@ export function ComboboxField({
     </div>
   )
 }
-
-

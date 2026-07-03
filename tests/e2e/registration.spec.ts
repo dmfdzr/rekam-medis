@@ -1,4 +1,24 @@
-import { test, expect } from '@playwright/test';
+import { test, expect, type Page } from '@playwright/test';
+
+async function selectCurrentDate(page: Page, label: string) {
+  await page.getByRole('button', { name: `Pilih ${label.toLowerCase()}` }).click();
+  await page.getByRole('button', { name: /^Today,/ }).click();
+}
+
+async function selectComboboxOption(page: Page, index: number, optionName: RegExp | string) {
+  const dialog = page.getByRole('dialog');
+  await dialog.getByRole('combobox').nth(index).click();
+  await page.getByRole('option', { name: optionName }).click();
+}
+
+async function setSelectValue(page: Page, name: string, value: string) {
+  await page.locator(`select[name="${name}"]`).evaluate((select, nextValue) => {
+    const element = select as HTMLSelectElement;
+    element.value = nextValue as string;
+    element.dispatchEvent(new Event('input', { bubbles: true }));
+    element.dispatchEvent(new Event('change', { bubbles: true }));
+  }, value);
+}
 
 test.beforeEach(async ({ page }) => {
   await page.goto('/login');
@@ -20,13 +40,13 @@ test.describe('Registration Workflow', () => {
 
     await page.getByLabel('Nama lengkap').fill(patientName);
     await page.getByLabel('NIK').fill(randomNik);
-    await page.getByLabel('Tanggal lahir').fill('1990-01-01');
-    await page.getByLabel('Jenis kelamin').selectOption('MALE');
+    await selectCurrentDate(page, 'Tanggal lahir');
+    await setSelectValue(page, 'gender', 'MALE');
     await page.getByLabel('Nomor telepon').fill('081234567890');
     
     await page.getByRole('button', { name: 'Simpan pasien' }).click();
 
-    await expect(page.getByText('berhasil dibuat')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('table').getByText(patientName)).toBeVisible({ timeout: 15000 });
   });
 
   test('should register a new visit for a patient', async ({ page }) => {
@@ -39,11 +59,11 @@ test.describe('Registration Workflow', () => {
 
     await page.getByLabel('Nama lengkap').fill(patientName);
     await page.getByLabel('NIK').fill(randomNik);
-    await page.getByLabel('Tanggal lahir').fill('1992-02-02');
-    await page.getByLabel('Jenis kelamin').selectOption('FEMALE');
+    await selectCurrentDate(page, 'Tanggal lahir');
+    await setSelectValue(page, 'gender', 'FEMALE');
     await page.getByLabel('Nomor telepon').fill('081299988877');
     await page.getByRole('button', { name: 'Simpan pasien' }).click();
-    await expect(page.getByText('berhasil dibuat')).toBeVisible({ timeout: 15000 });
+    await expect(page.locator('table').getByText(patientName)).toBeVisible({ timeout: 15000 });
     await page.getByRole('button', { name: 'Tutup dialog' }).click();
 
     await page.getByRole('button', { name: 'Kunjungan' }).click();
@@ -51,16 +71,13 @@ test.describe('Registration Workflow', () => {
     await page.getByRole('button', { name: 'Kelola kunjungan' }).click();
     await page.getByRole('button', { name: 'Buat kunjungan' }).click();
 
-    const patientSelect = page.getByLabel('Pasien');
-    const patientOptionValue = await patientSelect.locator('option', { hasText: patientName }).getAttribute('value');
-    expect(patientOptionValue).toBeTruthy();
-    await patientSelect.selectOption(patientOptionValue!);
-
-    const doctorSelect = page.getByLabel('Dokter');
-    await doctorSelect.selectOption({ index: 1 });
-
-    await page.getByLabel('Layanan / poli').fill('Poli Umum');
-    await page.getByLabel('Keluhan utama').fill('Sakit kepala sejak 2 hari yang lalu');
+    await selectComboboxOption(page, 0, new RegExp(patientName));
+    await setSelectValue(page, 'patientType', 'UMUM');
+    await expect(page.locator('select[name="patientType"]')).toHaveValue('UMUM');
+    await selectComboboxOption(page, 2, /Raka/);
+    await selectComboboxOption(page, 3, 'Poli Umum');
+    await page.locator('textarea[name="chiefComplaint"]').fill('Sakit kepala sejak 2 hari yang lalu');
+    await selectCurrentDate(page, 'Tanggal masuk');
 
     await page.getByRole('button', { name: 'Buat kunjungan' }).last().click();
 

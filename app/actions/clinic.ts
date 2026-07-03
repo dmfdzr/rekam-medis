@@ -134,10 +134,7 @@ const createVisitSchema = z.object({
   companionDoctorIds: z.array(z.string().trim()).optional(),
 })
 
-const updateVisitStatusSchema = z.object({
-  visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
-  status: z.enum(VisitStatus, "Status kunjungan wajib dipilih."),
-})
+
 
 const cancelVisitSchema = z.object({
   visitId: z.string().trim().min(1, "Kunjungan wajib dipilih."),
@@ -303,6 +300,12 @@ const userMutationRoles = new Set<UserRole>([UserRole.MASTER])
 
 function optionalString(value: string | undefined) {
   return value && value.length > 0 ? value : null
+}
+
+function optionalFormString(formData: FormData, key: string) {
+  const value = formData.get(key)
+
+  return typeof value === "string" ? value : undefined
 }
 
 function toDate(value: string) {
@@ -650,15 +653,18 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
     chiefComplaint: formData.get("chiefComplaint"),
     admissionDate: formData.get("admissionDate"),
     patientType: formData.get("patientType"),
-    isJointCare: formData.get("isJointCare"),
+    isJointCare: formData.get("isJointCare") ?? undefined,
     companionDoctorIds: formData.getAll("companionDoctorIds[]").map(String).filter(Boolean),
   })
 
   if (!parsed.success) {
+    const errors = getFieldErrors(parsed.error)
+    const firstError = Object.values(errors).flat()[0]
+
     return {
       ok: false,
-      message: "Data kunjungan belum valid.",
-      errors: getFieldErrors(parsed.error),
+      message: firstError ? `Data kunjungan belum valid. ${firstError}` : "Data kunjungan belum valid.",
+      errors,
     }
   }
 
@@ -733,77 +739,7 @@ export async function createVisitAction(_state: ClinicFormState, formData: FormD
   }
 }
 
-export async function updateVisitStatusAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
-  const user = await getCurrentUser()
 
-  if (!user || !visitMutationRoles.has(user.role)) {
-    return {
-      ok: false,
-      message: "Anda tidak memiliki akses untuk mengubah status kunjungan.",
-    }
-  }
-
-  const parsed = updateVisitStatusSchema.safeParse({
-    visitId: formData.get("visitId"),
-    status: formData.get("status"),
-  })
-
-  if (!parsed.success) {
-    return {
-      ok: false,
-      message: "Data status kunjungan belum valid.",
-      errors: getFieldErrors(parsed.error),
-    }
-  }
-
-  const visit = await prisma.visit.findUnique({
-    where: { id: parsed.data.visitId },
-    include: {
-      patient: {
-        select: {
-          fullName: true,
-          medicalRecordNumber: true,
-        },
-      },
-    },
-  })
-
-  if (!visit) {
-    return {
-      ok: false,
-      message: "Kunjungan tidak ditemukan.",
-      errors: { visitId: ["Kunjungan tidak ditemukan."] },
-    }
-  }
-
-  const updatedVisit = await prisma.visit.update({
-    where: { id: visit.id },
-    data: { status: parsed.data.status },
-  })
-
-  await writeAuditLog({
-    userId: user.id,
-    action: "UPDATE_VISIT_STATUS",
-    entityName: "Visit",
-    entityId: visit.id,
-    beforeData: {
-      status: visit.status,
-      patientName: visit.patient.fullName,
-    },
-    afterData: {
-      status: updatedVisit.status,
-      patientName: visit.patient.fullName,
-      medicalRecordNumber: visit.patient.medicalRecordNumber,
-    },
-  })
-
-  revalidatePath("/")
-
-  return {
-    ok: true,
-    message: `Status kunjungan ${visit.patient.fullName} berhasil diperbarui.`,
-  }
-}
 
 export async function cancelVisitAction(_state: ClinicFormState, formData: FormData): Promise<ClinicFormState> {
   const user = await getCurrentUser()
@@ -922,6 +858,13 @@ export async function upsertLaboratoryAction(_state: ClinicFormState, formData: 
     where: { id: parsed.data.visitId },
     select: {
       id: true,
+      status: true,
+      medicalRecord: {
+        select: {
+          id: true,
+          status: true,
+        },
+      },
       patient: {
         select: {
           fullName: true,
@@ -935,6 +878,22 @@ export async function upsertLaboratoryAction(_state: ClinicFormState, formData: 
       ok: false,
       message: "Kunjungan tidak ditemukan.",
       errors: { visitId: ["Kunjungan tidak ditemukan."] },
+    }
+  }
+
+  if (visit.status === VisitStatus.WAITING || !visit.medicalRecord) {
+    return {
+      ok: false,
+      message: "Laboratorium hanya dapat diisi setelah asesmen disimpan.",
+      errors: { visitId: ["Asesmen pasien belum tersimpan."] },
+    }
+  }
+
+  if (visit.medicalRecord.status === MedicalRecordStatus.FINAL || visit.status === VisitStatus.COMPLETED || visit.status === VisitStatus.CANCELLED || visit.status === VisitStatus.PHARMACY) {
+    return {
+      ok: false,
+      message: "Laboratorium tidak dapat diubah setelah resep diproses, kunjungan selesai, atau kunjungan dibatalkan.",
+      errors: { visitId: ["Tahap laboratorium sudah terkunci."] },
     }
   }
 
@@ -958,10 +917,12 @@ export async function upsertLaboratoryAction(_state: ClinicFormState, formData: 
       },
     })
 
-    await tx.visit.update({
-      where: { id: parsed.data.visitId },
-      data: { status: VisitStatus.EXAMINATION },
-    })
+    if (visit.status === VisitStatus.VITAL_SIGN) {
+      await tx.visit.update({
+        where: { id: parsed.data.visitId },
+        data: { status: VisitStatus.EXAMINATION },
+      })
+    }
   })
 
   await writeAuditLog({
@@ -990,50 +951,68 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
   if (!user || !medicalRecordMutationRoles.has(user.role)) {
     return {
       ok: false,
-      message: "Anda tidak memiliki akses untuk menyimpan rekam medis.",
+      message: "Anda tidak memiliki akses untuk menyimpan CPPT.",
     }
   }
 
   const parsed = saveMedicalRecordSchema.safeParse({
     visitId: formData.get("visitId"),
-    subjective: formData.get("subjective"),
-    objective: formData.get("objective"),
-    assessment: formData.get("assessment"),
-    plan: formData.get("plan"),
-    physicalExam: formData.get("physicalExam"),
-    doctorNote: formData.get("doctorNote"),
-    followUpDate: formData.get("followUpDate"),
-    diagnosisCode: formData.get("diagnosisCode"),
-    diagnosisName: formData.get("diagnosisName"),
-    diagnosisNote: formData.get("diagnosisNote"),
-    treatmentCode: formData.get("treatmentCode"),
-    treatmentName: formData.get("treatmentName"),
-    treatmentCost: formData.get("treatmentCost"),
-    treatmentNote: formData.get("treatmentNote"),
+    subjective: optionalFormString(formData, "subjective"),
+    objective: optionalFormString(formData, "objective"),
+    assessment: optionalFormString(formData, "assessment"),
+    plan: optionalFormString(formData, "plan"),
+    physicalExam: optionalFormString(formData, "physicalExam"),
+    doctorNote: optionalFormString(formData, "doctorNote"),
+    diagnosisCode: optionalFormString(formData, "diagnosisCode"),
+    diagnosisName: optionalFormString(formData, "diagnosisName"),
+    diagnosisNote: optionalFormString(formData, "diagnosisNote"),
+    treatmentCode: optionalFormString(formData, "treatmentCode"),
+    treatmentName: optionalFormString(formData, "treatmentName"),
+    treatmentCost: optionalFormString(formData, "treatmentCost"),
+    treatmentNote: optionalFormString(formData, "treatmentNote"),
     intent: formData.get("intent"),
-    bloodPressureSystolic: formData.get("bloodPressureSystolic"),
-    bloodPressureDiastolic: formData.get("bloodPressureDiastolic"),
-    temperature: formData.get("temperature"),
-    weight: formData.get("weight"),
-    height: formData.get("height"),
-    pulse: formData.get("pulse"),
-    respiration: formData.get("respiration"),
-    oxygenSaturation: formData.get("oxygenSaturation"),
+    bloodPressureSystolic: optionalFormString(formData, "bloodPressureSystolic"),
+    bloodPressureDiastolic: optionalFormString(formData, "bloodPressureDiastolic"),
+    temperature: optionalFormString(formData, "temperature"),
+    weight: optionalFormString(formData, "weight"),
+    height: optionalFormString(formData, "height"),
+    pulse: optionalFormString(formData, "pulse"),
+    respiration: optionalFormString(formData, "respiration"),
+    oxygenSaturation: optionalFormString(formData, "oxygenSaturation"),
   })
 
   if (!parsed.success) {
     return {
       ok: false,
-      message: "Data rekam medis belum valid.",
+      message: "Data CPPT belum valid.",
       errors: getFieldErrors(parsed.error),
     }
   }
 
-  if (parsed.data.intent === "final" && !parsed.data.diagnosisName) {
-    return {
-      ok: false,
-      message: "Rekam medis final wajib memiliki minimal satu diagnosa utama.",
-      errors: { diagnosisName: ["Diagnosa utama wajib diisi sebelum finalisasi."] },
+  if (parsed.data.intent === "final") {
+    const requiredFinalFields: Array<[keyof typeof parsed.data, string, string]> = [
+      ["subjective", "Subjective", "Subjective wajib diisi sebelum finalisasi."],
+      ["objective", "Objective", "Objective wajib diisi sebelum finalisasi."],
+      ["assessment", "Assessment", "Assessment wajib diisi sebelum finalisasi."],
+      ["plan", "Plan", "Plan wajib diisi sebelum finalisasi."],
+      ["bloodPressureSystolic", "Sistolik", "Sistolik wajib diisi sebelum finalisasi."],
+      ["bloodPressureDiastolic", "Diastolik", "Diastolik wajib diisi sebelum finalisasi."],
+      ["temperature", "Suhu tubuh", "Suhu tubuh wajib diisi sebelum finalisasi."],
+      ["weight", "Berat badan", "Berat badan wajib diisi sebelum finalisasi."],
+      ["height", "Tinggi badan", "Tinggi badan wajib diisi sebelum finalisasi."],
+      ["pulse", "Nadi", "Nadi wajib diisi sebelum finalisasi."],
+      ["respiration", "Respirasi", "Respirasi wajib diisi sebelum finalisasi."],
+      ["oxygenSaturation", "Saturasi oksigen", "Saturasi oksigen wajib diisi sebelum finalisasi."],
+      ["doctorNote", "Instruksi dokter", "Instruksi dokter wajib diisi sebelum finalisasi."],
+    ]
+    const missingFields = requiredFinalFields.filter(([field]) => !String(parsed.data[field] ?? "").trim())
+
+    if (missingFields.length > 0) {
+      return {
+        ok: false,
+        message: `CPPT final wajib melengkapi semua kolom yang tersedia. Belum lengkap: ${missingFields.map(([, label]) => label).join(", ")}.`,
+        errors: Object.fromEntries(missingFields.map(([field, , message]) => [field, [message]])),
+      }
     }
   }
 
@@ -1051,6 +1030,7 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
     where: { id: parsed.data.visitId },
     select: {
       id: true,
+      status: true,
       medicalRecord: {
         select: {
           id: true,
@@ -1077,8 +1057,16 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
   if (visit.medicalRecord?.status === MedicalRecordStatus.FINAL) {
     return {
       ok: false,
-      message: "Rekam medis sudah final dan tidak dapat diubah. Buat alur amandemen terpisah jika koreksi final diperlukan.",
-      errors: { visitId: ["Rekam medis final terkunci."] },
+      message: "CPPT sudah final dan tidak dapat diubah. Buat alur amandemen terpisah jika koreksi final diperlukan.",
+      errors: { visitId: ["CPPT final terkunci."] },
+    }
+  }
+
+  if (visit.status !== VisitStatus.PHARMACY) {
+    return {
+      ok: false,
+      message: "CPPT hanya dapat dibuat setelah resep diproses dalam alur klinis.",
+      errors: { visitId: ["Resep belum diproses."] },
     }
   }
 
@@ -1179,7 +1167,7 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
       await tx.visit.update({
         where: { id: parsed.data.visitId },
         data: {
-          status: VisitStatus.PHARMACY,
+          status: VisitStatus.COMPLETED,
           dischargeDate: new Date(),
         },
       })
@@ -1202,7 +1190,7 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
 
   return {
     ok: true,
-    message: isFinal ? `Rekam medis ${visit.patient.fullName} berhasil difinalisasi.` : `Draft rekam medis ${visit.patient.fullName} berhasil disimpan.`,
+    message: isFinal ? `CPPT ${visit.patient.fullName} berhasil difinalisasi.` : `Draft CPPT ${visit.patient.fullName} berhasil disimpan.`,
   }
 }
 
@@ -1270,6 +1258,7 @@ export async function saveAssessmentAction(_state: ClinicFormState, formData: Fo
     where: { id: parsed.data.visitId },
     select: {
       id: true,
+      status: true,
       medicalRecord: {
         select: {
           id: true,
@@ -1295,6 +1284,14 @@ export async function saveAssessmentAction(_state: ClinicFormState, formData: Fo
       ok: false,
       message: "Rekam medis sudah final dan tidak dapat diubah.",
       errors: { visitId: ["Rekam medis final terkunci."] },
+    }
+  }
+
+  if (visit.status === VisitStatus.EXAMINATION || visit.status === VisitStatus.PHARMACY || visit.status === VisitStatus.COMPLETED || visit.status === VisitStatus.CANCELLED) {
+    return {
+      ok: false,
+      message: "Asesmen hanya dapat diubah sebelum hasil laboratorium disimpan.",
+      errors: { visitId: ["Tahap asesmen sudah terkunci."] },
     }
   }
 
@@ -1398,6 +1395,13 @@ export async function saveAssessmentAction(_state: ClinicFormState, formData: Fo
         })),
       })
     }
+    // Auto-advance visit status: WAITING → VITAL_SIGN
+    if (visit.status === VisitStatus.WAITING) {
+      await tx.visit.update({
+        where: { id: parsed.data.visitId },
+        data: { status: VisitStatus.VITAL_SIGN },
+      })
+    }
   })
 
   await writeAuditLog({
@@ -1461,8 +1465,18 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
   const record = await prisma.medicalRecord.findUnique({
     where: { id: parsed.data.medicalRecordId },
     include: {
+      prescription: {
+        select: {
+          status: true,
+        },
+      },
       visit: {
         include: {
+          laboratoryResult: {
+            select: {
+              id: true,
+            },
+          },
           patient: {
             select: { fullName: true },
           },
@@ -1476,6 +1490,30 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
       ok: false,
       message: "Rekam medis tidak ditemukan.",
       errors: { medicalRecordId: ["Rekam medis tidak ditemukan."] },
+    }
+  }
+
+  if (record.status === MedicalRecordStatus.FINAL) {
+    return {
+      ok: false,
+      message: "Rekam medis final tidak dapat ditambahkan resep.",
+      errors: { medicalRecordId: ["Rekam medis sudah final."] },
+    }
+  }
+
+  if (record.visit.status !== VisitStatus.EXAMINATION || !record.visit.laboratoryResult) {
+    return {
+      ok: false,
+      message: "Resep hanya dapat dibuat setelah hasil laboratorium tersimpan.",
+      errors: { medicalRecordId: ["Laboratorium pasien belum selesai."] },
+    }
+  }
+
+  if (record.prescription?.status === PrescriptionStatus.PROCESSED || record.prescription?.status === PrescriptionStatus.CANCELLED) {
+    return {
+      ok: false,
+      message: "Resep yang sudah diproses atau dibatalkan tidak dapat diubah lewat form ini.",
+      errors: { medicalRecordId: ["Status resep sudah terkunci."] },
     }
   }
 
@@ -1578,6 +1616,10 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
       return { ok: false as const, message: "Resep sudah dibatalkan dan tidak dapat diproses." }
     }
 
+    if (prescription.medicalRecord.visit.status !== VisitStatus.EXAMINATION) {
+      return { ok: false as const, message: "Resep hanya dapat diproses setelah tahap laboratorium selesai." }
+    }
+
     await tx.prescription.update({
       where: { id: prescription.id },
       data: {
@@ -1589,7 +1631,7 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
 
     await tx.visit.update({
       where: { id: prescription.medicalRecord.visitId },
-      data: { status: VisitStatus.COMPLETED },
+      data: { status: VisitStatus.PHARMACY },
     })
 
     return {
@@ -1780,13 +1822,13 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
     entityName: "MedicalDocument",
     entityId: document.id,
     afterData: {
-        patientName: patient.fullName,
-        type: document.type,
-        fileName: document.fileName,
-        generatedOnDemand: true,
-        hasExternalReference: Boolean(referenceNote),
-      },
-    })
+      patientName: patient.fullName,
+      type: document.type,
+      fileName: document.fileName,
+      generatedOnDemand: true,
+      hasExternalReference: Boolean(referenceNote),
+    },
+  })
 
   revalidatePath("/")
 
@@ -2010,9 +2052,9 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
 
   const nextRole = parsed.data.roleId
     ? await prisma.role.findUnique({
-        where: { id: parsed.data.roleId },
-        select: { id: true, key: true, name: true },
-      })
+      where: { id: parsed.data.roleId },
+      select: { id: true, key: true, name: true },
+    })
     : null
 
   if (parsed.data.roleId && !nextRole) {

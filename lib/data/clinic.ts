@@ -1,5 +1,7 @@
 import "server-only"
 
+import type { Prisma } from "@prisma/client"
+
 import { prisma } from "@/lib/prisma"
 
 const dateFormatter = new Intl.DateTimeFormat("id-ID", {
@@ -28,10 +30,10 @@ const patientStatusLabels = {
 } as const
 
 const visitStatusLabels = {
-  WAITING: "Menunggu",
-  VITAL_SIGN: "Tanda vital",
-  EXAMINATION: "Pemeriksaan",
-  PHARMACY: "Farmasi",
+  WAITING: "Proses Asesmen",
+  VITAL_SIGN: "Proses Laboratorium",
+  EXAMINATION: "Proses Resep",
+  PHARMACY: "Proses CPPT",
   COMPLETED: "Selesai",
   CANCELLED: "Dibatalkan",
 } as const
@@ -148,7 +150,7 @@ export async function getDashboardSummary() {
     metrics: [
       { label: "Kunjungan hari ini", value: String(todayVisits), change: "Realtime", detail: "Hari berjalan", tone: "text-sky-700 dark:text-sky-300" },
       { label: "Pasien aktif", value: String(activePatients), change: "Total", detail: "Data pasien aktif", tone: "text-teal-700 dark:text-teal-300" },
-      { label: "Resep pending", value: String(pendingPrescriptions), change: "Farmasi", detail: "Menunggu proses", tone: "text-violet-700 dark:text-violet-300" },
+      { label: "Resep pending", value: String(pendingPrescriptions), change: "Resep", detail: "Menunggu proses", tone: "text-violet-700 dark:text-violet-300" },
     ],
     queue,
   }
@@ -157,7 +159,7 @@ export async function getDashboardSummary() {
 export async function getPatientList() {
   const patients = await prisma.patient.findMany({
     orderBy: { createdAt: "desc" },
-    take: 30,
+    take: 500,
     include: {
       visits: {
         orderBy: { visitDate: "desc" },
@@ -365,13 +367,61 @@ export async function getVisitFormOptions() {
   }
 }
 
-export async function getClinicalWorklist() {
+export async function getClinicalWorklist(
+  scope:
+    | "active"
+    | "assessmentList"
+    | "assessmentOptions"
+    | "laboratoryList"
+    | "laboratoryOptions"
+    | "recordable" = "active",
+) {
+  const where: Prisma.VisitWhereInput =
+    scope === "recordable"
+      ? {
+          status: "PHARMACY" as const,
+          medicalRecord: {
+            prescription: {
+              status: "PROCESSED" as const,
+            },
+          },
+        }
+      : scope === "assessmentList"
+        ? {
+            medicalRecord: {
+              isNot: null,
+            },
+          }
+      : scope === "assessmentOptions"
+        ? {
+            status: "WAITING" as const,
+            medicalRecord: {
+              is: null,
+            },
+          }
+      : scope === "laboratoryList"
+        ? {
+            laboratoryResult: {
+              isNot: null,
+            },
+          }
+      : scope === "laboratoryOptions"
+        ? {
+            status: {
+              in: ["VITAL_SIGN", "EXAMINATION"],
+            },
+            medicalRecord: {
+              isNot: null,
+            },
+          }
+      : {
+          status: {
+            in: ["WAITING", "VITAL_SIGN", "EXAMINATION", "PHARMACY"],
+          },
+        }
+
   const visits = await prisma.visit.findMany({
-    where: {
-      status: {
-        in: ["WAITING", "VITAL_SIGN", "EXAMINATION"],
-      },
-    },
+    where,
     orderBy: { visitDate: "desc" },
     take: 30,
     include: {
@@ -413,62 +463,75 @@ export async function getClinicalWorklist() {
     service: visit.service,
     doctor: visit.doctor?.name ?? "Belum ditentukan",
     chiefComplaint: visit.chiefComplaint,
+    workflowStatus: visit.status,
     status: visitStatusLabels[visit.status],
     time: timeFormatter.format(visit.visitDate),
     laboratoryResult: visit.laboratoryResult
       ? {
-          examinationDate: visit.laboratoryResult.examinationDate.toISOString().slice(0, 10),
-          hemoglobin: visit.laboratoryResult.hemoglobin?.toString() ?? "",
-          leukosit: visit.laboratoryResult.leukosit?.toString() ?? "",
-          gds: visit.laboratoryResult.gds?.toString() ?? "",
-          crp: visit.laboratoryResult.crp?.toString() ?? "",
-        }
+        examinationDate: visit.laboratoryResult.examinationDate.toISOString().slice(0, 10),
+        hemoglobin: visit.laboratoryResult.hemoglobin?.toString() ?? "",
+        leukosit: visit.laboratoryResult.leukosit?.toString() ?? "",
+        gds: visit.laboratoryResult.gds?.toString() ?? "",
+        crp: visit.laboratoryResult.crp?.toString() ?? "",
+      }
       : null,
     vitalSign: visit.vitalSign
       ? {
-          bloodPressure: visit.vitalSign.bloodPressure ?? "",
-          temperature: visit.vitalSign.temperature?.toString() ?? "",
-          weight: visit.vitalSign.weight?.toString() ?? "",
-          height: visit.vitalSign.height?.toString() ?? "",
-          pulse: visit.vitalSign.pulse?.toString() ?? "",
-          respiration: visit.vitalSign.respiration?.toString() ?? "",
-          oxygenSaturation: visit.vitalSign.oxygenSaturation?.toString() ?? "",
-        }
+        bloodPressure: visit.vitalSign.bloodPressure ?? "",
+        temperature: visit.vitalSign.temperature?.toString() ?? "",
+        weight: visit.vitalSign.weight?.toString() ?? "",
+        height: visit.vitalSign.height?.toString() ?? "",
+        pulse: visit.vitalSign.pulse?.toString() ?? "",
+        respiration: visit.vitalSign.respiration?.toString() ?? "",
+        oxygenSaturation: visit.vitalSign.oxygenSaturation?.toString() ?? "",
+      }
       : null,
     medicalRecord: visit.medicalRecord
       ? {
-          id: visit.medicalRecord.id,
-          subjective: visit.medicalRecord.subjective ?? "",
-          objective: visit.medicalRecord.objective ?? "",
-          assessment: visit.medicalRecord.assessment ?? "",
-          plan: visit.medicalRecord.plan ?? "",
-          physicalExam: visit.medicalRecord.physicalExam ?? "",
-          doctorNote: visit.medicalRecord.doctorNote ?? "",
-          followUpDate: visit.medicalRecord.followUpDate ? visit.medicalRecord.followUpDate.toISOString().slice(0, 10) : "",
-          status: medicalRecordStatusLabels[visit.medicalRecord.status],
-          diagnoses: visit.medicalRecord.diagnoses.map((diagnosis) => ({
-            id: diagnosis.id,
-            code: diagnosis.code ?? "",
-            name: diagnosis.name,
-            type: diagnosis.type,
-            note: diagnosis.note ?? "",
-          })),
-          treatments: visit.medicalRecord.treatments.map((treatment) => ({
-            id: treatment.id,
-            code: treatment.code ?? "",
-            name: treatment.name,
-            cost: treatment.cost?.toString() ?? "",
-            note: treatment.note ?? "",
-          })),
-        }
+        id: visit.medicalRecord.id,
+        subjective: visit.medicalRecord.subjective ?? "",
+        objective: visit.medicalRecord.objective ?? "",
+        assessment: visit.medicalRecord.assessment ?? "",
+        plan: visit.medicalRecord.plan ?? "",
+        physicalExam: visit.medicalRecord.physicalExam ?? "",
+        doctorNote: visit.medicalRecord.doctorNote ?? "",
+        followUpDate: visit.medicalRecord.followUpDate ? visit.medicalRecord.followUpDate.toISOString().slice(0, 10) : "",
+        status: medicalRecordStatusLabels[visit.medicalRecord.status],
+        diagnoses: visit.medicalRecord.diagnoses.map((diagnosis) => ({
+          id: diagnosis.id,
+          code: diagnosis.code ?? "",
+          name: diagnosis.name,
+          type: diagnosis.type,
+          note: diagnosis.note ?? "",
+        })),
+        treatments: visit.medicalRecord.treatments.map((treatment) => ({
+          id: treatment.id,
+          code: treatment.code ?? "",
+          name: treatment.name,
+          cost: treatment.cost?.toString() ?? "",
+          note: treatment.note ?? "",
+        })),
+      }
       : null,
   }))
 }
 
 export async function getMedicalRecordHistory() {
   const records = await prisma.medicalRecord.findMany({
+    where: {
+      visit: {
+        status: {
+          in: ["PHARMACY", "COMPLETED"],
+        },
+      },
+      prescription: {
+        is: {
+          status: "PROCESSED",
+        },
+      },
+    },
     orderBy: { updatedAt: "desc" },
-    take: 50,
+    take: 100,
     include: {
       doctor: {
         select: {
@@ -515,7 +578,19 @@ export async function getMedicalRecordHistory() {
     },
   })
 
-  return records.map((record) => {
+  const cpptRecords = records
+    .filter((record) => {
+      if (record.status === "FINAL") {
+        return true
+      }
+
+      const prescriptionProcessedAt = record.prescription?.processedAt
+
+      return Boolean(prescriptionProcessedAt && record.updatedAt.getTime() >= prescriptionProcessedAt.getTime())
+    })
+    .slice(0, 50)
+
+  return cpptRecords.map((record) => {
     const primaryDiagnosis = record.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
 
     return {
@@ -570,12 +645,12 @@ export async function getMedicalRecordHistory() {
         : "-",
       laboratoryDetail: record.visit.laboratoryResult
         ? {
-            examinationDate: record.visit.laboratoryResult.examinationDate.toISOString().slice(0, 10),
-            hemoglobin: record.visit.laboratoryResult.hemoglobin?.toString() ?? "-",
-            leukosit: record.visit.laboratoryResult.leukosit?.toString() ?? "-",
-            gds: record.visit.laboratoryResult.gds?.toString() ?? "-",
-            crp: record.visit.laboratoryResult.crp?.toString() ?? "-",
-          }
+          examinationDate: record.visit.laboratoryResult.examinationDate.toISOString().slice(0, 10),
+          hemoglobin: record.visit.laboratoryResult.hemoglobin?.toString() ?? "-",
+          leukosit: record.visit.laboratoryResult.leukosit?.toString() ?? "-",
+          gds: record.visit.laboratoryResult.gds?.toString() ?? "-",
+          crp: record.visit.laboratoryResult.crp?.toString() ?? "-",
+        }
         : null,
       documents: record.visit.documents.map((document) => `${documentTypeLabels[document.type]}: ${document.fileName}`).join(", ") || "-",
       documentItems: record.visit.documents.map((document) => ({
@@ -650,8 +725,12 @@ export async function getPrescriptionList() {
 export async function getPrescriptionFormOptions() {
   const records = await prisma.medicalRecord.findMany({
     where: {
-      status: {
-        in: ["DRAFT", "FINAL"],
+      status: "DRAFT",
+      visit: {
+        status: "EXAMINATION",
+        laboratoryResult: {
+          isNot: null,
+        },
       },
     },
     orderBy: { updatedAt: "desc" },
@@ -680,6 +759,12 @@ export async function getPrescriptionFormOptions() {
 
 export async function getMedicalDocumentList() {
   const records = await prisma.medicalRecord.findMany({
+    where: {
+      status: "FINAL",
+      visit: {
+        status: "COMPLETED",
+      },
+    },
     orderBy: { updatedAt: "desc" },
     take: 30,
     include: {
@@ -899,10 +984,10 @@ export async function getAuditLogList() {
     userAgent: log.userAgent ?? "-",
     risk:
       log.action.includes("MEDICAL_RECORD") ||
-      log.action.includes("PRESCRIPTION") ||
-      log.action.includes("MEDICAL_DOCUMENT") ||
-      log.action.includes("REPORT") ||
-      log.action === "LOGIN_FAILED"
+        log.action.includes("PRESCRIPTION") ||
+        log.action.includes("MEDICAL_DOCUMENT") ||
+        log.action.includes("REPORT") ||
+        log.action === "LOGIN_FAILED"
         ? "Sensitif"
         : "Normal",
     beforeData: summarizeJson(log.beforeData),

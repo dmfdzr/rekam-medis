@@ -118,7 +118,7 @@ export const dashboardMetrics = [
     value: "42",
     change: "+12%",
     tone: "text-sky-700 dark:text-sky-300",
-    detail: "8 pasien menunggu tanda vital",
+    detail: "8 pasien menunggu asesmen",
   },
   {
     label: "Rekam medis final",
@@ -145,7 +145,7 @@ export const dashboardMetrics = [
 
 export const queueSummary = [
   { status: "Menunggu", count: 8, className: "bg-amber-100 text-amber-800 dark:bg-amber-400/15 dark:text-amber-200" },
-  { status: "Tanda vital", count: 12, className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-400/15 dark:text-cyan-200" },
+  { status: "Asesmen", count: 12, className: "bg-cyan-100 text-cyan-800 dark:bg-cyan-400/15 dark:text-cyan-200" },
   { status: "Pemeriksaan", count: 13, className: "bg-teal-100 text-teal-800 dark:bg-teal-400/15 dark:text-teal-200" },
   { status: "Selesai", count: 31, className: "bg-emerald-100 text-emerald-800 dark:bg-emerald-400/15 dark:text-emerald-200" },
 ]
@@ -213,7 +213,7 @@ export const visits = [
     service: "Poli Anak",
     doctor: "dr. Raka Mahendra",
     complaint: "Mual dan diare sejak malam",
-    status: "Tanda vital",
+    status: "Asesmen",
     time: "09:40",
   },
   {
@@ -318,17 +318,17 @@ export const users = [
 
 export const auditLogs = [
   { actor: "Ardi Santoso", action: "Membuat kunjungan", entity: "VIS-1444", time: "10:05", risk: "Normal" },
-  { actor: "Maya Lestari", action: "Mengisi tanda vital", entity: "VIS-1443", time: "09:48", risk: "Normal" },
+  { actor: "Admin Pendaftaran", action: "Mengisi asesmen", entity: "VIS-1443", time: "09:48", risk: "Normal" },
   { actor: "dr. Raka Mahendra", action: "Menyimpan draft rekam medis", entity: "26-00-41", time: "09:44", risk: "Sensitif" },
-  { actor: "Dewi Kurnia", action: "Memproses resep", entity: "RX-823", time: "09:32", risk: "Normal" },
+  { actor: "dr. Raka Mahendra", action: "Memproses resep", entity: "RX-823", time: "09:32", risk: "Normal" },
 ]
 
 export const workflowSteps = [
   { title: "Daftar pasien", detail: "Cari NIK/RM, validasi duplikasi, buat nomor RM otomatis.", icon: UserRound },
   { title: "Buat kunjungan", detail: "Pilih layanan, dokter, keluhan utama, dan status awal.", icon: CalendarDays },
-  { title: "Tanda vital", detail: "Perawat mengisi pemeriksaan awal sebelum dokter.", icon: HeartPulse },
+  { title: "Asesmen", detail: "Dokter mengisi pemeriksaan awal dan data klinis pendukung.", icon: HeartPulse },
   { title: "CPPT", detail: "SOAP, diagnosa, tindakan, resep, lalu finalisasi.", icon: ClipboardCheck },
-  { title: "Resep & laporan", detail: "Apotek proses resep, sistem siap hitung stok dan laporan.", icon: FileText },
+  { title: "Resep & laporan", detail: "Resep diproses dalam alur klinis dan siap masuk laporan.", icon: FileText },
 ]
 
 export type AppUser = { id: string; name: string; email: string; username: string; role: string; roleName: string; }

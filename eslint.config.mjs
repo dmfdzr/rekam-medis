@@ -16,6 +16,8 @@ const eslintConfig = defineConfig([
     ".codex/**",
     "playwright-report/**",
     "test-results/**",
+    "update_docs.cjs",
+    "update_docs.ts",
   ]),
 ]);
 

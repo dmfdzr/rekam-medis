@@ -85,7 +85,7 @@ export function PrescriptionsSection({
 
   return (
     <div className="grid gap-5">
-      <Panel title="Daftar resep" description="Apoteker melihat status proses dan sinyal stok sebelum menyerahkan obat.">
+      <Panel title="Daftar resep" description="Dokter melihat status proses resep dan detail obat sebelum alur layanan selesai.">
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}

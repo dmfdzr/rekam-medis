@@ -1,8 +1,9 @@
 "use client"
 
 import { RoleKey } from "@/lib/medical-data"
+import type { DocumentFormOptions, MedicalDocumentListItem } from "@/lib/data/clinic"
 import * as React from "react"
-import { Download, CheckCircle2 } from "lucide-react"
+import { CheckCircle2, Download, Eye } from "lucide-react"
 
 import { useListControls, useRefreshOnSuccess } from "@/lib/hooks"
 import { Button } from "@/components/ui/button"
@@ -10,21 +11,6 @@ import { EmptyState, StatusBadge, PermissionNotice } from "@/components/shared/f
 import { Panel } from "@/components/shared/layout"
 import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
 import { verifyMedicalRecordAction } from "@/app/actions/clinic"
-
-// Adjust this type inline for the modified properties
-type MedicalRecordSummaryItem = {
-  id: string
-  patient: string
-  medicalRecordNumber: string
-  visit: string
-  doctor: string
-  status: "DRAFT" | "FINAL"
-  isVerified: boolean
-  verifiedBy: string
-  verifiedAt: string
-  documentUrl: string
-  updatedAt: string
-}
 
 function VerifyForm({ recordId, canVerify }: { recordId: string; canVerify: boolean }) {
   const [state, formAction, pending] = React.useActionState(verifyMedicalRecordAction, {})
@@ -48,8 +34,8 @@ export function DocumentsSection({
   documents,
 }: {
   role: RoleKey
-  documents: MedicalRecordSummaryItem[]
-  documentOptions: any // Keep signature compatible if passed from page
+  documents: MedicalDocumentListItem[]
+  documentOptions: DocumentFormOptions
   filtersOpen: boolean
   composerOpen: boolean
   onFiltersOpenChange: (open: boolean) => void
@@ -58,7 +44,7 @@ export function DocumentsSection({
   const canVerify = role === "master" || role === "doctor"
   
   const searchSelector = React.useCallback(
-    (record: MedicalRecordSummaryItem) => [
+    (record: MedicalDocumentListItem) => [
       record.patient,
       record.medicalRecordNumber,
       record.visit,
@@ -76,7 +62,7 @@ export function DocumentsSection({
 
   return (
     <div className="grid gap-5">
-      <Panel title="Rangkuman & Verifikasi Dokumen Medis" description="Daftar CPPT pasien yang dapat digenerate PDF dan diverifikasi oleh dokter.">
+      <Panel title="Rangkuman & Verifikasi Dokumen Medis" description="Daftar CPPT pasien yang dapat dilihat, diunduh, dan diverifikasi oleh dokter.">
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}
@@ -91,8 +77,8 @@ export function DocumentsSection({
           />
         ) : (
           <>
-            <div className="hidden overflow-x-auto lg:block">
-              <table className="w-full min-w-[900px] text-left text-sm">
+            <div className="hidden overflow-x-auto xl:block">
+              <table className="w-full min-w-[820px] text-left text-sm">
                 <thead className="border-b border-border text-xs text-muted-foreground">
                   <tr>
                     <th className="py-3 pr-4 font-medium">Pasien</th>
@@ -109,7 +95,7 @@ export function DocumentsSection({
                     <tr key={record.id} className="align-top">
                       <td className="py-4 pr-4 font-medium leading-6">{record.patient}</td>
                       <td className="py-4 pr-4 tabular-nums">{record.medicalRecordNumber}</td>
-                      <td className="max-w-[15rem] py-4 pr-4 text-muted-foreground">{record.visit}</td>
+                      <td className="max-w-[13rem] py-4 pr-4 text-muted-foreground">{record.visit}</td>
                       <td className="py-4 pr-4">{record.doctor}</td>
                       <td className="py-4 pr-4">
                         <StatusBadge label={record.status} />
@@ -125,33 +111,41 @@ export function DocumentsSection({
                           <span className="block text-amber-600 dark:text-amber-400">Belum Diverifikasi</span>
                         )}
                       </td>
-                      <td className="py-4 flex flex-wrap gap-2">
+                      <td className="py-4">
+                        <div className="flex flex-wrap gap-2">
                         <Button asChild variant="outline" size="sm" className="w-fit">
                           <a href={record.documentUrl} target="_blank" rel="noreferrer">
+                            <Eye className="size-3 mr-1" aria-hidden="true" />
+                            Lihat
+                          </a>
+                        </Button>
+                        <Button asChild variant="outline" size="sm" className="w-fit">
+                          <a href={`${record.documentUrl}?download=1`}>
                             <Download className="size-3 mr-1" aria-hidden="true" />
-                            Generate
+                            Download
                           </a>
                         </Button>
                         {!record.isVerified && record.status === "FINAL" && (
                           <VerifyForm recordId={record.id} canVerify={canVerify} />
                         )}
+                        </div>
                       </td>
                     </tr>
                   ))}
                 </tbody>
               </table>
             </div>
-            <div className="grid gap-3 lg:hidden">
+            <div className="grid gap-3 xl:hidden">
               {controls.paginatedItems.map((record) => (
-                <div key={record.id} className="rounded-md border border-border bg-card p-4">
-                  <div className="flex flex-wrap items-start justify-between gap-3">
-                    <div>
+                <div key={record.id} className="rounded-md border border-border bg-card p-3 sm:p-4">
+                  <div className="grid gap-3 sm:grid-cols-[1fr_auto] sm:items-start">
+                    <div className="min-w-0">
                       <p className="font-medium">{record.patient}</p>
                       <p className="mt-1 text-sm text-muted-foreground">
                         {record.medicalRecordNumber}
                       </p>
                     </div>
-                    <div className="flex flex-col gap-2 items-end">
+                    <div className="flex flex-wrap items-center gap-2 sm:flex-col sm:items-end">
                       <StatusBadge label={record.status} />
                       {record.isVerified ? (
                         <span className="text-xs font-medium text-green-600 dark:text-green-400">Terverifikasi</span>
@@ -160,7 +154,7 @@ export function DocumentsSection({
                       )}
                     </div>
                   </div>
-                  <div className="mt-3 grid gap-2 text-sm">
+                  <div className="mt-3 grid gap-2 text-sm leading-6">
                     <p>
                       <span className="text-muted-foreground">Kunjungan: </span>
                       {record.visit}
@@ -176,11 +170,17 @@ export function DocumentsSection({
                       </p>
                     )}
                   </div>
-                  <div className="mt-3 flex flex-wrap gap-2">
-                    <Button asChild variant="outline" size="sm" className="w-fit">
+                  <div className="mt-3 grid gap-2 sm:flex sm:flex-wrap">
+                    <Button asChild variant="outline" size="sm" className="w-full sm:w-fit">
                       <a href={record.documentUrl} target="_blank" rel="noreferrer">
+                        <Eye className="size-3 mr-1" aria-hidden="true" />
+                        Lihat
+                      </a>
+                    </Button>
+                    <Button asChild variant="outline" size="sm" className="w-full sm:w-fit">
+                      <a href={`${record.documentUrl}?download=1`}>
                         <Download className="size-3 mr-1" aria-hidden="true" />
-                        Generate
+                        Download
                       </a>
                     </Button>
                     {!record.isVerified && record.status === "FINAL" && (
@@ -197,4 +197,3 @@ export function DocumentsSection({
     </div>
   )
 }
-

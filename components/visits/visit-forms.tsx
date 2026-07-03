@@ -1,7 +1,7 @@
 "use client"
 
 import { type VisitFormOptions, type VisitListItem } from "@/lib/data/clinic"
-import { createVisitAction, updateVisitStatusAction, cancelVisitAction, type ClinicFormState } from "@/app/actions/clinic"
+import { createVisitAction, cancelVisitAction, type ClinicFormState } from "@/app/actions/clinic"
 
 import * as React from "react"
 import { Plus, Trash2 } from "lucide-react"
@@ -42,6 +42,7 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
           <span className="text-sm font-medium">Registrasi pasien</span>
           <select
             name="patientType"
+            defaultValue="UMUM"
             className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
             aria-invalid={Boolean(state.errors?.patientType)}
           >
@@ -139,49 +140,7 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
   )
 }
 
-export function UpdateVisitStatusForm({ visits }: { visits: VisitListItem[] }) {
-  const [state, formAction, pending] = React.useActionState(updateVisitStatusAction, initialClinicFormState)
-  useRefreshOnSuccess(state)
 
-  if (visits.length === 0) {
-    return <EmptyState title="Belum ada kunjungan" detail="Status kunjungan dapat diubah setelah ada kunjungan pasien." />
-  }
-
-  return (
-    <form action={formAction} className="grid gap-4" noValidate>
-      <div className="grid gap-3">
-        <ComboboxField
-          name="visitId"
-          label="Kunjungan"
-          items={visits.map(v => ({ value: v.id, label: `${v.medicalRecordNumber} - ${v.patient} - ${v.service} - ${v.status}` }))}
-          placeholder="Pilih kunjungan"
-          error={state.errors?.visitId}
-        />
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Status baru</span>
-          <select
-            name="status"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.status)}
-          >
-            <option value="">Pilih status</option>
-            <option value="WAITING">Menunggu</option>
-            <option value="VITAL_SIGN">Tanda vital</option>
-            <option value="EXAMINATION">Pemeriksaan</option>
-            <option value="PHARMACY">Farmasi</option>
-            <option value="COMPLETED">Selesai</option>
-            <option value="CANCELLED">Dibatalkan</option>
-          </select>
-          <FieldError message={state.errors?.status?.[0]} />
-        </label>
-      </div>
-      <FormMessage state={state} />
-      <ConfirmSubmitButton message="Update status kunjungan ini? Perubahan akan tercatat di audit log." confirmLabel="Update status" pending={pending} pendingLabel="Memperbarui...">
-        Update status
-      </ConfirmSubmitButton>
-    </form>
-  )
-}
 
 export function CancelVisitForm({ visits }: { visits: VisitListItem[] }) {
   const [state, formAction, pending] = React.useActionState(cancelVisitAction, initialClinicFormState)
@@ -215,4 +174,3 @@ export function CancelVisitForm({ visits }: { visits: VisitListItem[] }) {
     </form>
   )
 }
-

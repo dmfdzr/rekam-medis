@@ -91,7 +91,7 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
             <DetailItem label="Assessment" value={record.assessment} />
             <DetailItem label="Plan" value={record.plan} />
             <DetailItem label="Pemeriksaan fisik" value={record.physicalExam} />
-            <DetailItem label="Catatan dokter" value={record.doctorNote} />
+            <DetailItem label="Instruksi dokter" value={record.doctorNote} />
           </div>
 
           <DetailList
@@ -153,7 +153,7 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
   const isSelectedRecordFinal = selectedVisit?.medicalRecord?.status === "Final"
 
   if (clinicalWorklist.length === 0) {
-    return <EmptyState title="Belum ada pasien untuk pemeriksaan" detail="Kunjungan aktif akan muncul setelah pasien didaftarkan dan tanda vital diisi." />
+    return <EmptyState title="Belum ada pasien untuk pemeriksaan" detail="Kunjungan aktif akan muncul setelah pasien didaftarkan dan asesmen klinis diisi." />
   }
 
   return (
@@ -170,20 +170,20 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
       <div key={selectedVisitId} className="grid gap-3">
         {isSelectedRecordFinal ? (
           <div className="rounded-md border border-amber-200 bg-amber-50 p-3 text-sm leading-6 text-amber-950 dark:border-amber-400/20 dark:bg-amber-400/10 dark:text-amber-100">
-            Rekam medis ini sudah final. Data ditampilkan untuk referensi dan tidak dapat disimpan ulang dari form pemeriksaan.
+            CPPT ini sudah final. Data ditampilkan untuk referensi dan tidak dapat disimpan ulang dari form CPPT.
           </div>
         ) : null}
-        <TextAreaField name="subjective" label="Subjective" defaultValue={selectedVisit?.medicalRecord?.subjective} />
-        <TextAreaField name="objective" label="Objective" defaultValue={selectedVisit?.medicalRecord?.objective} />
-        <TextAreaField name="assessment" label="Assessment" defaultValue={selectedVisit?.medicalRecord?.assessment} />
-        <TextAreaField name="plan" label="Plan" defaultValue={selectedVisit?.medicalRecord?.plan} />
+        <TextAreaField name="subjective" label="Subjective" defaultValue={selectedVisit?.medicalRecord?.subjective} error={state.errors?.subjective?.[0]} />
+        <TextAreaField name="objective" label="Objective" defaultValue={selectedVisit?.medicalRecord?.objective} error={state.errors?.objective?.[0]} />
+        <TextAreaField name="assessment" label="Assessment" defaultValue={selectedVisit?.medicalRecord?.assessment} error={state.errors?.assessment?.[0]} />
+        <TextAreaField name="plan" label="Plan" defaultValue={selectedVisit?.medicalRecord?.plan} error={state.errors?.plan?.[0]} />
 
         <div className="rounded-md border border-border bg-card p-4">
           <p className="text-sm font-semibold mb-3">Pemeriksaan Fisik</p>
           <div className="grid gap-3 sm:grid-cols-2 lg:grid-cols-3">
             <div className="grid grid-cols-2 gap-2">
-              <TextField name="bloodPressureSystolic" label="Sistolik (mmHg)" placeholder="120" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.bloodPressure?.split('/')[0] || (selectedVisit?.medicalRecord?.physicalExam?.includes('/') ? selectedVisit?.medicalRecord?.physicalExam?.split('/')[0] : "")} />
-              <TextField name="bloodPressureDiastolic" label="Diastolik (mmHg)" placeholder="80" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.bloodPressure?.split('/')[1] || (selectedVisit?.medicalRecord?.physicalExam?.includes('/') ? selectedVisit?.medicalRecord?.physicalExam?.split('/')[1] : "")} />
+              <TextField name="bloodPressureSystolic" label="Sistolik (mmHg)" placeholder="120" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.bloodPressure?.split('/')[0] || (selectedVisit?.medicalRecord?.physicalExam?.includes('/') ? selectedVisit?.medicalRecord?.physicalExam?.split('/')[0] : "")} error={state.errors?.bloodPressureSystolic?.[0]} />
+              <TextField name="bloodPressureDiastolic" label="Diastolik (mmHg)" placeholder="80" type="number" inputMode="numeric" step="1" min={0} defaultValue={selectedVisit?.vitalSign?.bloodPressure?.split('/')[1] || (selectedVisit?.medicalRecord?.physicalExam?.includes('/') ? selectedVisit?.medicalRecord?.physicalExam?.split('/')[1] : "")} error={state.errors?.bloodPressureDiastolic?.[0]} />
             </div>
             <TextField name="temperature" label="Suhu Tubuh (°C)" placeholder="36.5" type="number" inputMode="decimal" step="0.1" min={30} max={45} defaultValue={selectedVisit?.vitalSign?.temperature} />
             <TextField name="weight" label="Berat Badan (Kg)" placeholder="60.5" type="number" inputMode="decimal" step="0.1" min={0} defaultValue={selectedVisit?.vitalSign?.weight} />
@@ -194,7 +194,7 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
           </div>
         </div>
 
-        <TextAreaField name="doctorNote" label="Catatan dokter" defaultValue={selectedVisit?.medicalRecord?.doctorNote} />
+        <TextAreaField name="doctorNote" label="Instruksi dokter" defaultValue={selectedVisit?.medicalRecord?.doctorNote} error={state.errors?.doctorNote?.[0]} />
       </div>
       <FormMessage state={state} />
       <div className="flex flex-col gap-2 sm:flex-row">
@@ -202,7 +202,7 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
           {pending ? "Menyimpan..." : "Simpan draft"}
         </Button>
         <ConfirmSubmitButton
-          message="Finalisasi rekam medis ini? Data final digunakan sebagai riwayat klinis pasien."
+          message="Finalisasi CPPT ini? Data final digunakan sebagai riwayat klinis pasien."
           confirmLabel="Finalisasi"
           pending={pending}
           pendingLabel="Memfinalisasi..."
@@ -210,7 +210,7 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
           name="intent"
           value="final"
         >
-          Finalisasi rekam medis
+          Finalisasi CPPT
         </ConfirmSubmitButton>
       </div>
     </form>
@@ -240,7 +240,7 @@ export function MedicalRecordTimeline({ medicalRecordHistory }: { medicalRecordH
   })
 
   if (medicalRecordHistory.length === 0) {
-    return <EmptyState title="Belum ada rekam medis" detail="Draft dan finalisasi rekam medis dari dokter akan tampil sebagai timeline di sini." />
+    return <EmptyState title="Belum ada CPPT" detail="Draft dan finalisasi CPPT dari dokter akan tampil sebagai timeline di sini." />
   }
 
   return (
@@ -309,11 +309,11 @@ export function MedicalRecordsSection({
 
   return (
     <div className="grid gap-5">
-      <Panel title="Riwayat rekam medis pasien" description="Timeline membantu dokter membaca konteks tanpa membuka banyak halaman.">
+      <Panel title="Riwayat CPPT pasien" description="Timeline membantu dokter membaca konteks tanpa membuka banyak halaman.">
         <MedicalRecordTimeline medicalRecordHistory={medicalRecordHistory} />
       </Panel>
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Catatan Perkembangan Pasien Terintegrasi (CPPT)" description="Catatan CPPT, diagnosa, tindakan, resep, lalu finalisasi.">
-        {canInput ? <MedicalRecordForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi rekam medis dokter." />}
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="CPPT" description="Perkembangan pasien terintegrasi, diagnosa, tindakan, resep, lalu finalisasi.">
+        {canInput ? <MedicalRecordForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi CPPT." />}
       </ModalDialog>
     </div>
   )
