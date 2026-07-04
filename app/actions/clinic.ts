@@ -190,7 +190,6 @@ const saveMedicalRecordSchema = z.object({
   diagnosisNote: z.string().trim().optional(),
   treatmentCode: z.string().trim().optional(),
   treatmentName: z.string().trim().optional(),
-  treatmentCost: z.string().trim().optional(),
   treatmentNote: z.string().trim().optional(),
   intent: z.enum(["draft", "final"]),
 }).refine(data => {
@@ -371,10 +370,6 @@ function startOfToday() {
 
 function isExpiredDate(date: Date | null) {
   return Boolean(date && date < startOfToday())
-}
-
-function isInvalidOptionalDecimal(value: string | undefined) {
-  return Boolean(value) && parseOptionalDecimalInput(value) === null
 }
 
 function getFieldErrors(error: z.ZodError) {
@@ -1045,7 +1040,6 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
     diagnosisNote: optionalFormString(formData, "diagnosisNote"),
     treatmentCode: optionalFormString(formData, "treatmentCode"),
     treatmentName: optionalFormString(formData, "treatmentName"),
-    treatmentCost: optionalFormString(formData, "treatmentCost"),
     treatmentNote: optionalFormString(formData, "treatmentNote"),
     intent: formData.get("intent"),
     bloodPressureSystolic: optionalFormString(formData, "bloodPressureSystolic"),
@@ -1090,16 +1084,6 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
         message: `CPPT final wajib melengkapi semua kolom yang tersedia. Belum lengkap: ${missingFields.map(([, label]) => label).join(", ")}.`,
         errors: Object.fromEntries(missingFields.map(([field, , message]) => [field, [message]])),
       }
-    }
-  }
-
-  const treatmentCost = parseOptionalDecimalInput(parsed.data.treatmentCost)
-
-  if (isInvalidOptionalDecimal(parsed.data.treatmentCost)) {
-    return {
-      ok: false,
-      message: "Biaya tindakan harus berupa angka valid.",
-      errors: { treatmentCost: ["Biaya tindakan harus berupa angka positif atau nol."] },
     }
   }
 
@@ -1243,7 +1227,6 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
           medicalRecordId: medicalRecord.id,
           code: optionalString(parsed.data.treatmentCode),
           name: parsed.data.treatmentName,
-          cost: treatmentCost,
           note: optionalString(parsed.data.treatmentNote),
           performerId: user.id,
         },

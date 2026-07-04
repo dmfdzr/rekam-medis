@@ -11,7 +11,7 @@ const reportBundle: Parameters<typeof scopeReportBundleForRole>[1] = {
   ],
   details: {
     diagnoses: [{ name: "ISPA", count: 3 }],
-    treatments: [{ name: "Konsultasi", count: 3, totalCost: "150000" }],
+    treatments: [{ name: "Konsultasi", count: 3 }],
     diagnosisOptions: [{ name: "ISPA", count: 3 }],
     diagnosisMap: {
       level: "district",

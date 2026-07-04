@@ -67,8 +67,8 @@ export async function GET(request: Request) {
   ])
 
   addSheet(workbook, "Tindakan Medis", [
-    ["Tindakan", "Jumlah", "Total biaya"],
-    ...details.treatments.map((treatment) => [treatment.name, treatment.count, Number(treatment.totalCost || 0)]),
+    ["Tindakan", "Jumlah"],
+    ...details.treatments.map((treatment) => [treatment.name, treatment.count]),
   ])
 
   addSheet(workbook, "Wilayah Diagnosis", [

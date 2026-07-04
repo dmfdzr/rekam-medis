@@ -590,7 +590,6 @@ export async function getClinicalWorklist(
           id: treatment.id,
           code: treatment.code ?? "",
           name: treatment.name,
-          cost: treatment.cost?.toString() ?? "",
           note: treatment.note ?? "",
         })),
       }
@@ -714,7 +713,6 @@ export async function getMedicalRecordHistory(viewer?: DataViewer) {
         id: treatment.id,
         code: treatment.code ?? "-",
         name: treatment.name,
-        cost: treatment.cost?.toString() ?? "-",
         note: treatment.note ?? "-",
       })),
       prescriptions: record.prescription?.items.map((item) => `${item.medicineName} (${item.quantity})`).join(", ") ?? "-",
@@ -1045,7 +1043,6 @@ export async function getReportDetails(options: { startDate?: string | null; end
         },
       },
       _count: { name: true },
-      _sum: { cost: true },
       orderBy: { _count: { name: "desc" } },
       take: 8,
     }),
@@ -1076,7 +1073,6 @@ export async function getReportDetails(options: { startDate?: string | null; end
     treatments: treatments.map((treatment) => ({
       name: treatment.name,
       count: treatment._count.name,
-      totalCost: treatment._sum.cost?.toString() ?? "0",
     })),
     diagnosisOptions: diagnosisOptions.map((diagnosis) => ({
       name: diagnosis.name,

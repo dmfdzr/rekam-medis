@@ -304,9 +304,9 @@ export function ReportsSection({
         {canViewReportSection(role, "treatments") ? (
           <ReportDetailTable
             title="Tindakan medis"
-            description="Frekuensi tindakan dan total biaya tercatat."
-            columns={["Tindakan", "Jumlah", "Total biaya"]}
-            rows={details.treatments.map((treatment) => [treatment.name, String(treatment.count), treatment.totalCost])}
+            description="Frekuensi tindakan medis yang tercatat pada asesmen pasien."
+            columns={["Tindakan", "Jumlah"]}
+            rows={details.treatments.map((treatment) => [treatment.name, String(treatment.count)])}
             emptyDetail="Belum ada tindakan pada rentang laporan ini."
           />
         ) : null}

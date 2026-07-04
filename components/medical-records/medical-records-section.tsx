@@ -115,9 +115,7 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
                 <p className="font-medium">
                   {treatment.code} - {treatment.name}
                 </p>
-                <p className="text-muted-foreground">
-                  Biaya {treatment.cost} - {treatment.note}
-                </p>
+                <p className="text-muted-foreground">{treatment.note}</p>
               </div>
             )}
           />

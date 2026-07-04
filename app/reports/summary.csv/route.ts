@@ -38,8 +38,8 @@ export async function GET(request: Request) {
     ),
     ...sectionRows(
       "Tindakan Medis",
-      ["Tindakan", "Jumlah", "Total biaya"],
-      details.treatments.map((treatment) => [treatment.name, String(treatment.count), treatment.totalCost]),
+      ["Tindakan", "Jumlah"],
+      details.treatments.map((treatment) => [treatment.name, String(treatment.count)]),
     ),
     ...sectionRows(
       "Wilayah Diagnosis",
