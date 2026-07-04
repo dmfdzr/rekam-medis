@@ -22,6 +22,18 @@ type MedicalRecordDischargeRow = {
   dischargeInstruction: string | null
 }
 
+function canAccessVisitDocument(user: { id: string; role: string }, visit: { doctorId: string | null; companionDoctors: { doctorId: string }[] }) {
+  if (user.role === "MASTER") {
+    return true
+  }
+
+  if (user.role !== "DOCTOR") {
+    return false
+  }
+
+  return visit.doctorId === user.id || visit.companionDoctors.some((companion) => companion.doctorId === user.id)
+}
+
 let cachedLogoImage: PdfPngImage | null | undefined
 
 function paethPredictor(left: number, up: number, upperLeft: number) {
@@ -550,6 +562,10 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
 
   if (!record) {
     return NextResponse.json({ message: "Rekam medis tidak ditemukan." }, { status: 404 })
+  }
+
+  if (!canAccessVisitDocument(user, record.visit)) {
+    return NextResponse.json({ message: "Anda hanya dapat membuka dokumen dari kunjungan yang memanggil Anda sebagai DPJP atau DPJP pendamping." }, { status: 403 })
   }
 
   const [dischargeData] = await prisma.$queryRaw<MedicalRecordDischargeRow[]>`

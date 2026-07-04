@@ -43,13 +43,13 @@ export function VisitsSection({
                   {
                     id: "create-visit",
                     title: "Buat kunjungan",
-                    description: "Daftarkan kunjungan pasien dengan layanan, dokter, keluhan, dan status awal.",
+                    description: "Daftarkan kunjungan pasien dengan ruang rawat, dokter, keluhan, dan status awal.",
                     content: <CreateVisitForm visitOptions={visitOptions} />,
                   },
                   {
                     id: "cancel-visit",
                     title: "Batalkan kunjungan",
-                    description: "Tandai kunjungan sebagai dibatalkan tanpa menghapus jejak pendaftaran dan audit layanan.",
+                    description: "Tandai kunjungan sebagai dibatalkan tanpa menghapus jejak pendaftaran dan audit alur.",
                     content: <CancelVisitForm visits={visits} />,
                   },
                 ]

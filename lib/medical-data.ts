@@ -201,7 +201,7 @@ export const visits = [
   {
     id: "VIS-1442",
     patient: "Siti Aminah",
-    service: "Poli Umum",
+    service: "Ruang Perawatan Dewasa",
     doctor: "dr. Raka Mahendra",
     complaint: "Demam, nyeri tenggorokan, batuk kering",
     status: "Pemeriksaan",
@@ -210,7 +210,7 @@ export const visits = [
   {
     id: "VIS-1443",
     patient: "Bima Pratama",
-    service: "Poli Anak",
+    service: "Ruang Perawatan Anak",
     doctor: "dr. Raka Mahendra",
     complaint: "Mual dan diare sejak malam",
     status: "Asesmen",
@@ -219,7 +219,7 @@ export const visits = [
   {
     id: "VIS-1444",
     patient: "Hendra Wijaya",
-    service: "Kontrol Hipertensi",
+    service: "Ruang VIP",
     doctor: "dr. Raka Mahendra",
     complaint: "Kontrol tekanan darah",
     status: "Menunggu",
@@ -228,7 +228,7 @@ export const visits = [
   {
     id: "VIS-1445",
     patient: "Ratna Laksmi",
-    service: "Poli Umum",
+    service: "Ruang Melati",
     doctor: "dr. Raka Mahendra",
     complaint: "Nyeri kepala berulang",
     status: "Selesai",
@@ -325,7 +325,7 @@ export const auditLogs = [
 
 export const workflowSteps = [
   { title: "Pasien", detail: "Identitas pasien, NIK, kontak, dan nomor RM menjadi dasar alur layanan.", icon: UserRound },
-  { title: "Kunjungan", detail: "Petugas membuat kunjungan dari data pasien dan menentukan layanan.", icon: CalendarDays },
+  { title: "Kunjungan", detail: "Petugas membuat kunjungan dari data pasien dan menentukan ruang rawat.", icon: CalendarDays },
   { title: "Asesmen", detail: "Dokter mengisi diagnosa masuk, riwayat penyakit, dan data klinis awal.", icon: HeartPulse },
   { title: "Laboratorium", detail: "Hasil pemeriksaan laboratorium dicatat setelah asesmen tersimpan.", icon: TestTube },
   { title: "Resep", detail: "Obat dan aturan pakai dibuat setelah hasil laboratorium tersedia.", icon: ClipboardList },

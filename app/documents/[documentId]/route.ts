@@ -63,6 +63,18 @@ function contentDispositionFileName(fileName: string) {
   return fileName.replace(/["\\\r\n]/g, "_")
 }
 
+function canAccessVisitDocument(user: { id: string; role: string }, visit: { doctorId: string | null; companionDoctors: { doctorId: string }[] } | null) {
+  if (user.role === "MASTER") {
+    return true
+  }
+
+  if (user.role !== "DOCTOR" || !visit) {
+    return false
+  }
+
+  return visit.doctorId === user.id || visit.companionDoctors.some((companion) => companion.doctorId === user.id)
+}
+
 function section(title: string, rows: Array<[string, string | number | null | undefined]>) {
   return `
     <section>
@@ -102,6 +114,11 @@ export async function GET(request: Request, context: { params: Promise<{ documen
       },
       visit: {
         include: {
+          companionDoctors: {
+            select: {
+              doctorId: true,
+            },
+          },
           doctor: {
             select: {
               name: true,
@@ -134,6 +151,10 @@ export async function GET(request: Request, context: { params: Promise<{ documen
 
   if (!document) {
     return NextResponse.json({ message: "Dokumen tidak ditemukan." }, { status: 404 })
+  }
+
+  if (!canAccessVisitDocument(user, document.visit)) {
+    return NextResponse.json({ message: "Anda hanya dapat membuka dokumen dari kunjungan yang memanggil Anda sebagai DPJP atau DPJP pendamping." }, { status: 403 })
   }
 
   const referenceNote = decodeReferenceNote(document.fileUrl)
@@ -185,7 +206,7 @@ export async function GET(request: Request, context: { params: Promise<{ documen
       ])}
       ${document.visit ? section("Data Kunjungan", [
         ["Tanggal Kunjungan", dateTimeFormatter.format(document.visit.visitDate)],
-        ["Layanan", document.visit.service],
+        ["Ruang Rawat", document.visit.service],
         ["Keluhan Utama", document.visit.chiefComplaint],
         ["Dokter", document.visit.doctor?.name],
         ["Status", document.visit.status],

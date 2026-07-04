@@ -36,7 +36,7 @@ export function VisitDetailDialog({ visit }: { visit: VisitListItem }) {
             {visit.isJointCare && visit.companionDoctors?.length > 0 && (
               <PatientDetailItem label="DPJP Pendamping" value={visit.companionDoctors.join(", ")} />
             )}
-            <PatientDetailItem label="Layanan / poli" value={visit.service} />
+            <PatientDetailItem label="Ruang Rawat" value={visit.service} />
             <PatientDetailItem label="Registrasi pasien" value={visit.patientType} />
             <PatientDetailItem label="Lama dirawat" value={visit.lengthOfStay} />
           </div>
@@ -85,7 +85,7 @@ export function ResponsiveVisitsTable({
           <ListToolbar
             query={controls.query}
             onQueryChange={controls.setQuery}
-            searchPlaceholder="Cari pasien, RM, layanan, dokter, keluhan"
+            searchPlaceholder="Cari pasien, RM, ruang rawat, dokter, keluhan"
             resultCount={controls.totalItems}
             totalCount={visits.length}
           />
@@ -96,7 +96,7 @@ export function ResponsiveVisitsTable({
             open={filtersOpen}
             onOpenChange={onFiltersOpenChange}
             title="Filter kunjungan"
-            description="Batasi daftar kunjungan berdasarkan status layanan."
+            description="Batasi daftar kunjungan berdasarkan status alur."
             filterValue={controls.filterValue}
             onFilterChange={controls.setFilterValue}
             filterOptions={visitStatuses}
@@ -112,7 +112,7 @@ export function ResponsiveVisitsTable({
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}
-          searchPlaceholder="Cari pasien, RM, layanan, dokter, keluhan"
+          searchPlaceholder="Cari pasien, RM, ruang rawat, dokter, keluhan"
           resultCount={controls.totalItems}
           totalCount={visits.length}
         />
@@ -123,7 +123,7 @@ export function ResponsiveVisitsTable({
             <tr>
               <th className="py-3 pr-4 font-medium">No. RM</th>
               <th className="py-3 pr-4 font-medium">Pasien</th>
-              <th className="py-3 pr-4 font-medium">Layanan</th>
+              <th className="py-3 pr-4 font-medium">Ruang Rawat</th>
               <th className="py-3 pr-4 font-medium">Registrasi</th>
               <th className="py-3 pr-4 font-medium">Lama dirawat</th>
               <th className="py-3 pr-4 font-medium">Status</th>
@@ -201,7 +201,7 @@ export function ResponsiveVisitsTable({
           open={filtersOpen}
           onOpenChange={onFiltersOpenChange}
           title="Filter kunjungan"
-          description="Batasi daftar kunjungan berdasarkan status layanan."
+          description="Batasi daftar kunjungan berdasarkan status alur."
           filterValue={controls.filterValue}
           onFilterChange={controls.setFilterValue}
           filterOptions={visitStatuses}
@@ -211,4 +211,3 @@ export function ResponsiveVisitsTable({
     </div>
   )
 }
-

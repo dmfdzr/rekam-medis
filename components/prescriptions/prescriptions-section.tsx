@@ -38,7 +38,7 @@ export function PrescriptionsSection({
           {
             id: "create-prescription",
             title: "Buat resep",
-            description: "Tambahkan obat dari rekam medis pasien setelah pemeriksaan dokter selesai.",
+            description: "Tambahkan obat manual dari CPPT pasien setelah hasil laboratorium tersimpan.",
             content: <PrescriptionItemForm prescriptionOptions={prescriptionOptions} />,
           },
         ]
@@ -48,7 +48,7 @@ export function PrescriptionsSection({
           {
             id: "process-prescription",
             title: "Proses resep",
-            description: "Validasi stok, proses resep, dan catat status penyerahan obat.",
+            description: "Proses resep agar kunjungan dapat lanjut ke tahap CPPT.",
             content: <ProcessPrescriptionForm prescriptions={prescriptions} />,
           },
         ]

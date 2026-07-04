@@ -4,6 +4,30 @@ import type { Prisma } from "@prisma/client"
 
 import { prisma } from "@/lib/prisma"
 
+type DataViewer = {
+  id: string
+  role: string
+}
+
+function assignedDoctorVisitWhere(viewer?: DataViewer): Prisma.VisitWhereInput {
+  if (viewer?.role !== "DOCTOR") {
+    return {}
+  }
+
+  return {
+    OR: [
+      { doctorId: viewer.id },
+      {
+        companionDoctors: {
+          some: {
+            doctorId: viewer.id,
+          },
+        },
+      },
+    ],
+  }
+}
+
 const dateFormatter = new Intl.DateTimeFormat("id-ID", {
   day: "2-digit",
   month: "short",
@@ -388,29 +412,27 @@ export async function getVisitFormOptions() {
   ])
 
   const predefinedServices = [
-    "IGD (Instalasi Gawat Darurat)",
-    "Poli Umum",
-    "Poli Penyakit Dalam",
-    "Poli Anak",
-    "Poli Bedah",
-    "Poli Kandungan & Kebidanan",
-    "Poli Saraf",
-    "Poli Jantung",
-    "Poli Paru",
-    "Poli Mata",
-    "Poli THT",
-    "Poli Gigi",
-    "Poli Kulit & Kelamin",
-    "Poli Orthopedi",
-    "Poli Urologi",
-    "Poli Jiwa/Psikiatri",
-    "ICU/NICU/PICU",
-    "Kamar Operasi (post operasi)",
-    "Rujukan dari Puskesmas/Klinik",
-    "Pasien datang lewat Ambulans",
-    "MCU/check up lalu perlu dirawat",
-    "Hemodialisa/cuci darah lalu kondisi memburuk",
-    "Ruang bersalin/melahirkan lalu rawat inap"
+    "Ruang VVIP",
+    "Ruang VIP",
+    "Ruang Kelas I",
+    "Ruang Kelas II",
+    "Ruang Kelas III",
+    "Ruang Perawatan Dewasa",
+    "Ruang Perawatan Anak",
+    "Ruang Kebidanan / Bersalin",
+    "Ruang Isolasi",
+    "ICU (Intensive Care Unit)",
+    "NICU (Neonatal Intensive Care Unit)",
+    "PICU (Pediatric Intensive Care Unit)",
+    "HCU (High Care Unit)",
+    "Perinatologi",
+    "Ruang Melati",
+    "Ruang Mawar",
+    "Ruang Anggrek",
+    "Ruang Flamboyan",
+    "Ruang Kenanga",
+    "Ruang Dahlia",
+    "Ruang Bougenville",
   ]
 
   return {
@@ -431,8 +453,9 @@ export async function getClinicalWorklist(
     | "laboratoryList"
     | "laboratoryOptions"
     | "recordable" = "active",
+  viewer?: DataViewer,
 ) {
-  const where: Prisma.VisitWhereInput =
+  const baseWhere: Prisma.VisitWhereInput =
     scope === "recordable"
       ? {
           status: "PHARMACY" as const,
@@ -475,6 +498,9 @@ export async function getClinicalWorklist(
             in: ["WAITING", "VITAL_SIGN", "EXAMINATION", "PHARMACY"],
           },
         }
+  const where: Prisma.VisitWhereInput = {
+    AND: [baseWhere, assignedDoctorVisitWhere(viewer)],
+  }
 
   const visits = await prisma.visit.findMany({
     where,
@@ -572,13 +598,18 @@ export async function getClinicalWorklist(
   }))
 }
 
-export async function getMedicalRecordHistory() {
+export async function getMedicalRecordHistory(viewer?: DataViewer) {
   const records = await prisma.medicalRecord.findMany({
     where: {
       visit: {
-        status: {
-          in: ["PHARMACY", "COMPLETED"],
-        },
+        AND: [
+          {
+            status: {
+              in: ["PHARMACY", "COMPLETED"],
+            },
+          },
+          assignedDoctorVisitWhere(viewer),
+        ],
       },
       prescription: {
         is: {
@@ -722,8 +753,13 @@ export async function getMedicalRecordHistory() {
   })
 }
 
-export async function getPrescriptionList() {
+export async function getPrescriptionList(viewer?: DataViewer) {
   const prescriptions = await prisma.prescription.findMany({
+    where: {
+      medicalRecord: {
+        visit: assignedDoctorVisitWhere(viewer),
+      },
+    },
     orderBy: { createdAt: "desc" },
     take: 30,
     include: {
@@ -778,15 +814,20 @@ export async function getPrescriptionList() {
   }))
 }
 
-export async function getPrescriptionFormOptions() {
+export async function getPrescriptionFormOptions(viewer?: DataViewer) {
   const records = await prisma.medicalRecord.findMany({
     where: {
       status: "DRAFT",
       visit: {
-        status: "EXAMINATION",
-        laboratoryResult: {
-          isNot: null,
-        },
+        AND: [
+          {
+            status: "EXAMINATION",
+            laboratoryResult: {
+              isNot: null,
+            },
+          },
+          assignedDoctorVisitWhere(viewer),
+        ],
       },
     },
     orderBy: { updatedAt: "desc" },
@@ -813,12 +854,15 @@ export async function getPrescriptionFormOptions() {
   }
 }
 
-export async function getMedicalDocumentList() {
+export async function getMedicalDocumentList(viewer?: DataViewer) {
   const records = await prisma.medicalRecord.findMany({
     where: {
       status: "FINAL",
       visit: {
-        status: "COMPLETED",
+        AND: [
+          { status: "COMPLETED" },
+          assignedDoctorVisitWhere(viewer),
+        ],
       },
     },
     orderBy: { updatedAt: "desc" },
@@ -863,9 +907,17 @@ export async function getMedicalDocumentList() {
   }))
 }
 
-export async function getDocumentFormOptions() {
+export async function getDocumentFormOptions(viewer?: DataViewer) {
   const [patients, visits] = await Promise.all([
     prisma.patient.findMany({
+      where:
+        viewer?.role === "DOCTOR"
+          ? {
+              visits: {
+                some: assignedDoctorVisitWhere(viewer),
+              },
+            }
+          : undefined,
       orderBy: { fullName: "asc" },
       take: 100,
       select: {
@@ -875,6 +927,7 @@ export async function getDocumentFormOptions() {
       },
     }),
     prisma.visit.findMany({
+      where: assignedDoctorVisitWhere(viewer),
       orderBy: { visitDate: "desc" },
       take: 100,
       include: {

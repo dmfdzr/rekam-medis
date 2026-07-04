@@ -51,13 +51,21 @@ const users = [
     role: UserRole.ADMIN,
     password: "admin123",
   },
-  {
-    name: "dr. Raka Mahendra",
-    email: "dokter@medrecord.local",
-    username: "dokter",
-    role: UserRole.DOCTOR,
-    password: "dokter123",
-  },
+  { name: "dr. Andi Pratama, Sp.PD", email: "andi@mail.com", username: "andi", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Siti Rahmawati, Sp.A", email: "siti@mail.com", username: "siti", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Budi Santoso, Sp.B", email: "budi@mail.com", username: "budi", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Rina Kartika, Sp.OG", email: "rina@mail.com", username: "rina", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Dedi Kurniawan, Sp.JP", email: "dedi@mail.com", username: "dedi", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Maya Lestari, Sp.N", email: "maya@mail.com", username: "maya", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Rizky Hidayat, Sp.THT-KL", email: "rizky@mail.com", username: "rizky", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Fitri Anggraini, Sp.M", email: "fitri@mail.com", username: "fitri", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Arief Nugroho, Sp.OT", email: "arief@mail.com", username: "arief", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Nabila Putri, Sp.KJ", email: "nabila@mail.com", username: "nabila", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Fajar Maulana, Sp.P", email: "fajar@mail.com", username: "fajar", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Intan Permata, Sp.KK", email: "intan@mail.com", username: "intan", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Yudha Saputra, Sp.U", email: "yudha@mail.com", username: "yudha", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Ratna Dewi, Sp.Rad", email: "ratna@mail.com", username: "ratna", role: UserRole.DOCTOR, password: "dokter123" },
+  { name: "dr. Hendra Wijaya, Sp.An", email: "hendra@mail.com", username: "hendra", role: UserRole.DOCTOR, password: "dokter123" },
 ]
 
 async function main() {

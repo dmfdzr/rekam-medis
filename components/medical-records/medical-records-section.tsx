@@ -12,8 +12,8 @@ import { EmptyState, StatusBadge, PermissionNotice } from "@/components/shared/f
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { Button } from "@/components/ui/button"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
-import { ListToolbar } from "@/components/shared/list-controls"
-import { Download, FileText } from "lucide-react"
+import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
+import { FileText } from "lucide-react"
 
 const initialClinicFormState: ClinicFormState = {}
 
@@ -210,7 +210,7 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
           name="intent"
           value="final"
         >
-          Finalisasi CPPT
+          Kelola CPPT
         </ConfirmSubmitButton>
       </div>
     </form>
@@ -252,42 +252,40 @@ export function MedicalRecordTimeline({ medicalRecordHistory }: { medicalRecordH
         resultCount={controls.totalItems}
         totalCount={medicalRecordHistory.length}
       />
-      <div className="grid gap-4">
-        {controls.paginatedItems.map((record) => (
-          <div key={record.id} className="relative pl-6 sm:pl-8">
-            <div className="absolute left-0 top-1.5 grid size-4 place-items-center rounded-full bg-primary/20 sm:size-5">
-              <div className="size-2 rounded-full bg-primary sm:size-2.5" />
-            </div>
-            <div className="absolute bottom-0 left-[7px] top-6 w-px bg-border sm:left-[9px]" aria-hidden="true" />
+      {controls.totalItems === 0 ? (
+        <EmptyState title="CPPT tidak ditemukan" detail="Ubah kata kunci pencarian untuk melihat riwayat CPPT lain." />
+      ) : (
+        <div className="grid gap-4">
+          {controls.paginatedItems.map((record) => (
+            <div key={record.id} className="relative pl-6 sm:pl-8">
+              <div className="absolute left-0 top-1.5 grid size-4 place-items-center rounded-full bg-primary/20 sm:size-5">
+                <div className="size-2 rounded-full bg-primary sm:size-2.5" />
+              </div>
+              <div className="absolute bottom-0 left-[7px] top-6 w-px bg-border sm:left-[9px]" aria-hidden="true" />
 
-            <div className="rounded-md border border-border bg-card p-4">
-              <div className="flex flex-wrap items-start justify-between gap-3">
-                <div>
-                  <p className="font-semibold text-foreground">
-                    {record.visitDate} - {record.patient}
-                  </p>
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {record.medicalRecordNumber} - {record.doctor} - {record.service}
-                  </p>
+              <div className="rounded-md border border-border bg-card p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold text-foreground">
+                      {record.visitDate} - {record.patient}
+                    </p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {record.medicalRecordNumber} - {record.doctor} - {record.service}
+                    </p>
+                  </div>
+                  <StatusBadge label={record.status} />
                 </div>
-                <StatusBadge label={record.status} />
-              </div>
 
 
-              <div className="mt-4 flex flex-wrap gap-2">
-                <MedicalRecordDetailDialog record={record} />
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <MedicalRecordDetailDialog record={record} />
+                </div>
               </div>
             </div>
-          </div>
-        ))}
-      </div>
-      {controls.totalPages > 1 ? (
-        <div className="mt-2 text-center">
-          <Button type="button" variant="outline" onClick={() => controls.setPage(controls.page + 1)} disabled={controls.page >= controls.totalPages}>
-            Muat lebih banyak
-          </Button>
+          ))}
         </div>
-      ) : null}
+      )}
+      <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
     </div>
   )
 }
@@ -312,7 +310,7 @@ export function MedicalRecordsSection({
       <Panel title="Riwayat CPPT pasien" description="Timeline membantu dokter membaca konteks tanpa membuka banyak halaman.">
         <MedicalRecordTimeline medicalRecordHistory={medicalRecordHistory} />
       </Panel>
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="CPPT" description="Perkembangan pasien terintegrasi, diagnosa, tindakan, resep, lalu finalisasi.">
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola CPPT" description="Simpan draft atau finalisasi catatan perkembangan pasien setelah resep diproses.">
         {canInput ? <MedicalRecordForm clinicalWorklist={clinicalWorklist} /> : <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi CPPT." />}
       </ModalDialog>
     </div>

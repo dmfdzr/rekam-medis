@@ -63,59 +63,59 @@ function mapUserRoleToAppRole(role: string): RoleKey {
 const sectionMeta: Record<SectionKey, { title: string; description: string; action?: string }> = {
   dashboard: {
     title: "Dashboard Operasional",
-    description: "Pantau antrean, status pemeriksaan, resep, dan risiko stok dari satu layar.",
+    description: "Pantau ringkasan pasien aktif, kunjungan berjalan, dokumen medis, dan status verifikasi dalam satu layar.",
   },
   patients: {
     title: "Data Pasien",
-    description: "Kelola identitas pasien, alergi, kontak, dan riwayat kunjungan.",
+    description: "Kelola identitas pasien, NIK, kontak, alergi, dan alamat terstruktur untuk kebutuhan pendaftaran serta laporan wilayah.",
     action: "Kelola pasien",
   },
   visits: {
     title: "Kunjungan",
-    description: "Buat kunjungan baru, cek status layanan, dan arahkan pasien ke role berikutnya.",
+    description: "Buat kunjungan dari data pasien, tentukan ruang rawat, DPJP, rawat bersama, keluhan utama, dan registrasi pasien.",
     action: "Kelola kunjungan",
   },
   laboratory: {
     title: "Input Laboratorium",
-    description: "Input hasil tes laboratorium pasien.",
+    description: "Catat hasil laboratorium setelah asesmen tersimpan sebagai dasar pembuatan resep.",
     action: "Simpan hasil lab",
   },
   assessment: {
     title: "Asesmen Klinis",
-    description: "Input diagnosa masuk, riwayat, diagnosa ICD-10, dan tindakan ICD-9-CM.",
+    description: "Dokter yang ditugaskan mengisi tanda vital, diagnosa masuk, riwayat penyakit, ICD-10, dan tindakan ICD-9-CM.",
     action: "Simpan asesmen",
   },
   records: {
     title: "CPPT",
-    description: "Perkembangan pasien terintegrasi dan riwayat SOAP dari dokter.",
-    action: "Finalisasi CPPT",
+    description: "Simpan draft atau finalisasi catatan perkembangan pasien setelah resep diproses.",
+    action: "Kelola CPPT",
   },
   prescriptions: {
     title: "Resep",
-    description: "Kelola resep dari dokter, validasi stok, dan proses obat ke pasien.",
+    description: "Dokter yang ditugaskan membuat resep manual dan memproses obat sebelum pasien masuk tahap CPPT.",
     action: "Kelola resep",
   },
   documents: {
     title: "Dokumen Medis",
-    description: "Lihat, unduh, dan verifikasi dokumen medis pasien sesuai role.",
+    description: "Lihat, unduh PDF resume medis, dan verifikasi dokumen dengan kondisi serta instruksi pulang.",
   },
   reports: {
     title: "Laporan",
-    description: "Ringkasan kunjungan, pasien baru, diagnosa, tindakan, dan penggunaan obat.",
+    description: "Analisis kunjungan, diagnosis, tindakan, export data, dan persebaran diagnosis berdasarkan wilayah pasien.",
     action: "Export laporan",
   },
   users: {
     title: "Manajemen User",
-    description: "Kelola akun, role, status user, dan akses modul aplikasi.",
+    description: "Kelola akun master, admin, dan dokter beserta role, status, profil, dan password.",
     action: "Kelola user",
   },
   audit: {
     title: "Audit Log",
-    description: "Lacak aktivitas penting untuk keamanan dan akuntabilitas data medis.",
+    description: "Lacak aktivitas penting, risiko, detail aksi, IP, dan perangkat untuk akuntabilitas data medis.",
   },
   settings: {
     title: "Pengaturan Akun",
-    description: "Kelola profil akun dan password login internal.",
+    description: "Perbarui profil akun dan password login yang digunakan untuk mengakses aplikasi.",
   },
 }
 
@@ -136,12 +136,12 @@ function SidebarContent({
 }) {
   return (
     <div className="flex h-full flex-col gap-0">
-      <div className={cn("flex h-11 w-full shrink-0 items-center justify-between gap-3", collapsed ? "justify-center" : "")}>
+      <div className={cn("flex h-14 w-full shrink-0 items-center justify-between gap-3", collapsed ? "justify-center" : "")}>
         <div className={cn("flex min-w-0 items-center gap-3", collapsed ? "justify-center" : "")}>
-          <Image src="/assets/ueu.png" alt="UEU Logo" width={32} height={32} className="size-8 shrink-0 bg-transparent" />
+          <Image src="/assets/ueu.png" alt="UEU Logo" width={56} height={56} className="h-12 w-auto shrink-0 bg-transparent object-contain" />
           <div className={cn("min-w-0", collapsed ? "sr-only" : "")}>
-            <p className="truncate text-sm font-semibold">MedNote</p>
-            <p className="truncate text-xs text-muted-foreground">Rekam Medis Elektronik</p>
+            <p className="truncate text-sm font-semibold">Rekam Medis Elektronik</p>
+            <p className="truncate text-xs text-muted-foreground">Resume Medis</p>
           </div>
         </div>
         {onClose ? (
@@ -454,7 +454,7 @@ export function MedRecordApp({
 
               <div className="min-w-0 flex-1">
                 <div className="flex flex-wrap items-center gap-2 text-xs text-muted-foreground">
-                  <span>MedNote</span>
+                  <span>Rekam Medis Elektronik</span>
                   <ChevronRight className="size-3" aria-hidden="true" />
                   <span>{currentRole.label}</span>
                 </div>

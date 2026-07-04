@@ -1,7 +1,7 @@
 import Image from "next/image"
 import Link from "next/link"
 import { redirect } from "next/navigation"
-import { Activity, ArrowRight, ClipboardCheck, FileText, FlaskConical, LockKeyhole, Pill, ShieldCheck, Stethoscope, UsersRound } from "lucide-react"
+import { Activity, ArrowRight, BarChart3, ClipboardCheck, FileText, FlaskConical, LockKeyhole, Pill, ShieldCheck, Stethoscope, UsersRound } from "lucide-react"
 
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"
@@ -10,28 +10,33 @@ import { getCurrentUser } from "@/lib/auth/current-user"
 const workflowItems = [
   {
     title: "Pasien",
-    description: "Data pasien, NIK, kontak, alergi, dan nomor rekam medis tersusun dalam satu sumber data.",
+    description: "Identitas pasien, NIK, kontak, alergi, dan alamat terstruktur menjadi dasar pendaftaran serta laporan wilayah.",
     icon: UsersRound,
   },
   {
     title: "Kunjungan",
-    description: "Kunjungan dibuat dari data pasien dengan layanan, dokter, keluhan utama, dan status alur.",
+    description: "Petugas menentukan ruang rawat, DPJP, rawat bersama, registrasi pasien, dan keluhan utama.",
     icon: Stethoscope,
   },
   {
     title: "Asesmen dan laboratorium",
-    description: "Dokter mengisi asesmen, lalu hasil laboratorium dicatat sebagai dasar layanan berikutnya.",
+    description: "Dokter yang ditugaskan mengisi asesmen, lalu hasil laboratorium dicatat sebagai dasar resep.",
     icon: FlaskConical,
   },
   {
     title: "Resep dan CPPT",
-    description: "Resep dibuat setelah laboratorium, lalu CPPT difinalisasi sebagai catatan perkembangan pasien.",
+    description: "Resep dibuat manual setelah laboratorium, lalu CPPT disimpan sebagai draft atau difinalisasi.",
     icon: Pill,
   },
   {
     title: "Verifikasi dokumen medis",
     description: "Resume medis diverifikasi dengan kondisi pulang, instruksi pulang, nama verifier, dan waktu verifikasi.",
     icon: ClipboardCheck,
+  },
+  {
+    title: "Laporan",
+    description: "Pantau ringkasan kunjungan, diagnosis, tindakan, export data, dan persebaran diagnosis berdasarkan wilayah pasien.",
+    icon: BarChart3,
   },
 ]
 
@@ -61,11 +66,11 @@ export default async function LandingPage() {
         />
         <div className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
           <header className="flex items-center justify-between gap-4">
-            <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="MedNote">
-              <Image src="/assets/ueu.png" alt="UEU Logo" width={36} height={36} className="size-9 shrink-0 bg-transparent" />
+            <Link href="/" className="flex min-w-0 items-center gap-3" aria-label="Rekam Medis Elektronik">
+              <Image src="/assets/ueu.png" alt="UEU Logo" width={56} height={56} className="h-12 w-auto shrink-0 bg-transparent object-contain" />
               <div className="min-w-0">
-                <p className="truncate text-sm font-semibold">MedNote</p>
-                <p className="truncate text-xs text-muted-foreground">Rekam medis elektronik</p>
+                <p className="truncate text-sm font-semibold">Rekam Medis Elektronik</p>
+                <p className="truncate text-xs text-muted-foreground">Resume Medis</p>
               </div>
             </Link>
             <div className="flex items-center gap-2">
@@ -86,10 +91,10 @@ export default async function LandingPage() {
                 Aplikasi internal untuk operasional klinik
               </div>
               <h1 className="mt-6 text-4xl font-semibold tracking-normal text-balance sm:text-5xl lg:text-6xl">
-                MedNote membantu klinik mencatat rekam medis dengan alur yang rapi.
+                Rekam Medis Elektronik membantu klinik mencatat resume medis dengan alur yang rapi.
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Kelola pasien, kunjungan, asesmen, laboratorium, pemeriksaan dokter, resep, dokumen medis, laporan, dan audit aktivitas dalam satu aplikasi web standalone.
+                Kelola pasien, kunjungan rawat inap, asesmen, laboratorium, resep, CPPT, dokumen medis, laporan wilayah diagnosis, dan audit aktivitas dalam satu aplikasi web standalone.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-11 w-full sm:w-fit">
@@ -109,7 +114,7 @@ export default async function LandingPage() {
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
                   <div>
                     <p className="text-sm font-semibold">Dashboard klinik</p>
-                    <p className="mt-1 text-xs text-muted-foreground">Ringkasan alur layanan hari ini</p>
+                    <p className="mt-1 text-xs text-muted-foreground">Ringkasan operasional dan dokumen medis</p>
                   </div>
                   <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">Role based</span>
                 </div>
@@ -155,7 +160,7 @@ export default async function LandingPage() {
             <p className="text-sm font-semibold text-primary">Sekilas tentang aplikasi</p>
             <h2 className="mt-3 text-2xl font-semibold tracking-normal sm:text-3xl">Dibuat untuk pekerjaan harian fasilitas kesehatan kecil hingga menengah.</h2>
             <p className="mt-4 text-sm leading-7 text-muted-foreground">
-              MedNote berdiri sebagai aplikasi internal tanpa integrasi BPJS, SATUSEHAT, SIMRS, payment gateway, atau layanan autentikasi eksternal. Fokusnya adalah pencatatan klinis yang terstruktur, pencarian riwayat pasien yang cepat, dan kontrol akses sesuai peran kerja.
+              Rekam Medis Elektronik berdiri sebagai aplikasi internal tanpa integrasi BPJS, SATUSEHAT, SIMRS, payment gateway, atau layanan autentikasi eksternal. Fokusnya adalah pencatatan klinis berurutan, kontrol akses dokter sesuai kunjungan, dokumen resume medis PDF, dan laporan persebaran diagnosis berbasis wilayah pasien.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
@@ -199,7 +204,7 @@ export default async function LandingPage() {
             </p>
             <Button asChild size="lg" className="mt-6 h-11 w-full sm:w-fit">
               <Link href="/login">
-                Masuk ke MedNote
+                Masuk ke Rekam Medis Elektronik
                 <ArrowRight className="size-4" aria-hidden="true" />
               </Link>
             </Button>

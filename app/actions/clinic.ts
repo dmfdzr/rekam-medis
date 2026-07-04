@@ -132,7 +132,7 @@ const deactivatePatientSchema = z.object({
 const createVisitSchema = z.object({
   patientId: z.string().trim().min(1, "Pasien wajib dipilih."),
   doctorId: z.string().trim().optional(),
-  service: z.string().trim().min(2, "Layanan wajib diisi."),
+  service: z.string().trim().min(2, "Ruang rawat wajib diisi."),
   chiefComplaint: z.string().trim().min(3, "Keluhan utama minimal 3 karakter."),
   admissionDate: z.string().trim().min(1, "Tanggal masuk wajib diisi."),
   patientType: z.enum(PatientType, "Registrasi pasien wajib dipilih."),
@@ -317,6 +317,35 @@ const prescriptionMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.D
 const prescriptionCancelRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const documentMutationRoles = new Set<UserRole>([UserRole.MASTER, UserRole.DOCTOR])
 const userMutationRoles = new Set<UserRole>([UserRole.MASTER])
+
+type ClinicalActor = {
+  id: string
+  role: string
+}
+
+type VisitAssignment = {
+  doctorId: string | null
+  companionDoctors?: { doctorId: string }[]
+}
+
+function canAccessAssignedVisit(user: ClinicalActor, visit: VisitAssignment) {
+  if (user.role === UserRole.MASTER) {
+    return true
+  }
+
+  if (user.role !== UserRole.DOCTOR) {
+    return false
+  }
+
+  return visit.doctorId === user.id || Boolean(visit.companionDoctors?.some((companion) => companion.doctorId === user.id))
+}
+
+function assignedVisitDeniedState(message = "Anda hanya dapat memproses kunjungan yang memanggil Anda sebagai DPJP atau DPJP pendamping."): ClinicFormState {
+  return {
+    ok: false,
+    message,
+  }
+}
 
 function optionalString(value: string | undefined) {
   return value && value.length > 0 ? value : null
@@ -896,7 +925,13 @@ export async function upsertLaboratoryAction(_state: ClinicFormState, formData: 
     where: { id: parsed.data.visitId },
     select: {
       id: true,
+      doctorId: true,
       status: true,
+      companionDoctors: {
+        select: {
+          doctorId: true,
+        },
+      },
       medicalRecord: {
         select: {
           id: true,
@@ -917,6 +952,10 @@ export async function upsertLaboratoryAction(_state: ClinicFormState, formData: 
       message: "Kunjungan tidak ditemukan.",
       errors: { visitId: ["Kunjungan tidak ditemukan."] },
     }
+  }
+
+  if (!canAccessAssignedVisit(user, visit)) {
+    return assignedVisitDeniedState()
   }
 
   if (visit.status === VisitStatus.WAITING || !visit.medicalRecord) {
@@ -1068,7 +1107,13 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
     where: { id: parsed.data.visitId },
     select: {
       id: true,
+      doctorId: true,
       status: true,
+      companionDoctors: {
+        select: {
+          doctorId: true,
+        },
+      },
       medicalRecord: {
         select: {
           id: true,
@@ -1090,6 +1135,10 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
       message: "Kunjungan tidak ditemukan.",
       errors: { visitId: ["Kunjungan tidak ditemukan."] },
     }
+  }
+
+  if (!canAccessAssignedVisit(user, visit)) {
+    return assignedVisitDeniedState()
   }
 
   if (visit.medicalRecord?.status === MedicalRecordStatus.FINAL) {
@@ -1296,7 +1345,13 @@ export async function saveAssessmentAction(_state: ClinicFormState, formData: Fo
     where: { id: parsed.data.visitId },
     select: {
       id: true,
+      doctorId: true,
       status: true,
+      companionDoctors: {
+        select: {
+          doctorId: true,
+        },
+      },
       medicalRecord: {
         select: {
           id: true,
@@ -1315,6 +1370,10 @@ export async function saveAssessmentAction(_state: ClinicFormState, formData: Fo
       message: "Kunjungan tidak ditemukan.",
       errors: { visitId: ["Kunjungan tidak ditemukan."] },
     }
+  }
+
+  if (!canAccessAssignedVisit(user, visit)) {
+    return assignedVisitDeniedState()
   }
 
   if (visit.medicalRecord?.status === MedicalRecordStatus.FINAL) {
@@ -1510,6 +1569,11 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
       },
       visit: {
         include: {
+          companionDoctors: {
+            select: {
+              doctorId: true,
+            },
+          },
           laboratoryResult: {
             select: {
               id: true,
@@ -1529,6 +1593,10 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
       message: "Rekam medis tidak ditemukan.",
       errors: { medicalRecordId: ["Rekam medis tidak ditemukan."] },
     }
+  }
+
+  if (!canAccessAssignedVisit(user, record.visit)) {
+    return assignedVisitDeniedState()
   }
 
   if (record.status === MedicalRecordStatus.FINAL) {
@@ -1631,6 +1699,11 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
             visit: {
               include: {
                 patient: { select: { fullName: true } },
+                companionDoctors: {
+                  select: {
+                    doctorId: true,
+                  },
+                },
               },
             },
           },
@@ -1640,6 +1713,10 @@ export async function processPrescriptionAction(_state: ClinicFormState, formDat
 
     if (!prescription) {
       return { ok: false as const, message: "Resep tidak ditemukan." }
+    }
+
+    if (!canAccessAssignedVisit(user, prescription.medicalRecord.visit)) {
+      return { ok: false as const, message: "Anda hanya dapat memproses resep dari kunjungan yang memanggil Anda sebagai DPJP atau DPJP pendamping." }
     }
 
     if (prescription.items.length === 0) {
@@ -1736,6 +1813,11 @@ export async function cancelPrescriptionAction(_state: ClinicFormState, formData
         include: {
           visit: {
             include: {
+              companionDoctors: {
+                select: {
+                  doctorId: true,
+                },
+              },
               patient: {
                 select: {
                   fullName: true,
@@ -1755,6 +1837,10 @@ export async function cancelPrescriptionAction(_state: ClinicFormState, formData
       message: "Resep tidak ditemukan.",
       errors: { prescriptionId: ["Resep tidak ditemukan."] },
     }
+  }
+
+  if (!canAccessAssignedVisit(user, prescription.medicalRecord.visit)) {
+    return assignedVisitDeniedState("Anda hanya dapat membatalkan resep dari kunjungan yang memanggil Anda sebagai DPJP atau DPJP pendamping.")
   }
 
   if (prescription.status === PrescriptionStatus.PROCESSED) {
@@ -1842,11 +1928,39 @@ export async function createMedicalDocumentAction(_state: ClinicFormState, formD
 
   const referenceNote = optionalString(parsed.data.referenceNote)
   const fileUrl = referenceNote ? `reference:${encodeURIComponent(referenceNote)}` : "generated:medical-document"
+  const visitId = optionalString(parsed.data.visitId)
+
+  if (visitId) {
+    const visit = await prisma.visit.findUnique({
+      where: { id: visitId },
+      select: {
+        id: true,
+        doctorId: true,
+        companionDoctors: {
+          select: {
+            doctorId: true,
+          },
+        },
+      },
+    })
+
+    if (!visit) {
+      return {
+        ok: false,
+        message: "Kunjungan tidak ditemukan.",
+        errors: { visitId: ["Kunjungan tidak ditemukan."] },
+      }
+    }
+
+    if (!canAccessAssignedVisit(user, visit)) {
+      return assignedVisitDeniedState("Anda hanya dapat menambahkan dokumen untuk kunjungan yang memanggil Anda sebagai DPJP atau DPJP pendamping.")
+    }
+  }
 
   const document = await prisma.medicalDocument.create({
     data: {
       patientId: parsed.data.patientId,
-      visitId: optionalString(parsed.data.visitId),
+      visitId,
       type: parsed.data.type,
       fileName: parsed.data.documentName,
       fileUrl,
@@ -2437,10 +2551,26 @@ export async function verifyMedicalRecordAction(state: ClinicFormState, formData
 
     const record = await prisma.medicalRecord.findUnique({
       where: { id: parsed.data.recordId },
+      include: {
+        visit: {
+          select: {
+            doctorId: true,
+            companionDoctors: {
+              select: {
+                doctorId: true,
+              },
+            },
+          },
+        },
+      },
     })
 
     if (!record) {
       return { ok: false, message: "Rekam medis tidak ditemukan." }
+    }
+
+    if (!canAccessAssignedVisit(user, record.visit)) {
+      return assignedVisitDeniedState("Anda hanya dapat memverifikasi dokumen dari kunjungan yang memanggil Anda sebagai DPJP atau DPJP pendamping.")
     }
 
     if (record.status !== "FINAL") {

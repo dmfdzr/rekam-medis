@@ -124,9 +124,9 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
 
         <ComboboxField
           name="service"
-          label="Layanan / poli"
+          label="Ruang Rawat"
           items={visitOptions.services.map(s => ({ value: s, label: s }))}
-          placeholder="Pilih layanan / poli"
+          placeholder="Pilih ruang rawat"
           error={state.errors?.service}
         />
         <TextAreaField name="chiefComplaint" label="Keluhan utama" error={state.errors?.chiefComplaint?.[0]} />
@@ -160,7 +160,7 @@ export function CancelVisitForm({ visits }: { visits: VisitListItem[] }) {
         placeholder="Pilih kunjungan"
         error={state.errors?.visitId}
       />
-      <DestructiveActionNotice message="Kunjungan tidak dihapus permanen. Statusnya menjadi dibatalkan agar alur layanan dan audit tetap bisa ditelusuri." />
+      <DestructiveActionNotice message="Kunjungan tidak dihapus permanen. Statusnya menjadi dibatalkan agar alur dan audit tetap bisa ditelusuri." />
       <FormMessage state={state} />
       <ConfirmSubmitButton
         message="Batalkan kunjungan ini? Perubahan akan tercatat di audit log."

@@ -6,10 +6,11 @@ import { upsertLaboratoryAction, type ClinicFormState } from "@/app/actions/clin
 
 import * as React from "react"
 
-import { useRefreshOnSuccess } from "@/lib/hooks"
+import { useListControls, useRefreshOnSuccess } from "@/lib/hooks"
 import { TextField, FormMessage, ComboboxField, DatePickerField } from "@/components/shared/forms"
 import { EmptyState, PermissionNotice } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
+import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
 import { Button } from "@/components/ui/button"
 
 const initialClinicFormState: ClinicFormState = {}
@@ -116,18 +117,57 @@ export function LaboratorySection({
   onComposerOpenChange: (open: boolean) => void
 }) {
   const canInput = role === "master" || role === "doctor"
+  const searchSelector = React.useCallback(
+    (visit: ClinicalWorklistItem) => [
+      visit.patientName,
+      visit.medicalRecordNumber,
+      visit.patientMeta,
+      visit.allergies,
+      visit.service,
+      visit.doctor,
+      visit.chiefComplaint,
+      visit.status,
+      visit.laboratoryResult?.examinationDate ?? "",
+      visit.laboratoryResult?.hemoglobin ?? "",
+      visit.laboratoryResult?.leukosit ?? "",
+      visit.laboratoryResult?.gds ?? "",
+      visit.laboratoryResult?.crp ?? "",
+      visit.medicalRecord?.assessment ?? "",
+      ...(visit.medicalRecord?.diagnoses.map((diagnosis) => `${diagnosis.code} ${diagnosis.name}`) ?? []),
+    ],
+    [],
+  )
+  const controls = useListControls({
+    items: laboratoryList,
+    pageSize: 6,
+    search: searchSelector,
+  })
 
   return (
     <div className="grid gap-5">
       <Panel title="Data laboratorium tersimpan" description="Hasil laboratorium yang sudah disimpan dari asesmen pasien.">
         {laboratoryList.length > 0 ? (
-          <div className="grid gap-4 xl:grid-cols-2">
-            {laboratoryList.map((visit) => (
-              <div key={visit.id} className="rounded-md border border-border bg-background p-3">
-                <VisitSummaryCard visit={visit} />
-                <LaboratoryGrid visit={visit} />
+          <div className="grid gap-4">
+            <ListToolbar
+              query={controls.query}
+              onQueryChange={controls.setQuery}
+              searchPlaceholder="Cari pasien, RM, ruang rawat, dokter, hasil lab"
+              resultCount={controls.totalItems}
+              totalCount={laboratoryList.length}
+            />
+            {controls.totalItems === 0 ? (
+              <EmptyState title="Hasil laboratorium tidak ditemukan" detail="Ubah kata kunci pencarian untuk melihat data laboratorium lain." />
+            ) : (
+              <div className="grid gap-4 xl:grid-cols-2">
+                {controls.paginatedItems.map((visit) => (
+                  <div key={visit.id} className="rounded-md border border-border bg-background p-3">
+                    <VisitSummaryCard visit={visit} />
+                    <LaboratoryGrid visit={visit} />
+                  </div>
+                ))}
               </div>
-            ))}
+            )}
+            <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
           </div>
         ) : (
           <EmptyState title="Belum ada hasil laboratorium" detail="Hasil lab yang sudah disimpan akan tampil di sini." />

@@ -6,10 +6,11 @@ import { RoleKey } from "@/lib/medical-data"
 import { saveAssessmentAction, type ClinicFormState } from "@/app/actions/clinic"
 import { icdDiagnoses, icdProcedures } from "@/lib/icd-data"
 
-import { useRefreshOnSuccess } from "@/lib/hooks"
+import { useListControls, useRefreshOnSuccess } from "@/lib/hooks"
 import { TextField, TextAreaField, FormMessage, ComboboxField as SharedComboboxField } from "@/components/shared/forms"
 import { EmptyState, PermissionNotice } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
+import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
 import { Button } from "@/components/ui/button"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Check, ChevronsUpDown, FileText, Plus, Trash2 } from "lucide-react"
@@ -298,45 +299,82 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
 }
 
 function AssessmentList({ assessmentList }: { assessmentList: ClinicalWorklistItem[] }) {
+  const searchSelector = React.useCallback(
+    (visit: ClinicalWorklistItem) => [
+      visit.patientName,
+      visit.medicalRecordNumber,
+      visit.patientMeta,
+      visit.allergies,
+      visit.service,
+      visit.doctor,
+      visit.chiefComplaint,
+      visit.status,
+      visit.medicalRecord?.assessment ?? "",
+      visit.medicalRecord?.subjective ?? "",
+      ...(visit.medicalRecord?.diagnoses.map((diagnosis) => `${diagnosis.code} ${diagnosis.name} ${diagnosis.note}`) ?? []),
+      ...(visit.medicalRecord?.treatments.map((treatment) => `${treatment.code} ${treatment.name} ${treatment.note}`) ?? []),
+    ],
+    [],
+  )
+  const controls = useListControls({
+    items: assessmentList,
+    pageSize: 6,
+    search: searchSelector,
+  })
+
   if (assessmentList.length === 0) {
     return <EmptyState title="Belum ada asesmen tersimpan" detail="Asesmen yang sudah disimpan akan tampil di sini." />
   }
 
   return (
-    <div className="grid gap-4 xl:grid-cols-2">
-      {assessmentList.map((visit) => {
-        const primaryDiagnosis = visit.medicalRecord?.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
+    <div className="grid gap-4">
+      <ListToolbar
+        query={controls.query}
+        onQueryChange={controls.setQuery}
+        searchPlaceholder="Cari pasien, RM, ruang rawat, dokter, diagnosa, tindakan"
+        resultCount={controls.totalItems}
+        totalCount={assessmentList.length}
+      />
+      {controls.totalItems === 0 ? (
+        <EmptyState title="Asesmen tidak ditemukan" detail="Ubah kata kunci pencarian untuk melihat data asesmen lain." />
+      ) : (
+        <div className="grid gap-4 xl:grid-cols-2">
+          {controls.paginatedItems.map((visit) => {
+            const primaryDiagnosis = visit.medicalRecord?.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
 
-        return (
-          <div key={visit.id} className="rounded-md border border-border bg-background p-4">
-            <div className="flex flex-wrap items-start justify-between gap-3">
-              <div>
-                <p className="font-semibold">{visit.patientName}</p>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  {visit.medicalRecordNumber} - {visit.service} - {visit.time}
-                </p>
+            return (
+              <div key={visit.id} className="rounded-md border border-border bg-background p-4">
+                <div className="flex flex-wrap items-start justify-between gap-3">
+                  <div>
+                    <p className="font-semibold">{visit.patientName}</p>
+                    <p className="mt-1 text-sm text-muted-foreground">
+                      {visit.medicalRecordNumber} - {visit.service} - {visit.time}
+                    </p>
+                  </div>
+                </div>
+                <div className="mt-4 grid gap-2 text-sm leading-6">
+                  <p>
+                    <span className="font-medium">Keluhan: </span>
+                    {visit.chiefComplaint}
+                  </p>
+                  <p>
+                    <span className="font-medium">Diagnosa masuk: </span>
+                    {visit.medicalRecord?.assessment || "-"}
+                  </p>
+                  <p>
+                    <span className="font-medium">Diagnosa utama: </span>
+                    {primaryDiagnosis ? `${primaryDiagnosis.code || "-"} - ${primaryDiagnosis.name}` : "-"}
+                  </p>
+                </div>
+                <div className="mt-4 flex flex-wrap gap-2">
+                  <AssessmentDetailDialog visit={visit} />
+                </div>
               </div>
-            </div>
-            <div className="mt-4 grid gap-2 text-sm leading-6">
-              <p>
-                <span className="font-medium">Keluhan: </span>
-                {visit.chiefComplaint}
-              </p>
-              <p>
-                <span className="font-medium">Diagnosa masuk: </span>
-                {visit.medicalRecord?.assessment || "-"}
-              </p>
-              <p>
-                <span className="font-medium">Diagnosa utama: </span>
-                {primaryDiagnosis ? `${primaryDiagnosis.code || "-"} - ${primaryDiagnosis.name}` : "-"}
-              </p>
-            </div>
-            <div className="mt-4 flex flex-wrap gap-2">
-              <AssessmentDetailDialog visit={visit} />
-            </div>
-          </div>
-        )
-      })}
+            )
+          })}
+        </div>
+      )}
+      <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
     </div>
   )
 }
@@ -391,7 +429,7 @@ function AssessmentDetailDialog({ visit }: { visit: ClinicalWorklistItem }) {
             <DetailItem label="Profil pasien" value={visit.patientMeta} />
             <DetailItem label="Alergi" value={visit.allergies} />
             <DetailItem label="Dokter" value={visit.doctor} />
-            <DetailItem label="Layanan" value={visit.service} />
+            <DetailItem label="Ruang Rawat" value={visit.service} />
           </div>
 
           <div className="grid gap-3">
