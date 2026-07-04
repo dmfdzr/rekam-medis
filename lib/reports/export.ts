@@ -13,7 +13,7 @@ type ReportDateOptions = {
   endDate: string | null
 }
 
-export type ReportFormat = "json" | "csv" | "excel" | "pdf"
+export type ReportFormat = "json" | "csv" | "excel"
 
 function parseDateParam(value: string | null, label: string) {
   if (!value) {
@@ -137,7 +137,7 @@ export async function auditReportAccess(request: Request, format: ReportFormat, 
 }
 
 export function reportExportFileName(format: Exclude<ReportFormat, "json">, periodSlug: string) {
-  return `mednote-report-summary-${periodSlug}.${format === "excel" ? "xls" : format}`
+  return `mednote-report-diagnosis-${periodSlug}.${format === "excel" ? "xlsx" : format}`
 }
 
 export function forbiddenReportResponse() {

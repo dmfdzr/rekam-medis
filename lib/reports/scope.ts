@@ -42,6 +42,17 @@ export function scopeReportBundleForRole(role: string, bundle: ReportBundle): Re
     details: {
       diagnoses: allowedSections.includes("diagnoses") ? bundle.details.diagnoses : [],
       treatments: allowedSections.includes("treatments") ? bundle.details.treatments : [],
+      diagnosisOptions: canViewClinical ? bundle.details.diagnosisOptions : [],
+      diagnosisMap: canViewClinical
+        ? bundle.details.diagnosisMap
+        : {
+            level: "district",
+            totalCases: 0,
+            totalPatients: 0,
+            totalRegions: 0,
+            mappedLocations: 0,
+            locations: [],
+          },
     },
   }
 }

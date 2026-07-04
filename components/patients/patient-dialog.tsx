@@ -38,8 +38,9 @@ export function PatientDetailDialog({ patient }: { patient: PatientListItem }) {
             <PatientDetailItem label="Telepon" value={patient.phone} />
             <PatientDetailItem label="Golongan darah" value={patient.bloodType} />
             <PatientDetailItem label="Alergi" value={patient.allergy} />
+            <PatientDetailItem label="Wilayah" value={patient.regionAddress} />
             <div className="sm:col-span-2">
-              <PatientDetailItem label="Alamat" value={patient.address} />
+              <PatientDetailItem label="Detail alamat" value={patient.addressDetail} />
             </div>
           </div>
 
@@ -128,4 +129,3 @@ export function PatientDetailDialog({ patient }: { patient: PatientListItem }) {
     </>
   )
 }
-

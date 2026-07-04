@@ -2,6 +2,7 @@ import type { Metadata } from "next"
 import { Geist_Mono, Outfit } from "next/font/google"
 
 import "./globals.css"
+import "leaflet/dist/leaflet.css"
 import { ThemeProvider } from "@/components/theme-provider"
 import { PageTransition } from "@/components/page-transition"
 import { ToastProvider } from "@/components/shared/toast"

@@ -25,6 +25,7 @@
 *.pem
 PRD.md
 AGENTS.md
+(PUBLIC) ICD-9CM e-klaim.csv
 
 # debug
 npm-debug.log*

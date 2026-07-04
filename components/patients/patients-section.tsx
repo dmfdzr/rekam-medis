@@ -31,7 +31,7 @@ export function PatientsSection({
   const canCreate = role === "master" || role === "admin"
   const patientStatuses = React.useMemo(() => getUniqueOptions(patients, (patient) => patient.status), [patients])
   const searchSelector = React.useCallback(
-    (patient: PatientListItem) => [patient.medicalRecordNumber, patient.name, patient.nik, patient.phone, patient.address, patient.allergy, patient.status],
+    (patient: PatientListItem) => [patient.medicalRecordNumber, patient.name, patient.nik, patient.phone, patient.address, patient.regionAddress, patient.province, patient.city, patient.district, patient.allergy, patient.status],
     [],
   )
   const filterSelector = React.useCallback((patient: PatientListItem, value: string) => patient.status === value, [])
@@ -62,6 +62,7 @@ export function PatientsSection({
                     <th className="py-3 pr-4 font-medium">No. RM</th>
                     <th className="py-3 pr-4 font-medium">Pasien</th>
                     <th className="py-3 pr-4 font-medium">Kontak</th>
+                    <th className="py-3 pr-4 font-medium">Wilayah</th>
                     <th className="py-3 pr-4 font-medium">Alergi</th>
                     <th className="py-3 pr-4 font-medium">Status</th>
                     <th className="py-3 font-medium">Tanggal lahir & usia</th>
@@ -79,6 +80,7 @@ export function PatientsSection({
                         <PatientDetailDialog patient={patient} />
                       </td>
                       <td className="py-4 pr-4 tabular-nums">{patient.phone}</td>
+                      <td className="py-4 pr-4">{patient.regionAddress}</td>
                       <td className="py-4 pr-4">{patient.allergy}</td>
                       <td className="py-4 pr-4">
                         <StatusBadge label={patient.status} />
@@ -112,6 +114,10 @@ export function PatientsSection({
                     <p>
                       <span className="text-muted-foreground">Telepon: </span>
                       {patient.phone}
+                    </p>
+                    <p>
+                      <span className="text-muted-foreground">Wilayah: </span>
+                      {patient.regionAddress}
                     </p>
                     <p>
                       <span className="text-muted-foreground">Alergi: </span>

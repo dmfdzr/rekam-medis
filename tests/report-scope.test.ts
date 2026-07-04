@@ -12,6 +12,15 @@ const reportBundle: Parameters<typeof scopeReportBundleForRole>[1] = {
   details: {
     diagnoses: [{ name: "ISPA", count: 3 }],
     treatments: [{ name: "Konsultasi", count: 3, totalCost: "150000" }],
+    diagnosisOptions: [{ name: "ISPA", count: 3 }],
+    diagnosisMap: {
+      level: "district",
+      totalCases: 3,
+      totalPatients: 2,
+      totalRegions: 1,
+      mappedLocations: 0,
+      locations: [],
+    },
   },
 }
 
@@ -36,6 +45,15 @@ describe("report role scoping", () => {
     assert.deepEqual(scoped.details, {
       diagnoses: [],
       treatments: [],
+      diagnosisOptions: [],
+      diagnosisMap: {
+        level: "district",
+        totalCases: 0,
+        totalPatients: 0,
+        totalRegions: 0,
+        mappedLocations: 0,
+        locations: [],
+      },
     })
     assert.equal(canViewReportSection("ADMIN", "diagnoses"), false)
   })
@@ -47,6 +65,15 @@ describe("report role scoping", () => {
     assert.deepEqual(scoped.details, {
       diagnoses: [],
       treatments: [],
+      diagnosisOptions: [],
+      diagnosisMap: {
+        level: "district",
+        totalCases: 0,
+        totalPatients: 0,
+        totalRegions: 0,
+        mappedLocations: 0,
+        locations: [],
+      },
     })
   })
 })

@@ -101,6 +101,21 @@ function calculateAge(birthDate: Date) {
   return `${age} tahun`
 }
 
+function formatStructuredAddress(patient: { address: string | null; province: string | null; city: string | null; district: string | null }) {
+  const region = [patient.district, patient.city, patient.province].filter(Boolean).join(", ")
+  const detail = patient.address?.trim()
+
+  if (region && detail) {
+    return `${region} - ${detail}`
+  }
+
+  return region || detail || "-"
+}
+
+function formatRegionAddress(patient: { province: string | null; city: string | null; district: string | null }) {
+  return [patient.district, patient.city, patient.province].filter(Boolean).join(", ") || "Alamat belum terstruktur"
+}
+
 function startOfToday() {
   const now = new Date()
 
@@ -257,7 +272,12 @@ export async function getPatientList() {
     birthDate: dateFormatter.format(patient.birthDate),
     age: calculateAge(patient.birthDate),
     phone: patient.phone ?? "-",
-    address: patient.address ?? "-",
+    address: formatStructuredAddress(patient),
+    addressDetail: patient.address ?? "-",
+    province: patient.province ?? "-",
+    city: patient.city ?? "-",
+    district: patient.district ?? "-",
+    regionAddress: formatRegionAddress(patient),
     bloodType: patient.bloodType ?? "-",
     allergy: patient.allergies ?? "Tidak ada",
     status: patientStatusLabels[patient.status],
@@ -942,7 +962,7 @@ export async function getReportSummary(options: { startDate?: string | null; end
 
 export async function getReportDetails(options: { startDate?: string | null; endDate?: string | null } = {}) {
   const { start, end } = buildDateRangeFilter(options.startDate, options.endDate)
-  const [diagnoses, treatments] = await Promise.all([
+  const [diagnoses, treatments, diagnosisOptions, diagnosisMap] = await Promise.all([
     prisma.diagnosis.groupBy({
       by: ["name"],
       where: {
@@ -957,7 +977,7 @@ export async function getReportDetails(options: { startDate?: string | null; end
       },
       _count: { name: true },
       orderBy: { _count: { name: "desc" } },
-      take: 8,
+      take: 10,
     }),
     prisma.treatment.groupBy({
       by: ["name"],
@@ -976,6 +996,23 @@ export async function getReportDetails(options: { startDate?: string | null; end
       orderBy: { _count: { name: "desc" } },
       take: 8,
     }),
+    prisma.diagnosis.groupBy({
+      by: ["name"],
+      where: {
+        medicalRecord: {
+          visit: {
+            visitDate: {
+              gte: start,
+              lt: end,
+            },
+          },
+        },
+      },
+      _count: { name: true },
+      orderBy: { _count: { name: "desc" } },
+      take: 100,
+    }),
+    getDiagnosisMapReport({ startDate: options.startDate, endDate: options.endDate }),
   ])
 
   return {
@@ -988,6 +1025,314 @@ export async function getReportDetails(options: { startDate?: string | null; end
       count: treatment._count.name,
       totalCost: treatment._sum.cost?.toString() ?? "0",
     })),
+    diagnosisOptions: diagnosisOptions.map((diagnosis) => ({
+      name: diagnosis.name,
+      count: diagnosis._count.name,
+    })),
+    diagnosisMap,
+  }
+}
+
+export type DiagnosisMapOptions = {
+  startDate?: string | null
+  endDate?: string | null
+  diagnosis?: string | null
+  diagnosisType?: "PRIMARY" | "SECONDARY" | "ALL" | null
+  level?: "district" | "city" | null
+}
+
+type DiagnosisMapLocation = {
+  region: string
+  province: string
+  city: string
+  district: string
+  caseCount: number
+  patientCount: number
+  latitude: number | null
+  longitude: number | null
+  topDiagnoses: { name: string; count: number }[]
+}
+
+function wait(ms: number) {
+  return new Promise((resolve) => setTimeout(resolve, ms))
+}
+
+async function geocodeRegionCentroid(query: string) {
+  const url = new URL("https://nominatim.openstreetmap.org/search")
+  url.searchParams.set("q", query)
+  url.searchParams.set("format", "jsonv2")
+  url.searchParams.set("limit", "1")
+  url.searchParams.set("countrycodes", "id")
+
+  const response = await fetch(url, {
+    headers: {
+      "User-Agent": "MedNote-Rekam-Medis/0.0.1",
+      "Accept-Language": "id",
+    },
+  })
+
+  if (!response.ok) {
+    return null
+  }
+
+  const payload = (await response.json()) as { lat?: string; lon?: string }[]
+  const first = payload[0]
+  const latitude = first?.lat ? Number(first.lat) : Number.NaN
+  const longitude = first?.lon ? Number(first.lon) : Number.NaN
+
+  if (Number.isNaN(latitude) || Number.isNaN(longitude)) {
+    return null
+  }
+
+  return { latitude, longitude }
+}
+
+async function cacheMissingRegionCentroids(locations: DiagnosisMapLocation[], level: "district" | "city") {
+  const missingLocations = locations
+    .filter((location) => location.region !== "Alamat belum terstruktur" && (location.latitude === null || location.longitude === null))
+    .slice(0, 5)
+
+  for (const [index, location] of missingLocations.entries()) {
+    if (index > 0) {
+      await wait(1100)
+    }
+
+    const query = level === "city"
+      ? `${location.city}, ${location.province}, Indonesia`
+      : `${location.district}, ${location.city}, ${location.province}, Indonesia`
+    const centroid = await geocodeRegionCentroid(query).catch(() => null)
+
+    if (!centroid) {
+      continue
+    }
+
+    const region = await prisma.region.findFirst({
+      where: {
+        name: level === "city" ? location.city : location.district,
+        type: level === "city" ? "CITY" : "DISTRICT",
+        parent: {
+          name: level === "city" ? location.province : location.city,
+        },
+      },
+      select: {
+        id: true,
+      },
+    })
+
+    if (!region) {
+      continue
+    }
+
+    await prisma.region.update({
+      where: { id: region.id },
+      data: {
+        latitude: centroid.latitude.toFixed(7),
+        longitude: centroid.longitude.toFixed(7),
+      },
+    })
+
+    location.latitude = centroid.latitude
+    location.longitude = centroid.longitude
+  }
+}
+
+export async function getRegionOptions(options: { parentCode?: string | null; type?: "PROVINCE" | "CITY" | "DISTRICT" | null } = {}) {
+  const regions = await prisma.region.findMany({
+    where: {
+      ...(options.parentCode
+        ? {
+            parent: {
+              code: options.parentCode,
+            },
+          }
+        : {}),
+      ...(options.type ? { type: options.type } : {}),
+    },
+    orderBy: [{ name: "asc" }],
+    select: {
+      code: true,
+      name: true,
+      type: true,
+      parent: {
+        select: {
+          code: true,
+          name: true,
+        },
+      },
+    },
+  })
+
+  return regions.map((region) => ({
+    code: region.code,
+    name: region.name,
+    type: region.type,
+    parentCode: region.parent?.code ?? null,
+    parentName: region.parent?.name ?? null,
+  }))
+}
+
+export async function getDiagnosisMapReport(options: DiagnosisMapOptions = {}) {
+  const { start, end } = buildDateRangeFilter(options.startDate, options.endDate)
+  const level = options.level === "city" ? "city" : "district"
+  const diagnosisType = options.diagnosisType && options.diagnosisType !== "ALL" ? options.diagnosisType : undefined
+  const diagnosisFilter = options.diagnosis?.trim()
+  const diagnoses = await prisma.diagnosis.findMany({
+    where: {
+      ...(diagnosisType ? { type: diagnosisType } : {}),
+      ...(diagnosisFilter
+        ? {
+            name: {
+              contains: diagnosisFilter,
+              mode: "insensitive",
+            },
+          }
+        : {}),
+      medicalRecord: {
+        visit: {
+          visitDate: {
+            gte: start,
+            lt: end,
+          },
+        },
+      },
+    },
+    take: 5000,
+    select: {
+      id: true,
+      name: true,
+      code: true,
+      type: true,
+      medicalRecord: {
+        select: {
+          visit: {
+            select: {
+              patientId: true,
+              patient: {
+                select: {
+                  province: true,
+                  city: true,
+                  district: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  })
+
+  const regions = await prisma.region.findMany({
+    where: {
+      type: {
+        in: level === "city" ? ["CITY"] : ["CITY", "DISTRICT"],
+      },
+    },
+    include: {
+      parent: {
+        include: {
+          parent: true,
+        },
+      },
+    },
+  })
+  const regionLookup = new Map<string, { latitude: number | null; longitude: number | null }>()
+
+  for (const region of regions) {
+    const parentName = region.parent?.name ?? ""
+    const grandParentName = region.parent?.parent?.name ?? ""
+    const cityKey = `${region.name}|${parentName}`
+    const districtKey = `${region.name}|${parentName}|${grandParentName}`
+
+    if (region.type === "CITY") {
+      regionLookup.set(cityKey, {
+        latitude: region.latitude ? Number(region.latitude) : null,
+        longitude: region.longitude ? Number(region.longitude) : null,
+      })
+    }
+
+    if (region.type === "DISTRICT") {
+      regionLookup.set(districtKey, {
+        latitude: region.latitude ? Number(region.latitude) : null,
+        longitude: region.longitude ? Number(region.longitude) : null,
+      })
+    }
+  }
+
+  const grouped = new Map<
+    string,
+    {
+      region: string
+      province: string
+      city: string
+      district: string
+      caseCount: number
+      patientIds: Set<string>
+      diagnoses: Map<string, number>
+      latitude: number | null
+      longitude: number | null
+    }
+  >()
+
+  for (const diagnosis of diagnoses) {
+    const patient = diagnosis.medicalRecord.visit.patient
+    const province = patient.province ?? ""
+    const city = patient.city ?? ""
+    const district = patient.district ?? ""
+    const hasDistrictLocation = Boolean(province && city && district)
+    const hasCityLocation = Boolean(province && city)
+    const region = level === "district" && hasDistrictLocation ? district : hasCityLocation ? city : "Alamat belum terstruktur"
+    const groupKey = level === "district" && hasDistrictLocation ? `${district}|${city}|${province}` : hasCityLocation ? `${city}|${province}` : "unstructured"
+    const coordinates = regionLookup.get(groupKey) ?? { latitude: null, longitude: null }
+    const current = grouped.get(groupKey) ?? {
+      region,
+      province: province || "-",
+      city: city || "-",
+      district: district || "-",
+      caseCount: 0,
+      patientIds: new Set<string>(),
+      diagnoses: new Map<string, number>(),
+      latitude: coordinates.latitude,
+      longitude: coordinates.longitude,
+    }
+
+    current.caseCount += 1
+    current.patientIds.add(diagnosis.medicalRecord.visit.patientId)
+    current.diagnoses.set(diagnosis.name, (current.diagnoses.get(diagnosis.name) ?? 0) + 1)
+    grouped.set(groupKey, current)
+  }
+
+  const locations = Array.from(grouped.values())
+    .map((item) => {
+      const topDiagnoses = Array.from(item.diagnoses.entries())
+        .sort((a, b) => b[1] - a[1])
+        .slice(0, 5)
+        .map(([name, count]) => ({ name, count }))
+
+      return {
+        region: item.region,
+        province: item.province,
+        city: item.city,
+        district: item.district,
+        caseCount: item.caseCount,
+        patientCount: item.patientIds.size,
+        latitude: item.latitude,
+        longitude: item.longitude,
+        topDiagnoses,
+      }
+    })
+    .sort((a, b) => b.caseCount - a.caseCount)
+
+  await cacheMissingRegionCentroids(locations, level)
+
+  const mappedLocations = locations.filter((location) => location.latitude !== null && location.longitude !== null).length
+
+  return {
+    level,
+    totalCases: diagnoses.length,
+    totalPatients: new Set(diagnoses.map((diagnosis) => diagnosis.medicalRecord.visit.patientId)).size,
+    totalRegions: locations.filter((location) => location.region !== "Alamat belum terstruktur").length,
+    mappedLocations,
+    locations,
   }
 }
 
@@ -1088,6 +1433,8 @@ export type MedicalDocumentListItem = Awaited<ReturnType<typeof getMedicalDocume
 export type DocumentFormOptions = Awaited<ReturnType<typeof getDocumentFormOptions>>
 export type ReportSummaryItem = Awaited<ReturnType<typeof getReportSummary>>[number]
 export type ReportDetails = Awaited<ReturnType<typeof getReportDetails>>
+export type RegionOptionItem = Awaited<ReturnType<typeof getRegionOptions>>[number]
+export type DiagnosisMapReport = Awaited<ReturnType<typeof getDiagnosisMapReport>>
 export type AuditLogListItem = Awaited<ReturnType<typeof getAuditLogList>>[number]
 export type UserListItem = Awaited<ReturnType<typeof getUserList>>[number]
 export type RoleOptionItem = Awaited<ReturnType<typeof getRoleOptions>>[number]

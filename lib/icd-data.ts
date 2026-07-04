@@ -1,3 +1,5 @@
+import { icd9cmEklaimProcedures } from "@/lib/icd-procedures-eklaim"
+
 /**
  * Data ICD-10 (Diagnosa) dan ICD-9-CM (Tindakan Medis) untuk keperluan Asesmen klinis.
  * Daftar ini berisi kode dan nama yang umum digunakan di fasilitas kesehatan Indonesia.
@@ -289,92 +291,5 @@ export const icdDiagnoses: IcdDiagnosisItem[] = [
   { code: "Z76.2", name: "Pengawasan bayi sehat" },
 ]
 
-/** Daftar tindakan medis ICD-9-CM umum */
-export const icdProcedures: IcdProcedureItem[] = [
-  // Pemeriksaan & Diagnostik
-  { code: "89.7",  name: "Anamnesis dan pemeriksaan fisik (umum)" },
-  { code: "89.09", name: "Konsultasi, tidak terklasifikasi" },
-  { code: "87.44", name: "Foto rontgen toraks (Chest X-Ray)" },
-  { code: "87.03", name: "CT-Scan kepala" },
-  { code: "87.41", name: "CT-Scan toraks" },
-  { code: "88.01", name: "CT-Scan abdomen" },
-  { code: "88.72", name: "USG abdomen" },
-  { code: "88.76", name: "USG kandung kemih dan ginjal" },
-  { code: "88.90", name: "MRI, tidak spesifik" },
-  { code: "89.52", name: "Elektrokardiogram (EKG) 12 sadapan" },
-  { code: "89.17", name: "Spirometri (Pemeriksaan kapasitas paru)" },
-  { code: "90.5",  name: "Pemeriksaan laboratorium darah rutin" },
-  { code: "90.59", name: "Pemeriksaan hematologi lainnya (CBC)" },
-  { code: "91.5",  name: "Pemeriksaan urine rutin (Urinalisis)" },
-  { code: "90.6",  name: "Pemeriksaan kadar gula darah (GDS/GDP)" },
-  { code: "90.63", name: "Pemeriksaan HbA1c" },
-  { code: "90.7",  name: "Pemeriksaan profil lipid" },
-  { code: "90.8",  name: "Pemeriksaan fungsi ginjal (Kreatinin, BUN)" },
-  { code: "90.84", name: "Pemeriksaan fungsi hati (SGOT, SGPT)" },
-  { code: "91.22", name: "Pemeriksaan dahak (Sputum BTA)" },
-  { code: "90.01", name: "Pemeriksaan serologi (Rapid test, antigen)" },
-  { code: "91.02", name: "Kultur bakteri, tidak spesifik" },
-  { code: "86.14", name: "Biopsi kulit" },
-  { code: "45.13", name: "Endoskopi saluran cerna atas (Gastroskopi)" },
-  { code: "45.23", name: "Kolonoskopi" },
-
-  // Tindakan Bedah
-  { code: "54.21", name: "Laparoskopi diagnostik" },
-  { code: "47.01", name: "Apendektomi laparoskopik" },
-  { code: "47.0",  name: "Apendektomi terbuka" },
-  { code: "51.23", name: "Laparoskopik kolesistektomi" },
-  { code: "51.22", name: "Kolesistektomi terbuka" },
-  { code: "70.12", name: "Histerektomi total per-abdominam" },
-  { code: "75.51", name: "Seksio sesarea (SC)" },
-  { code: "60.5",  name: "Prostatektomi transurethral (TURP)" },
-  { code: "55.51", name: "Nefrektomi total" },
-  { code: "56.74", name: "Ureterolitotomi (Pengangkatan batu ureter)" },
-  { code: "57.32", name: "Sistoskopi" },
-  { code: "81.47", name: "Penggantian total sendi lutut (TKR)" },
-  { code: "81.51", name: "Penggantian total sendi panggul (THR)" },
-  { code: "79.0",  name: "Reposisi fraktur tertutup" },
-  { code: "79.3",  name: "Reposisi fraktur terbuka dengan fiksasi internal (ORIF)" },
-  { code: "83.0",  name: "Fasiotomi (Insisi fascia)" },
-  { code: "86.04", name: "Debridemen luka" },
-  { code: "86.59", name: "Penjahitan luka (Wound suturing)" },
-  { code: "86.22", name: "Insisi dan drainase abses" },
-  { code: "23.09", name: "Ekstraksi gigi (Cabut gigi)" },
-  { code: "23.20", name: "Restorasi gigi (Tambal gigi)" },
-  { code: "23.11", name: "Pulpektomi dan amputasi pulpa (Perawatan saluran akar)" },
-
-  // Tindakan Medis Non-Bedah
-  { code: "99.04", name: "Transfusi darah lengkap (Whole blood)" },
-  { code: "99.05", name: "Transfusi komponen darah (PRC/Trombosit)" },
-  { code: "99.21", name: "Imunisasi/vaksinasi, tidak spesifik" },
-  { code: "99.25", name: "Injeksi antibiotik" },
-  { code: "99.18", name: "Injeksi insulin" },
-  { code: "99.26", name: "Injeksi antikoagulan" },
-  { code: "99.28", name: "Injeksi obat lainnya" },
-  { code: "99.29", name: "Terapi infus / pemberian cairan IV" },
-  { code: "93.94", name: "Oksigenasi (Pemberian oksigen)" },
-  { code: "93.90", name: "Ventilasi mekanik non-invasif (CPAP/BiPAP)" },
-  { code: "96.70", name: "Ventilasi mekanik invasif (Intubasi ETT)" },
-  { code: "96.04", name: "Pemasangan pipa nasogastrik (NGT)" },
-  { code: "38.93", name: "Pemasangan jalur vena sentral (CVC)" },
-  { code: "57.94", name: "Pemasangan kateter uretra (Folley Catheter)" },
-  { code: "99.61", name: "Resusitasi kardiopulmoner (RJP / CPR)" },
-  { code: "99.6",  name: "Kardioversasi/Defibrilasi jantung" },
-  { code: "39.95", name: "Hemodialisis" },
-  { code: "54.91", name: "Peritoneal dialisis" },
-  { code: "96.51", name: "Perawatan luka, tidak spesifik" },
-
-  // Rehabilitasi
-  { code: "93.12", name: "Latihan gerak sendi (Fisioterapi ROM)" },
-  { code: "93.22", name: "Terapi wicara" },
-  { code: "93.39", name: "Fisioterapi lainnya, tidak spesifik" },
-  { code: "93.82", name: "Terapi psikologis individu" },
-
-  // Kebidanan
-  { code: "73.59", name: "Episiotomi" },
-  { code: "72.1",  name: "Seksio sesarea low segment (LSCS)" },
-  { code: "73.5",  name: "Persalinan manual dan ekstraksi janin lainnya" },
-  { code: "66.29", name: "Ligasi tuba (Tubektomi)" },
-  { code: "96.14", name: "Pemasangan IUD (Intrauterine device)" },
-  { code: "97.71", name: "Pelepasan IUD" },
-  { code: "67.11", name: "Biopsi serviks" },
-]
+/** Daftar tindakan medis ICD-9-CM dari e-klaim. */
+export const icdProcedures: IcdProcedureItem[] = icd9cmEklaimProcedures

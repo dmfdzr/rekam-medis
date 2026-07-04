@@ -90,7 +90,7 @@ export default async function Page() {
     canViewDocuments ? getMedicalDocumentList() : [],
     canViewDocuments ? getDocumentFormOptions() : emptyDocumentOptions,
     canViewReports ? getReportSummary() : [],
-    canViewReports ? getReportDetails() : { diagnoses: [], treatments: [] },
+    canViewReports ? getReportDetails() : { diagnoses: [], treatments: [], diagnosisOptions: [], diagnosisMap: { level: "district", totalCases: 0, totalPatients: 0, totalRegions: 0, mappedLocations: 0, locations: [] } },
     canViewAudit ? getAuditLogList() : [],
     canViewUsers ? getUserList() : [],
     canViewUsers ? getRoleOptions() : [],

@@ -13,6 +13,177 @@ import { Button } from "@/components/ui/button"
 
 const initialClinicFormState: ClinicFormState = {}
 
+type RegionOption = {
+  code: string
+  name: string
+  type: "PROVINCE" | "CITY" | "DISTRICT"
+  parentCode: string | null
+  parentName: string | null
+}
+
+function toComboboxItems(regions: RegionOption[]) {
+  return regions.map((region) => ({ value: region.code, label: region.name }))
+}
+
+function RegionAddressFields({
+  required,
+  errors,
+}: {
+  required: boolean
+  errors?: Record<string, string[]>
+}) {
+  const [provinces, setProvinces] = React.useState<RegionOption[]>([])
+  const [cities, setCities] = React.useState<RegionOption[]>([])
+  const [districts, setDistricts] = React.useState<RegionOption[]>([])
+  const [provinceCode, setProvinceCode] = React.useState("")
+  const [cityCode, setCityCode] = React.useState("")
+  const [districtCode, setDistrictCode] = React.useState("")
+  const [loading, setLoading] = React.useState(false)
+
+  async function loadRegions(url: string) {
+    const response = await fetch(url)
+
+    if (!response.ok) {
+      return []
+    }
+
+    const payload = (await response.json()) as { regions: RegionOption[] }
+
+    return payload.regions
+  }
+
+  React.useEffect(() => {
+    let ignore = false
+
+    setLoading(true)
+    loadRegions("/regions?type=PROVINCE")
+      .then((items) => {
+        if (!ignore) {
+          setProvinces(items)
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [])
+
+  React.useEffect(() => {
+    let ignore = false
+
+    setCityCode("")
+    setDistrictCode("")
+    setCities([])
+    setDistricts([])
+
+    if (!provinceCode) {
+      return () => {
+        ignore = true
+      }
+    }
+
+    setLoading(true)
+    loadRegions(`/regions?type=CITY&parentCode=${encodeURIComponent(provinceCode)}`)
+      .then((items) => {
+        if (!ignore) {
+          setCities(items)
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [provinceCode])
+
+  React.useEffect(() => {
+    let ignore = false
+
+    setDistrictCode("")
+    setDistricts([])
+
+    if (!cityCode) {
+      return () => {
+        ignore = true
+      }
+    }
+
+    setLoading(true)
+    loadRegions(`/regions?type=DISTRICT&parentCode=${encodeURIComponent(cityCode)}`)
+      .then((items) => {
+        if (!ignore) {
+          setDistricts(items)
+        }
+      })
+      .finally(() => {
+        if (!ignore) {
+          setLoading(false)
+        }
+      })
+
+    return () => {
+      ignore = true
+    }
+  }, [cityCode])
+
+  const selectedProvince = provinces.find((region) => region.code === provinceCode)
+  const selectedCity = cities.find((region) => region.code === cityCode)
+  const selectedDistrict = districts.find((region) => region.code === districtCode)
+
+  return (
+    <section className="grid gap-3 rounded-md border border-border bg-card p-4">
+      <div>
+        <p className="text-sm font-semibold">Alamat</p>
+        <p className="mt-1 text-xs leading-5 text-muted-foreground">
+          Pilih wilayah sampai kecamatan untuk laporan persebaran diagnosis. Kelurahan, jalan, RT/RW, dan nomor rumah ditulis di detail alamat.
+        </p>
+      </div>
+      <input type="hidden" name="province" value={selectedProvince?.name ?? ""} />
+      <input type="hidden" name="city" value={selectedCity?.name ?? ""} />
+      <input type="hidden" name="district" value={selectedDistrict?.name ?? ""} />
+      <div className="grid gap-3 sm:grid-cols-3">
+        <ComboboxField
+          name="provinceCode"
+          label="Provinsi"
+          items={toComboboxItems(provinces)}
+          placeholder={loading && provinces.length === 0 ? "Memuat provinsi..." : required ? "Pilih provinsi" : "Tidak diubah"}
+          value={provinceCode}
+          onValueChange={setProvinceCode}
+          error={errors?.province}
+        />
+        <ComboboxField
+          name="cityCode"
+          label="Kabupaten/Kota"
+          items={toComboboxItems(cities)}
+          placeholder={!provinceCode ? "Pilih provinsi dulu" : loading && cities.length === 0 ? "Memuat kabupaten/kota..." : required ? "Pilih kabupaten/kota" : "Tidak diubah"}
+          value={cityCode}
+          onValueChange={setCityCode}
+          error={errors?.city}
+        />
+        <ComboboxField
+          name="districtCode"
+          label="Kecamatan"
+          items={toComboboxItems(districts)}
+          placeholder={!cityCode ? "Pilih kabupaten/kota dulu" : loading && districts.length === 0 ? "Memuat kecamatan..." : required ? "Pilih kecamatan" : "Tidak diubah"}
+          value={districtCode}
+          onValueChange={setDistrictCode}
+          error={errors?.district}
+        />
+      </div>
+      {!required ? <p className="text-xs leading-5 text-muted-foreground">Kosongkan wilayah jika tidak ingin mengubah alamat terstruktur pasien.</p> : null}
+    </section>
+  )
+}
+
 export function CreatePatientForm() {
   const [state, formAction, pending] = React.useActionState(createPatientAction, initialClinicFormState)
   useRefreshOnSuccess(state)
@@ -41,7 +212,8 @@ export function CreatePatientForm() {
         </label>
         <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
         <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" lettersOnly />
-        <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
+        <RegionAddressFields required errors={state.errors} />
+        <TextAreaField name="address" label="Detail alamat" error={state.errors?.address?.[0]} placeholder="Contoh: Kelurahan Sudimara Barat, Jl. HOS Cokroaminoto, RT 02/RW 04" />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} placeholder="Contoh: Amoxicillin" />
       </div>
       <FormMessage state={state} />
@@ -75,7 +247,8 @@ export function UpdatePatientForm({ patients }: { patients: PatientListItem[] })
           <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
           <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" lettersOnly />
         </div>
-        <TextAreaField name="address" label="Alamat" error={state.errors?.address?.[0]} />
+        <RegionAddressFields required={false} errors={state.errors} />
+        <TextAreaField name="address" label="Detail alamat" error={state.errors?.address?.[0]} />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} />
         <label className="grid gap-1.5">
           <span className="text-sm font-medium">Status pasien</span>
@@ -132,4 +305,3 @@ export function DeactivatePatientForm({ patients }: { patients: PatientListItem[
     </form>
   )
 }
-

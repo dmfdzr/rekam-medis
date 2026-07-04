@@ -7,6 +7,7 @@ import { CheckCircle2, Download, Eye } from "lucide-react"
 
 import { useListControls, useRefreshOnSuccess } from "@/lib/hooks"
 import { Button } from "@/components/ui/button"
+import { DownloadAction } from "@/components/shared/download-action"
 import { EmptyState, StatusBadge, PermissionNotice } from "@/components/shared/feedback"
 import { ModalDialog, Panel } from "@/components/shared/layout"
 import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
@@ -240,12 +241,7 @@ export function DocumentsSection({
                             Lihat
                           </a>
                         </Button>
-                        <Button asChild variant="outline" size="sm" className="w-fit">
-                          <a href={`${record.documentUrl}?download=1`}>
-                            <Download className="size-3 mr-1" aria-hidden="true" />
-                            Download
-                          </a>
-                        </Button>
+                        <DownloadAction href={`${record.documentUrl}?download=1`} label="Download" icon={Download} size="sm" className="w-fit" loadingTitle="Menyiapkan dokumen medis" loadingDetail="Resume medis sedang dibuat dalam format PDF." />
                         {!record.isVerified && record.status === "FINAL" && (
                           <VerifyForm recordId={record.id} canVerify={canVerify} />
                         )}
@@ -298,12 +294,7 @@ export function DocumentsSection({
                         Lihat
                       </a>
                     </Button>
-                    <Button asChild variant="outline" size="sm" className="w-full sm:w-fit">
-                      <a href={`${record.documentUrl}?download=1`}>
-                        <Download className="size-3 mr-1" aria-hidden="true" />
-                        Download
-                      </a>
-                    </Button>
+                    <DownloadAction href={`${record.documentUrl}?download=1`} label="Download" icon={Download} size="sm" className="w-full sm:w-fit" loadingTitle="Menyiapkan dokumen medis" loadingDetail="Resume medis sedang dibuat dalam format PDF." />
                     {!record.isVerified && record.status === "FINAL" && (
                       <VerifyForm recordId={record.id} canVerify={canVerify} />
                     )}
