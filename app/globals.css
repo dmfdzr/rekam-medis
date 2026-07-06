@@ -129,6 +129,32 @@
     @apply font-sans;
     scroll-behavior: smooth;
     }
+  * {
+    scrollbar-width: thin;
+    scrollbar-color:
+      color-mix(in oklch, var(--muted-foreground), transparent 62%)
+      transparent;
+  }
+  *::-webkit-scrollbar {
+    width: 0.625rem;
+    height: 0.625rem;
+  }
+  *::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  *::-webkit-scrollbar-thumb {
+    min-height: 2.5rem;
+    border: 0.1875rem solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+    background-color: color-mix(in oklch, var(--muted-foreground), transparent 68%);
+  }
+  *::-webkit-scrollbar-thumb:hover {
+    background-color: color-mix(in oklch, var(--primary), var(--muted-foreground) 34%);
+  }
+  *::-webkit-scrollbar-corner {
+    background: transparent;
+  }
   button,
   input,
   textarea,
