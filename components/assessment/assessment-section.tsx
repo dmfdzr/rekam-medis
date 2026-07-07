@@ -31,6 +31,8 @@ import {
 } from "@/components/ui/popover"
 
 const initialClinicFormState: ClinicFormState = {}
+const COMBOBOX_INITIAL_LIMIT = 120
+const COMBOBOX_LIMIT_STEP = 120
 
 function ComboboxField({
   label,
@@ -50,10 +52,44 @@ function ComboboxField({
   const [open, setOpen] = React.useState(false)
   const [value, setValue] = React.useState(defaultValueCode)
   const [query, setQuery] = React.useState("")
+  const [visibleLimit, setVisibleLimit] = React.useState(COMBOBOX_INITIAL_LIMIT)
 
   const selectedItem = React.useMemo(
     () => items.find((item) => item.code === value),
     [value, items]
+  )
+  const normalizedQuery = query.trim().toLowerCase()
+  const filteredItems = React.useMemo(() => {
+    if (!normalizedQuery) {
+      return items
+    }
+
+    return items.filter((item) =>
+      item.name.toLowerCase().includes(normalizedQuery) ||
+      item.code.toLowerCase().includes(normalizedQuery)
+    )
+  }, [items, normalizedQuery])
+  const visibleItems = filteredItems.slice(0, visibleLimit)
+  const hasMoreItems = visibleItems.length < filteredItems.length
+
+  React.useEffect(() => {
+    setVisibleLimit(COMBOBOX_INITIAL_LIMIT)
+  }, [normalizedQuery, open])
+
+  const loadMoreItems = React.useCallback(() => {
+    setVisibleLimit((currentLimit) => Math.min(currentLimit + COMBOBOX_LIMIT_STEP, filteredItems.length))
+  }, [filteredItems.length])
+
+  const handleListScroll = React.useCallback(
+    (event: React.UIEvent<HTMLDivElement>) => {
+      const target = event.currentTarget
+      const distanceFromBottom = target.scrollHeight - target.scrollTop - target.clientHeight
+
+      if (distanceFromBottom < 48 && hasMoreItems) {
+        loadMoreItems()
+      }
+    },
+    [hasMoreItems, loadMoreItems],
   )
 
   return (
@@ -80,27 +116,22 @@ function ComboboxField({
           </Button>
         </PopoverTrigger>
         <PopoverContent className="w-[min(40rem,calc(100vw-2rem))] p-0" align="start">
-          <Command>
+          <Command shouldFilter={false}>
             <CommandInput 
               placeholder={`Cari ${label.toLowerCase()}...`} 
               value={query}
               onValueChange={setQuery}
             />
-            <CommandList>
+            <CommandList onScroll={handleListScroll}>
               <CommandEmpty>Tidak ada hasil ditemukan.</CommandEmpty>
               <CommandGroup>
-                {items
-                  .filter((item) => 
-                    item.name.toLowerCase().includes(query.toLowerCase()) || 
-                    item.code.toLowerCase().includes(query.toLowerCase())
-                  )
-                  .slice(0, 50)
-                  .map((item) => (
+                {visibleItems.map((item) => (
                     <CommandItem
                       key={item.code}
                       value={`${item.code} ${item.name}`}
                       onSelect={() => {
                         setValue(item.code)
+                        setQuery("")
                         setOpen(false)
                       }}
                     >
@@ -114,6 +145,18 @@ function ComboboxField({
                       <span>{item.name}</span>
                     </CommandItem>
                   ))}
+                {filteredItems.length === 0 ? null : (
+                  <div className="px-2.5 py-2 text-xs text-muted-foreground">
+                    Menampilkan {visibleItems.length.toLocaleString("id-ID")} dari {filteredItems.length.toLocaleString("id-ID")} data.
+                  </div>
+                )}
+                {hasMoreItems ? (
+                  <div className="p-1">
+                    <Button type="button" variant="ghost" size="sm" className="w-full" onClick={loadMoreItems}>
+                      Muat lebih banyak
+                    </Button>
+                  </div>
+                ) : null}
               </CommandGroup>
             </CommandList>
           </Command>
@@ -307,7 +350,6 @@ function AssessmentList({ assessmentList }: { assessmentList: ClinicalWorklistIt
       visit.allergies,
       visit.service,
       visit.doctor,
-      visit.chiefComplaint,
       visit.status,
       visit.medicalRecord?.assessment ?? "",
       visit.medicalRecord?.subjective ?? "",
@@ -353,10 +395,6 @@ function AssessmentList({ assessmentList }: { assessmentList: ClinicalWorklistIt
                   </div>
                 </div>
                 <div className="mt-4 grid gap-2 text-sm leading-6">
-                  <p>
-                    <span className="font-medium">Keluhan: </span>
-                    {visit.chiefComplaint}
-                  </p>
                   <p>
                     <span className="font-medium">Diagnosa masuk: </span>
                     {visit.medicalRecord?.assessment || "-"}
@@ -433,7 +471,6 @@ function AssessmentDetailDialog({ visit }: { visit: ClinicalWorklistItem }) {
           </div>
 
           <div className="grid gap-3">
-            <DetailItem label="Keluhan utama" value={visit.chiefComplaint} />
             <DetailItem label="Diagnosa masuk" value={visit.medicalRecord?.assessment || "-"} />
             <DetailItem label="Riwayat penyakit" value={visit.medicalRecord?.subjective || "-"} />
             <DetailItem label="Diagnosa utama" value={primaryDiagnosis ? `${primaryDiagnosis.code || "-"} - ${primaryDiagnosis.name}` : "-"} />

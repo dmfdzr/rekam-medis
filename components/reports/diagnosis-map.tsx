@@ -9,6 +9,15 @@ type DiagnosisMapProps = {
   report: DiagnosisMapReport
 }
 
+function escapeHtml(value: string | number) {
+  return String(value)
+    .replaceAll("&", "&amp;")
+    .replaceAll("<", "&lt;")
+    .replaceAll(">", "&gt;")
+    .replaceAll('"', "&quot;")
+    .replaceAll("'", "&#39;")
+}
+
 export function DiagnosisMap({ report }: DiagnosisMapProps) {
   const mapRef = React.useRef<HTMLDivElement | null>(null)
   const leafletRef = React.useRef<L.Map | null>(null)
@@ -94,7 +103,21 @@ export function DiagnosisMap({ report }: DiagnosisMapProps) {
       const intensity = location.caseCount / maxCases
       const radius = Math.max(8, Math.min(28, 8 + intensity * 20))
       const color = intensity > 0.66 ? "#dc2626" : intensity > 0.33 ? "#f59e0b" : "#0f766e"
-      const diagnoses = location.topDiagnoses.map((diagnosis) => `${diagnosis.name} (${diagnosis.count})`).join(", ") || "-"
+      const diagnoses = location.topDiagnoses.length
+        ? `<ul style="margin:6px 0 0 18px;padding:0;line-height:1.45;">${location.topDiagnoses
+            .map((diagnosis) => {
+              const code = "code" in diagnosis ? diagnosis.code : "-"
+
+              return `<li><strong>${escapeHtml(code || "-")}</strong> - ${escapeHtml(diagnosis.name)} <span style="color:#475569;">(${escapeHtml(diagnosis.count)} kasus)</span></li>`
+            })
+            .join("")}</ul>`
+        : "-"
+      const popup = [
+        `<strong>${escapeHtml(location.region)}</strong>`,
+        `Kasus: ${escapeHtml(location.caseCount)}`,
+        `Pasien: ${escapeHtml(location.patientCount)}`,
+        `Diagnosis:${diagnoses}`,
+      ].join("<br/>")
 
       L.circleMarker([lat, lng], {
         radius,
@@ -103,7 +126,7 @@ export function DiagnosisMap({ report }: DiagnosisMapProps) {
         fillOpacity: 0.28,
         weight: 2,
       })
-        .bindPopup(`<strong>${location.region}</strong><br/>Kasus: ${location.caseCount}<br/>Pasien: ${location.patientCount}<br/>Diagnosis: ${diagnoses}`)
+        .bindPopup(popup)
         .addTo(layer)
 
       bounds.extend([lat, lng])

@@ -32,7 +32,6 @@ export function VisitSummaryCard({ visit }: { visit: ClinicalWorklistItem }) {
           </p>
         </div>
       </div>
-      <p className="mt-4 text-sm leading-6">{visit.chiefComplaint}</p>
       <p className="mt-2 text-xs text-muted-foreground">Alergi: {visit.allergies}</p>
     </div>
   )
@@ -125,7 +124,6 @@ export function LaboratorySection({
       visit.allergies,
       visit.service,
       visit.doctor,
-      visit.chiefComplaint,
       visit.status,
       visit.laboratoryResult?.examinationDate ?? "",
       visit.laboratoryResult?.hemoglobin ?? "",

@@ -294,6 +294,7 @@ type ResumePdfData = {
     condition: string | null
     instruction: string
   }
+  isVerified: boolean
   verifiedAt: string
   signatureDoctor: string
 }
@@ -451,12 +452,16 @@ function buildResumeMedicalPdf(data: ResumePdfData) {
 
   fullRow("Instruksi Pulang", data.discharge.instruction, 34)
 
-  const signatureName = `(${data.signatureDoctor || "Nama DPJP"})`
-  const signatureWidth = Math.max(88, signatureName.length * 4.8)
+  const signatureName = data.isVerified ? `(${data.signatureDoctor})` : ""
+  const signatureWidth = Math.max(88, (signatureName || " ".repeat(18)).length * 4.8)
   const signatureX = x4 - 22 - signatureWidth
-  text(signatureX - 88, 54, `Telah diverifikasi pada ${data.verifiedAt}`, 8)
+  if (data.isVerified) {
+    text(signatureX - 88, 54, `Telah diverifikasi pada ${data.verifiedAt}`, 8)
+  }
   line(signatureX, 50, signatureX + signatureWidth, 50)
-  text(signatureX + Math.max(0, (signatureWidth - signatureName.length * 4.6) / 2), 32, signatureName, 9, "F2")
+  if (data.isVerified) {
+    text(signatureX + Math.max(0, (signatureWidth - signatureName.length * 4.6) / 2), 32, signatureName, 9, "F2")
+  }
 
   const content = ["q", "0.8 w", ...commands, "Q"].join("\n")
   const resources = logoImage ? "/Font << /F1 3 0 R /F2 6 0 R >> /XObject << /Logo 7 0 R >>" : "/Font << /F1 3 0 R /F2 6 0 R >>"
@@ -588,7 +593,8 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   const primaryDiagnosisCode = primaryDiagnosis?.code || "-"
   const secondaryDiagnosisCodes = secondaryDiagnoses.map((diagnosis) => diagnosis.code || "-")
   const treatmentCodes = record.treatments.map((treatment) => treatment.code || "-")
-  const verifierName = record.verifiedBy?.name ?? record.visit.doctor?.name ?? record.doctor?.name ?? "Nama DPJP"
+  const isVerified = Boolean(record.isVerified && record.verifiedAt)
+  const verifierName = record.verifiedBy?.name ?? ""
   const verifiedAtLabel = record.verifiedAt ? dateTimeFormatter.format(record.verifiedAt) : "-"
   const physicalExam = [
     vital?.bloodPressure ? `Tekanan darah ${vital.bloodPressure} mmHg` : null,
@@ -639,6 +645,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       .signature-box { display: inline-block; min-width: 44mm; }
       .verified-line { margin-bottom: 8px; font-size: 11px; white-space: nowrap; }
       .signature-line { border-top: 1px solid #111827; margin-bottom: 14px; }
+      .signature-name { min-height: 16px; font-weight: 700; }
       @media print {
         @page { size: A4; margin: 0; }
         body { background: white; padding: 0; }
@@ -771,9 +778,9 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       </table>
         <div class="signature">
           <div class="signature-box">
-            <div class="verified-line">Telah diverifikasi pada ${escapeHtml(verifiedAtLabel)}</div>
+            ${isVerified ? `<div class="verified-line">Telah diverifikasi pada ${escapeHtml(verifiedAtLabel)}</div>` : ""}
             <div class="signature-line"></div>
-            <div>(${escapeHtml(verifierName)})</div>
+            <div class="signature-name">${isVerified ? `(${escapeHtml(verifierName)})` : ""}</div>
           </div>
         </div>
       </div>
@@ -843,8 +850,9 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
         condition: dischargeData?.dischargeCondition ?? null,
         instruction: dischargeData?.dischargeInstruction ?? "-",
       },
+      isVerified,
       verifiedAt: verifiedAtLabel,
-      signatureDoctor: verifierName,
+      signatureDoctor: isVerified ? verifierName : "",
     })
 
     return new Response(pdf, {

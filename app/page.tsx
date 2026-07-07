@@ -15,7 +15,7 @@ const workflowItems = [
   },
   {
     title: "Kunjungan",
-    description: "Petugas menentukan ruang rawat, DPJP, rawat bersama, registrasi pasien, dan keluhan utama.",
+    description: "Petugas menentukan ruang rawat, DPJP, rawat bersama, dan registrasi pasien.",
     icon: Stethoscope,
   },
   {

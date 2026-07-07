@@ -72,7 +72,7 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
   },
   visits: {
     title: "Kunjungan",
-    description: "Buat kunjungan dari data pasien, tentukan ruang rawat, DPJP, rawat bersama, keluhan utama, dan registrasi pasien.",
+    description: "Buat kunjungan dari data pasien, tentukan ruang rawat, DPJP, rawat bersama, dan registrasi pasien.",
     action: "Kelola kunjungan",
   },
   laboratory: {

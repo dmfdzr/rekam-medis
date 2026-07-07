@@ -213,7 +213,6 @@ model Visit {
   dischargeDate   DateTime?
   patientType     PatientType @default(UMUM)
   service         String
-  chiefComplaint  String
   status          VisitStatus @default(WAITING)
   isJointCare     Boolean     @default(false)
   createdById     String?

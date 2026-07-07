@@ -72,7 +72,6 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
             <DetailItem label="Telepon" value={record.patientPhone} />
             <DetailItem label="Alamat" value={record.patientAddress} />
             <DetailItem label="Dokter" value={record.doctor} />
-            <DetailItem label="Keluhan utama" value={record.chiefComplaint} />
           </div>
 
           {record.laboratoryDetail ? (
@@ -208,7 +207,7 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
           name="intent"
           value="final"
         >
-          Kelola CPPT
+          Finalisasi CPPT
         </ConfirmSubmitButton>
       </div>
     </form>
@@ -223,7 +222,6 @@ export function MedicalRecordTimeline({ medicalRecordHistory }: { medicalRecordH
       record.service,
       record.doctor,
       record.status,
-      record.chiefComplaint,
       record.diagnosis,
       record.treatments,
       record.prescriptions,

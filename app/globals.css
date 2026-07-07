@@ -184,6 +184,23 @@
 }
 
 @layer utilities {
+  .toast-item-enter {
+    animation: toast-slide-in 340ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  .toast-item-exit {
+    pointer-events: none;
+    animation: toast-slide-out 260ms cubic-bezier(0.4, 0, 1, 1) both;
+  }
+
+  .toast-progress {
+    animation: toast-progress-shrink var(--toast-duration, 3200ms) linear forwards;
+  }
+
+  .toast-progress-paused {
+    animation-play-state: paused;
+  }
+
   .route-content-transition {
     animation: route-content-enter 360ms cubic-bezier(0.22, 1, 0.36, 1) both;
   }
@@ -197,6 +214,37 @@
     transform-origin: left;
     background: linear-gradient(90deg, var(--primary), color-mix(in oklch, var(--primary), white 32%));
     animation: route-progress 420ms cubic-bezier(0.22, 1, 0.36, 1) both;
+  }
+
+  @keyframes toast-slide-in {
+    from {
+      opacity: 0;
+      transform: translateX(1.5rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+
+  @keyframes toast-slide-out {
+    from {
+      opacity: 1;
+      transform: translateX(0);
+    }
+    to {
+      opacity: 0;
+      transform: translateX(1.5rem);
+    }
+  }
+
+  @keyframes toast-progress-shrink {
+    from {
+      transform: scaleX(1);
+    }
+    to {
+      transform: scaleX(0);
+    }
   }
 
   @keyframes route-content-enter {
@@ -229,6 +277,9 @@
   }
 
   @media (prefers-reduced-motion: reduce) {
+    .toast-item-enter,
+    .toast-item-exit,
+    .toast-progress,
     .route-content-transition,
     .route-transition-indicator {
       animation: none;

@@ -119,7 +119,6 @@ async function main() {
           visitDate,
           admissionDate: visitDate,
           service: seed.room,
-          chiefComplaint: seed.complaint,
           patientType: PatientType.UMUM,
           status: VisitStatus.VITAL_SIGN,
           isJointCare,

@@ -7,7 +7,7 @@ import * as React from "react"
 import { Plus, Trash2 } from "lucide-react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextField, TextAreaField, FieldError, FormMessage, DatePickerField, ComboboxField } from "@/components/shared/forms"
+import { FieldError, FormMessage, DatePickerField, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -129,7 +129,6 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
           placeholder="Pilih ruang rawat"
           error={state.errors?.service}
         />
-        <TextAreaField name="chiefComplaint" label="Keluhan utama" error={state.errors?.chiefComplaint?.[0]} />
         <DatePickerField name="admissionDate" label="Tanggal masuk" error={state.errors?.admissionDate?.[0]} />
       </div>
       <FormMessage state={state} />

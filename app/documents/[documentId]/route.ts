@@ -207,7 +207,6 @@ export async function GET(request: Request, context: { params: Promise<{ documen
       ${document.visit ? section("Data Kunjungan", [
         ["Tanggal Kunjungan", dateTimeFormatter.format(document.visit.visitDate)],
         ["Ruang Rawat", document.visit.service],
-        ["Keluhan Utama", document.visit.chiefComplaint],
         ["Dokter", document.visit.doctor?.name],
         ["Status", document.visit.status],
       ]) : ""}

@@ -76,7 +76,6 @@ test.describe('Registration Workflow', () => {
     await expect(page.locator('select[name="patientType"]')).toHaveValue('UMUM');
     await selectComboboxOption(page, 2, /Raka/);
     await selectComboboxOption(page, 3, 'Poli Umum');
-    await page.locator('textarea[name="chiefComplaint"]').fill('Sakit kepala sejak 2 hari yang lalu');
     await selectCurrentDate(page, 'Tanggal masuk');
 
     await page.getByRole('button', { name: 'Buat kunjungan' }).last().click();

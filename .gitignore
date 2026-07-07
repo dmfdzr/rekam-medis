@@ -26,6 +26,7 @@
 PRD.md
 AGENTS.md
 (PUBLIC) ICD-9CM e-klaim.csv
+(PUBLIC) ICD-10 e-klaim.csv
 
 # debug
 npm-debug.log*

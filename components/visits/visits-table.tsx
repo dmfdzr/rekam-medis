@@ -40,11 +40,6 @@ export function VisitDetailDialog({ visit }: { visit: VisitListItem }) {
             <PatientDetailItem label="Registrasi pasien" value={visit.patientType} />
             <PatientDetailItem label="Lama dirawat" value={visit.lengthOfStay} />
           </div>
-
-          <div className="rounded-md border border-border bg-card p-4">
-            <p className="text-xs text-muted-foreground">Keluhan utama</p>
-            <p className="mt-1 text-sm font-medium leading-6">{visit.complaint}</p>
-          </div>
         </div>
       </ModalDialog>
     </>
@@ -66,7 +61,7 @@ export function ResponsiveVisitsTable({
 }) {
   const visitStatuses = React.useMemo(() => getUniqueOptions(visits, (visit) => visit.status), [visits])
   const searchSelector = React.useCallback(
-    (visit: VisitListItem) => [visit.id, visit.patient, visit.medicalRecordNumber, visit.service, visit.doctor, visit.complaint, visit.status],
+    (visit: VisitListItem) => [visit.id, visit.patient, visit.medicalRecordNumber, visit.service, visit.doctor, visit.status],
     [],
   )
   const filterSelector = React.useCallback((visit: VisitListItem, value: string) => visit.status === value, [])
@@ -85,7 +80,7 @@ export function ResponsiveVisitsTable({
           <ListToolbar
             query={controls.query}
             onQueryChange={controls.setQuery}
-            searchPlaceholder="Cari pasien, RM, ruang rawat, dokter, keluhan"
+            searchPlaceholder="Cari pasien, RM, ruang rawat, dokter"
             resultCount={controls.totalItems}
             totalCount={visits.length}
           />
@@ -112,7 +107,7 @@ export function ResponsiveVisitsTable({
         <ListToolbar
           query={controls.query}
           onQueryChange={controls.setQuery}
-          searchPlaceholder="Cari pasien, RM, ruang rawat, dokter, keluhan"
+          searchPlaceholder="Cari pasien, RM, ruang rawat, dokter"
           resultCount={controls.totalItems}
           totalCount={visits.length}
         />

@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server"
 import * as XLSX from "xlsx"
 
+import { getDiagnosisExportRows } from "@/lib/data/clinic"
 import { auditReportAccess, getAuthorizedReportContext, reportExportFileName } from "@/lib/reports/export"
 
 function autoWidth(rows: (string | number)[][]) {
@@ -30,57 +31,19 @@ export async function GET(request: Request) {
 
   await auditReportAccess(request, "excel", context)
 
-  const details = context.bundle.details
-  const topDiagnosis = details.diagnosisOptions[0]
-  const topRegion = details.diagnosisMap.locations[0]
-  const generatedAt = new Intl.DateTimeFormat("id-ID", {
-    day: "2-digit",
-    month: "long",
-    year: "numeric",
-    hour: "2-digit",
-    minute: "2-digit",
-  }).format(new Date())
   const workbook = XLSX.utils.book_new()
+  const rows = await getDiagnosisExportRows(context.dateOptions.options)
 
   workbook.Props = {
     Title: "MedNote - Laporan Diagnosis",
-    Subject: "Laporan diagnosis dan persebaran wilayah",
+    Subject: "Laporan diagnosis pasien",
     Author: "MedNote",
     CreatedDate: new Date(),
   }
 
-  addSheet(workbook, "Ringkasan", [
-    ["MedNote - Laporan Diagnosis", ""],
-    ["Periode", context.dateOptions.periodLabel],
-    ["Dibuat", generatedAt],
-    [],
-    ["Metrik", "Nilai"],
-    ["Total kasus diagnosis", details.diagnosisMap.totalCases],
-    ["Diagnosis terbanyak", topDiagnosis ? `${topDiagnosis.name} (${topDiagnosis.count} kasus)` : "-"],
-    ["Wilayah terdampak", details.diagnosisMap.totalRegions],
-    ["Wilayah kasus tertinggi", topRegion ? `${topRegion.region} (${topRegion.caseCount} kasus)` : "-"],
-  ])
-
-  addSheet(workbook, "10 Diagnosa Teratas", [
-    ["Ranking", "Diagnosa", "Kasus"],
-    ...details.diagnoses.map((diagnosis, index) => [index + 1, diagnosis.name, diagnosis.count]),
-  ])
-
-  addSheet(workbook, "Tindakan Medis", [
-    ["Tindakan", "Jumlah"],
-    ...details.treatments.map((treatment) => [treatment.name, treatment.count]),
-  ])
-
-  addSheet(workbook, "Wilayah Diagnosis", [
-    ["Wilayah", "Kota/Kabupaten", "Provinsi", "Kasus", "Pasien", "Diagnosis teratas"],
-    ...details.diagnosisMap.locations.map((location) => [
-      location.region,
-      location.city,
-      location.province,
-      location.caseCount,
-      location.patientCount,
-      location.topDiagnoses.map((diagnosis) => `${diagnosis.name} (${diagnosis.count})`).join("; ") || "-",
-    ]),
+  addSheet(workbook, "Laporan Diagnosis", [
+    ["Nama", "Alamat", "Diagnosa Utama", "Diagnosa Sekunder"],
+    ...rows.map((row) => [row.patientName, row.address, row.primaryDiagnosis, row.secondaryDiagnosis]),
   ])
 
   const buffer = XLSX.write(workbook, { bookType: "xlsx", type: "buffer" }) as Buffer

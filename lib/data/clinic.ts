@@ -136,6 +136,10 @@ function formatStructuredAddress(patient: { address: string | null; province: st
   return region || detail || "-"
 }
 
+function formatExportAddress(patient: { address: string | null; province: string | null; city: string | null; district: string | null }) {
+  return [patient.address?.trim(), patient.district, patient.city, patient.province].filter(Boolean).join(", ") || "-"
+}
+
 function formatRegionAddress(patient: { province: string | null; city: string | null; district: string | null }) {
   return [patient.district, patient.city, patient.province].filter(Boolean).join(", ") || "Alamat belum terstruktur"
 }
@@ -372,7 +376,6 @@ export async function getVisitList() {
       medicalRecordNumber: visit.patient.medicalRecordNumber,
       service: visit.service,
       doctor: visit.doctor?.name ?? "Belum ditentukan",
-      complaint: visit.chiefComplaint,
       status: visitStatusLabels[visit.status],
       time: timeFormatter.format(visit.visitDate),
       admissionDate: dateFormatter.format(visit.admissionDate),
@@ -544,7 +547,6 @@ export async function getClinicalWorklist(
     allergies: visit.patient.allergies ?? "Tidak ada",
     service: visit.service,
     doctor: visit.doctor?.name ?? "Belum ditentukan",
-    chiefComplaint: visit.chiefComplaint,
     workflowStatus: visit.status,
     status: visitStatusLabels[visit.status],
     time: timeFormatter.format(visit.visitDate),
@@ -692,7 +694,6 @@ export async function getMedicalRecordHistory(viewer?: DataViewer) {
       service: record.visit.service,
       doctor: record.doctor?.name ?? "Belum ditentukan",
       status: medicalRecordStatusLabels[record.status],
-      chiefComplaint: record.visit.chiefComplaint,
       subjective: record.subjective ?? "-",
       objective: record.objective ?? "-",
       assessment: record.assessment ?? primaryDiagnosis?.name ?? "-",
@@ -1082,6 +1083,67 @@ export async function getReportDetails(options: { startDate?: string | null; end
   }
 }
 
+export async function getDiagnosisExportRows(options: { startDate?: string | null; endDate?: string | null } = {}) {
+  const { start, end } = buildDateRangeFilter(options.startDate, options.endDate)
+  const records = await prisma.medicalRecord.findMany({
+    where: {
+      diagnoses: {
+        some: {},
+      },
+      visit: {
+        visitDate: {
+          gte: start,
+          lt: end,
+        },
+      },
+    },
+    orderBy: [
+      { visit: { patient: { fullName: "asc" } } },
+      { createdAt: "asc" },
+    ],
+    select: {
+      id: true,
+      diagnoses: {
+        orderBy: [
+          { type: "asc" },
+          { createdAt: "asc" },
+        ],
+        select: {
+          code: true,
+          name: true,
+          type: true,
+        },
+      },
+      visit: {
+        select: {
+          patient: {
+            select: {
+              fullName: true,
+              address: true,
+              province: true,
+              city: true,
+              district: true,
+            },
+          },
+        },
+      },
+    },
+  })
+
+  return records.map((record) => {
+    const primaryDiagnoses = record.diagnoses.filter((diagnosis) => diagnosis.type === "PRIMARY")
+    const secondaryDiagnoses = record.diagnoses.filter((diagnosis) => diagnosis.type === "SECONDARY")
+    const formatDiagnosis = (diagnosis: (typeof record.diagnoses)[number]) => [diagnosis.code, diagnosis.name].filter(Boolean).join(" - ")
+
+    return {
+      patientName: record.visit.patient.fullName,
+      address: formatExportAddress(record.visit.patient),
+      primaryDiagnosis: primaryDiagnoses.map(formatDiagnosis).join("; ") || "-",
+      secondaryDiagnosis: secondaryDiagnoses.map(formatDiagnosis).join("; ") || "-",
+    }
+  })
+}
+
 export type DiagnosisMapOptions = {
   startDate?: string | null
   endDate?: string | null
@@ -1099,7 +1161,7 @@ type DiagnosisMapLocation = {
   patientCount: number
   latitude: number | null
   longitude: number | null
-  topDiagnoses: { name: string; count: number }[]
+  topDiagnoses: { code: string; name: string; count: number }[]
 }
 
 function wait(ms: number) {
@@ -1316,7 +1378,7 @@ export async function getDiagnosisMapReport(options: DiagnosisMapOptions = {}) {
       district: string
       caseCount: number
       patientIds: Set<string>
-      diagnoses: Map<string, number>
+      diagnoses: Map<string, { code: string; name: string; count: number }>
       latitude: number | null
       longitude: number | null
     }
@@ -1339,23 +1401,29 @@ export async function getDiagnosisMapReport(options: DiagnosisMapOptions = {}) {
       district: district || "-",
       caseCount: 0,
       patientIds: new Set<string>(),
-      diagnoses: new Map<string, number>(),
+      diagnoses: new Map<string, { code: string; name: string; count: number }>(),
       latitude: coordinates.latitude,
       longitude: coordinates.longitude,
     }
 
     current.caseCount += 1
     current.patientIds.add(diagnosis.medicalRecord.visit.patientId)
-    current.diagnoses.set(diagnosis.name, (current.diagnoses.get(diagnosis.name) ?? 0) + 1)
+    const diagnosisCode = diagnosis.code ?? "-"
+    const diagnosisKey = `${diagnosisCode}|${diagnosis.name}`
+    const currentDiagnosis = current.diagnoses.get(diagnosisKey)
+    current.diagnoses.set(diagnosisKey, {
+      code: diagnosisCode,
+      name: diagnosis.name,
+      count: (currentDiagnosis?.count ?? 0) + 1,
+    })
     grouped.set(groupKey, current)
   }
 
   const locations = Array.from(grouped.values())
     .map((item) => {
-      const topDiagnoses = Array.from(item.diagnoses.entries())
-        .sort((a, b) => b[1] - a[1])
+      const topDiagnoses = Array.from(item.diagnoses.values())
+        .sort((a, b) => b.count - a.count)
         .slice(0, 5)
-        .map(([name, count]) => ({ name, count }))
 
       return {
         region: item.region,
