@@ -181,6 +181,11 @@ const dateTimeFormatter = new Intl.DateTimeFormat("id-ID", {
   hour: "2-digit",
   minute: "2-digit",
 })
+const documentCodeFormatter = new Intl.DateTimeFormat("id-ID", {
+  month: "2-digit",
+  year: "numeric",
+  timeZone: "Asia/Jakarta",
+})
 
 const dischargeConditionLabels = {
   ALLOWED_HOME: "Diijinkan Pulang",
@@ -207,6 +212,82 @@ function escapeHtml(value: string | number | null | undefined) {
 
 function fileName(value: string) {
   return value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 120)
+}
+
+function toRomanNumeral(value: number) {
+  const numerals: [number, string][] = [
+    [1000, "M"],
+    [900, "CM"],
+    [500, "D"],
+    [400, "CD"],
+    [100, "C"],
+    [90, "XC"],
+    [50, "L"],
+    [40, "XL"],
+    [10, "X"],
+    [9, "IX"],
+    [5, "V"],
+    [4, "IV"],
+    [1, "I"],
+  ]
+  let remaining = Math.max(1, value)
+  let result = ""
+
+  for (const [number, roman] of numerals) {
+    while (remaining >= number) {
+      result += roman
+      remaining -= number
+    }
+  }
+
+  return result
+}
+
+function currentDocumentPeriodCode() {
+  const now = new Date()
+  const parts = documentCodeFormatter.formatToParts(now)
+  const month = parts.find((part) => part.type === "month")?.value ?? String(now.getMonth() + 1).padStart(2, "0")
+  const year = parts.find((part) => part.type === "year")?.value ?? String(now.getFullYear())
+
+  return `${month}/${year}`
+}
+
+async function getMedicalDocumentSequence(record: { id: string; status: string; finalizedAt: Date | null }) {
+  if (record.status !== "FINAL" || !record.finalizedAt) {
+    return null
+  }
+
+  const priorDocuments = await prisma.medicalRecord.count({
+    where: {
+      status: "FINAL",
+      finalizedAt: {
+        lt: record.finalizedAt,
+      },
+      visit: {
+        status: "COMPLETED",
+      },
+    },
+  })
+  const sameTimeDocuments = await prisma.medicalRecord.findMany({
+    where: {
+      status: "FINAL",
+      finalizedAt: record.finalizedAt,
+      visit: {
+        status: "COMPLETED",
+      },
+    },
+    orderBy: { id: "asc" },
+    select: { id: true },
+  })
+  const sameTimeIndex = sameTimeDocuments.findIndex((item) => item.id === record.id)
+
+  return priorDocuments + (sameTimeIndex >= 0 ? sameTimeIndex + 1 : 1)
+}
+
+async function getResumeDocumentCode(record: { id: string; status: string; finalizedAt: Date | null }) {
+  const sequence = await getMedicalDocumentSequence(record)
+
+  return `RI ${currentDocumentPeriodCode()}/${toRomanNumeral(sequence ?? 1)}`
 }
 
 function daysBetween(start: Date, end: Date | null) {
@@ -596,6 +677,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   const isVerified = Boolean(record.isVerified && record.verifiedAt)
   const verifierName = record.verifiedBy?.name ?? ""
   const verifiedAtLabel = record.verifiedAt ? dateTimeFormatter.format(record.verifiedAt) : "-"
+  const documentCode = await getResumeDocumentCode(record)
   const physicalExam = [
     vital?.bloodPressure ? `Tekanan darah ${vital.bloodPressure} mmHg` : null,
     vital?.temperature ? `Suhu ${vital.temperature.toString()} C` : null,
@@ -663,7 +745,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   <body>
     <main>
       <div class="page">
-      <div class="doc-code">RI 02/2020/I</div>
+      <div class="doc-code">${escapeHtml(documentCode)}</div>
       <table class="resume-table">
         <colgroup>
           <col style="width:35%" />
@@ -809,7 +891,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
 
   if (isDownload) {
     const pdf = buildResumeMedicalPdf({
-      documentCode: "RI 02/2020/I",
+      documentCode,
       patient: {
         medicalRecordNumber: patient.medicalRecordNumber,
         name: patient.fullName,
