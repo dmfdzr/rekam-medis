@@ -26,7 +26,7 @@ Data yang dibuat pada satu tahap tampil di fitur tahap tersebut, lalu tersedia s
 - Role-based access untuk `Master`, `Admin`, dan `Dokter`.
 - Dashboard operasional untuk pasien aktif, kunjungan, dokumen medis, dan proses verifikasi.
 - Manajemen pasien dengan NIK 16 digit, nomor RM, kontak, alergi, golongan darah, dan alamat terstruktur.
-- Kunjungan pasien dengan ruang rawat, DPJP utama, rawat bersama, tipe registrasi, keluhan utama, dan status alur otomatis.
+- Kunjungan pasien dengan ruang rawat, DPJP utama, rawat bersama, tipe registrasi, dan status alur otomatis.
 - Dokter hanya melihat dan memproses data kunjungan ketika menjadi DPJP utama atau DPJP pendamping.
 - Asesmen klinis dengan tanda vital, diagnosa masuk, riwayat penyakit, ICD-10, dan tindakan ICD-9-CM.
 - Laboratorium dengan input numerik dan daftar hasil yang searchable serta paginated.
@@ -57,9 +57,13 @@ Seed project membuat 17 user:
 - `admin`
 - 15 dokter: `andi`, `siti`, `budi`, `rina`, `dedi`, `maya`, `rizky`, `fitri`, `arief`, `nabila`, `fajar`, `intan`, `yudha`, `ratna`, `hendra`
 
-Password dokter default: `dokter123`.
+Password awal:
 
-Password master/admin mengikuti `prisma/seed.ts`.
+| Username | Password |
+| --- | --- |
+| `master` | `master123` |
+| `admin` | `admin123` |
+| Semua dokter | `dokter123` |
 
 ## Tech Stack
 
@@ -151,9 +155,11 @@ Catatan: verifikasi dokumen medis membutuhkan kolom `dischargeCondition` dan `di
 - `npm run db:seed` mengisi role dan user awal.
 - `npm run db:studio` membuka Prisma Studio.
 - `npm run db:clear-patient-data` membersihkan pasien beserta data klinis terkait. Gunakan hati-hati.
+- `npm run db:clear-clinical-data` membersihkan data klinis tanpa menghapus user dan pasien.
 - `npm run db:import-regions` import dataset wilayah sampai kecamatan.
 - `npm run db:import-patients` import data pasien contoh.
 - `npm run db:prepare-prescriptions` menyiapkan data sampai tahap resep pending.
+- `npm run db:prepare-cppt-drafts` menyiapkan data sampai tahap CPPT draft tanpa finalisasi.
 
 Script tambahan:
 
@@ -175,9 +181,21 @@ Script ini membersihkan data klinis, mempertahankan user/pasien, lalu mengisi da
 
 - Dokumen medis tidak disimpan sebagai file upload.
 - Preview dan PDF Resume Medis dibuat saat user klik `Lihat` atau `Download`.
+- Nomor dokumen memakai format `RI MM/YYYY/Romawi`, contoh `RI 07/2026/I`.
+- Nomor romawi dihitung dari urutan CPPT final yang masuk fitur Dokumen Medis, termasuk yang belum diverifikasi.
 - Logo aplikasi dan dokumen memakai `public/assets/ueu.png`.
 - Verifikasi dokumen wajib mengisi kondisi pulang dan instruksi pulang.
-- PDF Resume Medis menampilkan nama verifier dan waktu verifikasi.
+- PDF Resume Medis menampilkan nama verifier dan waktu verifikasi setelah dokumen diverifikasi.
+
+## Dokumentasi Developer
+
+Dokumentasi teknis khusus developer tersedia di:
+
+```text
+DEVELOPER_DOCUMENTATION.md
+```
+
+File tersebut berisi mapping fitur ke file/fungsi, alur logic, struktur database, relasi, dan ERD.
 
 ## Keamanan
 
