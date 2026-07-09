@@ -288,7 +288,6 @@ model MedicalRecord {
   assessment         String?
   plan               String?
   physicalExam       String?
-  doctorNote         String?
   followUpDate       DateTime?
   status             MedicalRecordStatus @default(DRAFT)
   finalizedAt        DateTime?
@@ -376,7 +375,6 @@ model PrescriptionItem {
   medicineName   String
   dosage         String
   usageRule      String
-  quantity       Int
   note           String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt

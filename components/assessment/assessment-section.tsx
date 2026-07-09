@@ -58,6 +58,8 @@ function ComboboxField({
     () => items.find((item) => item.code === value),
     [value, items]
   )
+  const codeInputName = namePrefix.includes("[") ? `${namePrefix}[code]` : `${namePrefix}Code`
+  const nameInputName = namePrefix.includes("[") ? `${namePrefix}[name]` : `${namePrefix}Name`
   const normalizedQuery = query.trim().toLowerCase()
   const filteredItems = React.useMemo(() => {
     if (!normalizedQuery) {
@@ -95,8 +97,8 @@ function ComboboxField({
   return (
     <div className="grid gap-1.5">
       <span className="text-sm font-medium">{label}</span>
-      <input type="hidden" name={`${namePrefix}Code`} value={selectedItem?.code || defaultValueCode} />
-      <input type="hidden" name={`${namePrefix}Name`} value={selectedItem?.name || defaultValueName} />
+      <input type="hidden" name={codeInputName} value={selectedItem?.code || defaultValueCode} />
+      <input type="hidden" name={nameInputName} value={selectedItem?.name || defaultValueName} />
       
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
@@ -172,17 +174,29 @@ function DynamicList({
   items,
   placeholder,
   buttonLabel,
+  initialItems = [],
 }: {
   label: string
   namePrefix: string
   items: { code: string; name: string }[]
   placeholder: string
   buttonLabel: string
+  initialItems?: { code?: string; name: string }[]
 }) {
-  const nextFieldId = React.useRef(1)
-  const [fields, setFields] = React.useState<{ id: number; value: string; initialName?: string; initialCode?: string }[]>([
-    { id: 0, value: "" }
-  ])
+  const initialFields = React.useMemo(
+    () =>
+      initialItems.length > 0
+        ? initialItems.map((item, index) => ({
+            id: index,
+            value: item.code ?? "",
+            initialName: item.name,
+            initialCode: item.code ?? "",
+          }))
+        : [{ id: 0, value: "" }],
+    [initialItems],
+  )
+  const nextFieldId = React.useRef(initialFields.length)
+  const [fields, setFields] = React.useState<{ id: number; value: string; initialName?: string; initialCode?: string }[]>(initialFields)
 
   const addField = () => {
     setFields((currentFields) => [...currentFields, { id: nextFieldId.current++, value: "" }])
@@ -244,6 +258,11 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
   const [selectedVisitId, setSelectedVisitId] = React.useState(clinicalWorklist[0]?.id ?? "")
   const selectedVisit = clinicalWorklist.find((visit) => visit.id === selectedVisitId)
   const isSelectedRecordFinal = selectedVisit?.medicalRecord?.status === "Final"
+  const primaryDiagnosis = selectedVisit?.medicalRecord?.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
+  const secondaryDiagnoses = selectedVisit?.medicalRecord?.diagnoses
+    .filter((diagnosis) => diagnosis.type === "SECONDARY")
+    .map((diagnosis) => ({ code: diagnosis.code, name: diagnosis.name })) ?? []
+  const procedures = selectedVisit?.medicalRecord?.treatments.map((treatment) => ({ code: treatment.code, name: treatment.name })) ?? []
 
   if (clinicalWorklist.length === 0) {
     return <EmptyState title="Belum ada kunjungan siap asesmen" detail="Kunjungan baru dari pendaftaran akan muncul di sini." />
@@ -304,6 +323,8 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
             namePrefix="primaryDiagnosis"
             items={icdDiagnoses}
             placeholder="Pilih diagnosa utama ICD-10..."
+            defaultValueName={primaryDiagnosis?.name}
+            defaultValueCode={primaryDiagnosis?.code}
           />
         </div>
 
@@ -313,6 +334,7 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
           items={icdDiagnoses}
           placeholder="Pilih diagnosa sekunder ICD-10..."
           buttonLabel="Tambah Diagnosa"
+          initialItems={secondaryDiagnoses}
         />
 
         <DynamicList
@@ -321,6 +343,7 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
           items={icdProcedures}
           placeholder="Pilih tindakan medis ICD-9-CM..."
           buttonLabel="Tambah Tindakan"
+          initialItems={procedures}
         />
       </div>
       

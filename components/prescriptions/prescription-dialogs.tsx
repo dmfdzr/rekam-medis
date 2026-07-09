@@ -47,9 +47,6 @@ export function PrescriptionDetailDialog({ prescription }: { prescription: Presc
                         </p>
                       </div>
                     </div>
-                    <div className="mt-2 grid gap-1 text-muted-foreground">
-                      <p>Jumlah: {item.quantity}</p>
-                    </div>
                     {item.note !== "-" ? <p className="mt-1 text-muted-foreground">Catatan: {item.note}</p> : null}
                   </div>
                 ))}

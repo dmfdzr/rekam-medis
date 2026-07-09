@@ -209,7 +209,6 @@ async function main() {
           medicineName: seed.medicine,
           dosage: seed.dosage,
           usageRule: seed.usageRule,
-          quantity: seed.quantity,
           note: "Menunggu proses farmasi.",
         },
         create: {
@@ -218,7 +217,6 @@ async function main() {
           medicineName: seed.medicine,
           dosage: seed.dosage,
           usageRule: seed.usageRule,
-          quantity: seed.quantity,
           note: "Menunggu proses farmasi.",
         },
       })

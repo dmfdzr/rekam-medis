@@ -144,7 +144,7 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
 export function CancelVisitForm({ visits }: { visits: VisitListItem[] }) {
   const [state, formAction, pending] = React.useActionState(cancelVisitAction, initialClinicFormState)
   useRefreshOnSuccess(state)
-  const cancellableVisits = visits.filter((visit) => visit.status !== "Dibatalkan" && visit.status !== "Selesai")
+  const cancellableVisits = visits.filter((visit) => visit.status !== "Dibatalkan" && visit.status !== "Proses Verifikasi" && visit.status !== "Selesai")
 
   if (cancellableVisits.length === 0) {
     return <EmptyState title="Tidak ada kunjungan yang bisa dibatalkan" detail="Kunjungan yang belum selesai akan muncul di sini." />

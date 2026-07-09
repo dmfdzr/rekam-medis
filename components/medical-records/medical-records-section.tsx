@@ -90,7 +90,6 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
             <DetailItem label="Assessment" value={record.assessment} />
             <DetailItem label="Plan" value={record.plan} />
             <DetailItem label="Pemeriksaan fisik" value={record.physicalExam} />
-            <DetailItem label="Instruksi dokter" value={record.doctorNote} />
           </div>
 
           <DetailList
@@ -124,9 +123,7 @@ export function MedicalRecordDetailDialog({ record }: { record: MedicalRecordHis
             items={record.prescriptionItems}
             renderItem={(prescription: MedicalRecordHistoryItem["prescriptionItems"][number]) => (
               <div className="rounded-md bg-muted p-3 text-sm leading-6">
-                <p className="font-medium">
-                  {prescription.medicine} - {prescription.quantity}
-                </p>
+                <p className="font-medium">{prescription.medicine}</p>
                 <p className="text-muted-foreground">
                   {prescription.dosage} - {prescription.usageRule} - {prescription.note}
                 </p>
@@ -191,7 +188,6 @@ export function MedicalRecordForm({ clinicalWorklist }: { clinicalWorklist: Clin
           </div>
         </div>
 
-        <TextAreaField name="doctorNote" label="Instruksi dokter" defaultValue={selectedVisit?.medicalRecord?.doctorNote} error={state.errors?.doctorNote?.[0]} />
       </div>
       <FormMessage state={state} />
       <div className="flex flex-col gap-2 sm:flex-row">

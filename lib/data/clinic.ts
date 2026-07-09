@@ -362,12 +362,18 @@ export async function getVisitList() {
           },
         },
       },
+      medicalRecord: {
+        select: {
+          isVerified: true,
+          verifiedAt: true,
+        },
+      },
     },
   })
 
   return visits.map((visit) => {
-    const lengthOfStayDays = visit.dischargeDate
-      ? Math.ceil((visit.dischargeDate.getTime() - visit.admissionDate.getTime()) / (1000 * 60 * 60 * 24))
+    const lengthOfStayDays = visit.medicalRecord?.verifiedAt
+      ? Math.ceil((visit.medicalRecord.verifiedAt.getTime() - visit.admissionDate.getTime()) / (1000 * 60 * 60 * 24))
       : null
 
     return {
@@ -376,11 +382,11 @@ export async function getVisitList() {
       medicalRecordNumber: visit.patient.medicalRecordNumber,
       service: visit.service,
       doctor: visit.doctor?.name ?? "Belum ditentukan",
-      status: visitStatusLabels[visit.status],
+      status: visit.status === "COMPLETED" && !visit.medicalRecord?.isVerified ? "Proses Verifikasi" : visitStatusLabels[visit.status],
       time: timeFormatter.format(visit.visitDate),
       admissionDate: dateFormatter.format(visit.admissionDate),
-      dischargeDate: visit.dischargeDate ? dateFormatter.format(visit.dischargeDate) : "-",
-      lengthOfStay: lengthOfStayDays !== null ? `${lengthOfStayDays} hari` : "Masih dirawat",
+      dischargeDate: visit.medicalRecord?.verifiedAt ? dateFormatter.format(visit.medicalRecord.verifiedAt) : "-",
+      lengthOfStay: lengthOfStayDays !== null ? `${Math.max(1, lengthOfStayDays + 1)} hari` : "Masih dirawat",
       patientType: patientTypeLabels[visit.patientType],
       isJointCare: visit.isJointCare,
       companionDoctors: visit.companionDoctors.map((c) => c.doctor.name),
@@ -578,7 +584,6 @@ export async function getClinicalWorklist(
         assessment: visit.medicalRecord.assessment ?? "",
         plan: visit.medicalRecord.plan ?? "",
         physicalExam: visit.medicalRecord.physicalExam ?? "",
-        doctorNote: visit.medicalRecord.doctorNote ?? "",
         followUpDate: visit.medicalRecord.followUpDate ? visit.medicalRecord.followUpDate.toISOString().slice(0, 10) : "",
         status: medicalRecordStatusLabels[visit.medicalRecord.status],
         diagnoses: visit.medicalRecord.diagnoses.map((diagnosis) => ({
@@ -699,7 +704,6 @@ export async function getMedicalRecordHistory(viewer?: DataViewer) {
       assessment: record.assessment ?? primaryDiagnosis?.name ?? "-",
       plan: record.plan ?? "-",
       physicalExam: record.physicalExam ?? "-",
-      doctorNote: record.doctorNote ?? "-",
       followUpDate: record.followUpDate ? dateFormatter.format(record.followUpDate) : "-",
       diagnosis: primaryDiagnosis?.name ?? record.diagnoses[0]?.name ?? "-",
       diagnosisItems: record.diagnoses.map((diagnosis) => ({
@@ -716,14 +720,13 @@ export async function getMedicalRecordHistory(viewer?: DataViewer) {
         name: treatment.name,
         note: treatment.note ?? "-",
       })),
-      prescriptions: record.prescription?.items.map((item) => `${item.medicineName} (${item.quantity})`).join(", ") ?? "-",
+      prescriptions: record.prescription?.items.map((item) => item.medicineName).join(", ") ?? "-",
       prescriptionItems:
         record.prescription?.items.map((item) => ({
           id: item.id,
           medicine: item.medicineName,
           dosage: item.dosage,
           usageRule: item.usageRule,
-          quantity: String(item.quantity),
           note: item.note ?? "-",
         })) ?? [],
       laboratoryResult: record.visit.laboratoryResult
@@ -796,13 +799,12 @@ export async function getPrescriptionList(viewer?: DataViewer) {
     medicalRecordNumber: prescription.medicalRecord.visit.patient.medicalRecordNumber,
     doctor: prescription.doctor?.name ?? "Belum ditentukan",
     pharmacist: prescription.pharmacist?.name ?? "-",
-    items: prescription.items.map((item) => `${item.medicineName} (${item.quantity})`).join(", ") || "-",
+    items: prescription.items.map((item) => item.medicineName).join(", ") || "-",
     itemDetails: prescription.items.map((item) => ({
       id: item.id,
       medicine: item.medicineName,
       dosage: item.dosage,
       usageRule: item.usageRule,
-      quantity: item.quantity,
       note: item.note ?? "-",
     })),
     status: prescriptionStatusLabels[prescription.status],
@@ -899,7 +901,7 @@ export async function getMedicalDocumentList(viewer?: DataViewer) {
     status: record.status,
     isVerified: record.isVerified,
     verifiedBy: record.verifiedBy?.name ?? "-",
-    verifiedAt: record.verifiedAt ? dateTimeFormatter.format(record.verifiedAt) : "-",
+    verifiedAt: record.verifiedAt ? dateFormatter.format(record.verifiedAt) : "-",
     documentUrl: `/medical-records/${record.id}/document`,
     updatedAt: dateFormatter.format(record.updatedAt),
     filterDate: toDateInputValue(record.updatedAt),

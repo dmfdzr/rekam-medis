@@ -37,7 +37,6 @@ export function PrescriptionItemForm({ prescriptionOptions }: { prescriptionOpti
       />
       <TextField name="dosage" label="Dosis" placeholder="500mg" error={state.errors?.dosage?.[0]} />
       <TextField name="usageRule" label="Aturan pakai" placeholder="3x sehari setelah makan" error={state.errors?.usageRule?.[0]} />
-      <TextField name="quantity" label="Jumlah" inputMode="numeric" error={state.errors?.quantity?.[0]} />
       <TextAreaField name="note" label="Catatan penggunaan" error={state.errors?.note?.[0]} />
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
@@ -95,9 +94,6 @@ export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Pres
                     </p>
                   </div>
                 </div>
-                <p className="mt-2 text-muted-foreground">
-                  Jumlah: {item.quantity}
-                </p>
               </div>
             ))}
           </div>

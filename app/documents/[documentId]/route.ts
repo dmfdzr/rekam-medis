@@ -160,7 +160,7 @@ export async function GET(request: Request, context: { params: Promise<{ documen
   const referenceNote = decodeReferenceNote(document.fileUrl)
   const record = document.visit?.medicalRecord
   const prescriptionItems =
-    record?.prescription?.items.map((item) => `${item.medicineName} ${item.quantity} ${""} - ${item.dosage} - ${item.usageRule}`).join("; ") ?? "-"
+    record?.prescription?.items.map((item) => `${item.medicineName} - ${item.dosage} - ${item.usageRule}`).join("; ") ?? "-"
 
   const html = `<!doctype html>
 <html lang="id">
@@ -218,7 +218,6 @@ export async function GET(request: Request, context: { params: Promise<{ documen
         ["Assessment", record.assessment],
         ["Plan", record.plan],
         ["Pemeriksaan Fisik", record.physicalExam],
-        ["Catatan Dokter", record.doctorNote],
         ["Status", record.status],
         ["Finalisasi", record.finalizedAt ? dateTimeFormatter.format(record.finalizedAt) : "-"],
       ]) : ""}

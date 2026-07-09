@@ -175,7 +175,6 @@ const saveMedicalRecordSchema = z.object({
   assessment: z.string().trim().optional(),
   plan: z.string().trim().optional(),
   physicalExam: z.string().trim().optional(),
-  doctorNote: z.string().trim().optional(),
   bloodPressureSystolic: optionalIntegerSchema("Sistolik harus berupa angka bulat."),
   bloodPressureDiastolic: optionalIntegerSchema("Diastolik harus berupa angka bulat."),
   temperature: optionalDecimalSchema("Suhu harus berupa angka."),
@@ -240,7 +239,6 @@ const addPrescriptionItemSchema = z.object({
   medicineName: z.string().trim().min(1, "Obat wajib diisi."),
   dosage: z.string().trim().min(1, "Dosis wajib diisi."),
   usageRule: z.string().trim().min(1, "Aturan pakai wajib diisi."),
-  quantity: z.string().trim().min(1, "Jumlah wajib diisi."),
   note: z.string().trim().optional(),
 })
 
@@ -270,6 +268,7 @@ const DischargeCondition = {
 
 const verifyMedicalRecordSchema = z.object({
   recordId: z.string().trim().min(1, "Rekam medis tidak valid."),
+  verificationDate: z.string().trim().min(1, "Tanggal verifikasi wajib dipilih."),
   dischargeCondition: z.enum(DischargeCondition, "Kondisi pulang wajib dipilih."),
   dischargeInstruction: z.string().trim().min(1, "Instruksi pulang wajib diisi.").max(1000, "Instruksi pulang maksimal 1000 karakter."),
 })
@@ -287,7 +286,6 @@ const updateUserSchema = z.object({
   name: z.string().trim().optional(),
   email: z.string().trim().optional(),
   username: z.string().trim().optional(),
-  password: z.string().optional(),
   roleId: z.string().trim().optional(),
   status: z.enum(UserStatus, "Status user wajib dipilih.").optional().or(z.literal("")),
 })
@@ -357,6 +355,18 @@ function optionalFormString(formData: FormData, key: string) {
 
 function toDate(value: string) {
   const date = new Date(value)
+
+  return Number.isNaN(date.getTime()) ? null : date
+}
+
+function dateInputToLocalNoon(value: string) {
+  const [year, month, day] = value.split("-").map(Number)
+
+  if (!year || !month || !day) {
+    return null
+  }
+
+  const date = new Date(year, month - 1, day, 12, 0, 0, 0)
 
   return Number.isNaN(date.getTime()) ? null : date
 }
@@ -1031,7 +1041,6 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
     assessment: optionalFormString(formData, "assessment"),
     plan: optionalFormString(formData, "plan"),
     physicalExam: optionalFormString(formData, "physicalExam"),
-    doctorNote: optionalFormString(formData, "doctorNote"),
     diagnosisCode: optionalFormString(formData, "diagnosisCode"),
     diagnosisName: optionalFormString(formData, "diagnosisName"),
     diagnosisNote: optionalFormString(formData, "diagnosisNote"),
@@ -1071,7 +1080,6 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
       ["pulse", "Nadi", "Nadi wajib diisi sebelum finalisasi."],
       ["respiration", "Respirasi", "Respirasi wajib diisi sebelum finalisasi."],
       ["oxygenSaturation", "Saturasi oksigen", "Saturasi oksigen wajib diisi sebelum finalisasi."],
-      ["doctorNote", "Instruksi dokter", "Instruksi dokter wajib diisi sebelum finalisasi."],
     ]
     const missingFields = requiredFinalFields.filter(([field]) => !String(parsed.data[field] ?? "").trim())
 
@@ -1149,7 +1157,6 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
         assessment: optionalString(parsed.data.assessment),
         plan: optionalString(parsed.data.plan),
         physicalExam: optionalString(parsed.data.physicalExam),
-        doctorNote: optionalString(parsed.data.doctorNote),
         followUpDate: null,
         status: isFinal ? MedicalRecordStatus.FINAL : MedicalRecordStatus.DRAFT,
         finalizedAt: isFinal ? new Date() : null,
@@ -1162,7 +1169,6 @@ export async function saveMedicalRecordAction(_state: ClinicFormState, formData:
         assessment: optionalString(parsed.data.assessment),
         plan: optionalString(parsed.data.plan),
         physicalExam: optionalString(parsed.data.physicalExam),
-        doctorNote: optionalString(parsed.data.doctorNote),
         followUpDate: null,
         status: isFinal ? MedicalRecordStatus.FINAL : MedicalRecordStatus.DRAFT,
         finalizedAt: isFinal ? new Date() : null,
@@ -1517,7 +1523,6 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
     medicineName: formData.get("medicineName"),
     dosage: formData.get("dosage"),
     usageRule: formData.get("usageRule"),
-    quantity: formData.get("quantity"),
     note: formData.get("note"),
   })
 
@@ -1526,16 +1531,6 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
       ok: false,
       message: "Data resep belum valid.",
       errors: getFieldErrors(parsed.error),
-    }
-  }
-
-  const quantity = parseNonNegativeIntegerInput(parsed.data.quantity)
-
-  if (!quantity || quantity < 1) {
-    return {
-      ok: false,
-      message: "Jumlah obat harus lebih dari 0.",
-      errors: { quantity: ["Jumlah obat harus lebih dari 0."] },
     }
   }
 
@@ -1622,7 +1617,6 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
       medicineName: parsed.data.medicineName,
       dosage: parsed.data.dosage,
       usageRule: parsed.data.usageRule,
-      quantity,
       note: optionalString(parsed.data.note),
     },
   })
@@ -1635,7 +1629,6 @@ export async function addPrescriptionItemAction(_state: ClinicFormState, formDat
     afterData: {
       patientName: record.visit.patient.fullName,
       medicineName: parsed.data.medicineName,
-      quantity,
     },
   })
 
@@ -1984,7 +1977,7 @@ export async function createUserAction(_state: ClinicFormState, formData: FormDa
     name: formData.get("name"),
     email: formData.get("email"),
     username: formData.get("username"),
-    password: formData.get("password"),
+    password: optionalFormString(formData, "password"),
     roleId: formData.get("roleId"),
   })
 
@@ -2073,7 +2066,6 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
     name: formData.get("name"),
     email: formData.get("email"),
     username: formData.get("username"),
-    password: formData.get("password"),
     roleId: formData.get("roleId"),
     status: formData.get("status"),
   })
@@ -2089,7 +2081,6 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
   const nextName = optionalString(parsed.data.name)
   const nextEmail = optionalString(parsed.data.email)?.toLowerCase() ?? null
   const nextUsername = optionalString(parsed.data.username)?.toLowerCase() ?? null
-  const nextPassword = optionalString(parsed.data.password)
 
   if (nextName && nextName.length < 2) {
     return {
@@ -2112,14 +2103,6 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
       ok: false,
       message: "Username minimal 3 karakter.",
       errors: { username: ["Username minimal 3 karakter."] },
-    }
-  }
-
-  if (nextPassword && nextPassword.length < 8) {
-    return {
-      ok: false,
-      message: "Password baru minimal 8 karakter.",
-      errors: { password: ["Password baru minimal 8 karakter."] },
     }
   }
 
@@ -2201,7 +2184,6 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
     ...(nextName ? { name: nextName } : {}),
     ...(nextEmail ? { email: nextEmail } : {}),
     ...(nextUsername ? { username: nextUsername } : {}),
-    ...(nextPassword ? { passwordHash: await hashPassword(nextPassword) } : {}),
     ...(nextRole ? { roleId: nextRole.id } : {}),
     ...(parsed.data.status ? { status: parsed.data.status } : {}),
   }
@@ -2228,18 +2210,6 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
         },
       })
 
-      if (nextPassword && user.id !== actor.id) {
-        await tx.session.updateMany({
-          where: {
-            userId: user.id,
-            revokedAt: null,
-          },
-          data: {
-            revokedAt: new Date(),
-          },
-        })
-      }
-
       return updated
     })
 
@@ -2261,8 +2231,6 @@ export async function updateUserAction(_state: ClinicFormState, formData: FormDa
         username: updatedUser.username,
         role: updatedUser.role.key,
         status: updatedUser.status,
-        passwordChanged: Boolean(nextPassword),
-        revokedSessions: Boolean(nextPassword && user.id !== actor.id),
       },
     })
 
@@ -2517,6 +2485,7 @@ export async function verifyMedicalRecordAction(state: ClinicFormState, formData
 
     const parsed = verifyMedicalRecordSchema.safeParse({
       recordId: formData.get("recordId"),
+      verificationDate: formData.get("verificationDate"),
       dischargeCondition: formData.get("dischargeCondition"),
       dischargeInstruction: formData.get("dischargeInstruction"),
     })
@@ -2526,6 +2495,16 @@ export async function verifyMedicalRecordAction(state: ClinicFormState, formData
         ok: false,
         message: "Data verifikasi belum lengkap.",
         errors: getFieldErrors(parsed.error),
+      }
+    }
+
+    const verifiedAt = dateInputToLocalNoon(parsed.data.verificationDate)
+
+    if (!verifiedAt) {
+      return {
+        ok: false,
+        message: "Tanggal verifikasi belum valid.",
+        errors: { verificationDate: ["Tanggal verifikasi belum valid."] },
       }
     }
 
@@ -2561,8 +2540,6 @@ export async function verifyMedicalRecordAction(state: ClinicFormState, formData
       return { ok: false, message: "Rekam medis sudah diverifikasi." }
     }
 
-    const verifiedAt = new Date()
-
     await prisma.$transaction(async (tx) => {
       await tx.medicalRecord.update({
         where: { id: parsed.data.recordId },
@@ -2591,6 +2568,7 @@ export async function verifyMedicalRecordAction(state: ClinicFormState, formData
       afterData: {
         isVerified: true,
         verifiedById: user.id,
+        verificationDate: parsed.data.verificationDate,
         dischargeCondition: parsed.data.dischargeCondition,
       },
     })

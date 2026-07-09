@@ -115,7 +115,6 @@ async function main() {
           assessment: record.assessment || "Evaluasi klinis lanjutan",
           plan: "Lanjutkan terapi sesuai resep, observasi respons klinis, dan edukasi pasien.",
           physicalExam,
-          doctorNote: "Pantau kondisi pasien dan evaluasi ulang bila keluhan memberat.",
           followUpDate: null,
           status: MedicalRecordStatus.DRAFT,
           finalizedAt: null,

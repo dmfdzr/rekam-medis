@@ -298,7 +298,7 @@ function daysBetween(start: Date, end: Date | null) {
   const dayMs = 1000 * 60 * 60 * 24
   const diff = Math.ceil((end.getTime() - start.getTime()) / dayMs)
 
-  return `${Math.max(1, diff)} hari`
+  return `${Math.max(1, diff + 1)} hari`
 }
 
 function checkbox(checked: boolean, label: string) {
@@ -665,7 +665,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   const primaryDiagnosis = record.diagnoses.find((diagnosis) => diagnosis.type === "PRIMARY")
   const secondaryDiagnoses = record.diagnoses.filter((diagnosis) => diagnosis.type === "SECONDARY")
   const treatmentNames = record.treatments.map((treatment) => treatment.name)
-  const prescriptionItems = record.prescription?.items.map((item) => `${item.medicineName} ${item.quantity} - ${item.dosage} - ${item.usageRule}${item.note ? ` (${item.note})` : ""}`) ?? []
+  const prescriptionItems = record.prescription?.items.map((item) => `${item.medicineName} - ${item.dosage} - ${item.usageRule}${item.note ? ` (${item.note})` : ""}`) ?? []
   const lab = record.visit.laboratoryResult
   const vital = record.visit.vitalSign
   const rawatBersama = record.visit.isJointCare
@@ -676,7 +676,8 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   const treatmentCodes = record.treatments.map((treatment) => treatment.code || "-")
   const isVerified = Boolean(record.isVerified && record.verifiedAt)
   const verifierName = record.verifiedBy?.name ?? ""
-  const verifiedAtLabel = record.verifiedAt ? dateTimeFormatter.format(record.verifiedAt) : "-"
+  const verifiedAtLabel = record.verifiedAt ? dateFormatter.format(record.verifiedAt) : "-"
+  const dischargeReferenceDate = isVerified ? record.verifiedAt : null
   const documentCode = await getResumeDocumentCode(record)
   const physicalExam = [
     vital?.bloodPressure ? `Tekanan darah ${vital.bloodPressure} mmHg` : null,
@@ -784,8 +785,8 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
           <td colspan="3" class="wide-cell">
             <div class="inline-row">
               <span>Tanggal Masuk : ${escapeHtml(dateFormatter.format(record.visit.admissionDate))}</span>
-              <span>Tanggal Keluar: ${escapeHtml(record.finalizedAt ? dateFormatter.format(record.finalizedAt) : record.visit.dischargeDate ? dateFormatter.format(record.visit.dischargeDate) : "-")}</span>
-              <span>Lama Dirawat: ${escapeHtml(daysBetween(record.visit.admissionDate, record.visit.dischargeDate ?? record.finalizedAt))}</span>
+              <span>Tanggal Keluar: ${escapeHtml(dischargeReferenceDate ? dateFormatter.format(dischargeReferenceDate) : "-")}</span>
+              <span>Lama Dirawat: ${escapeHtml(daysBetween(record.visit.admissionDate, dischargeReferenceDate))}</span>
             </div>
             <div class="visit-lines">
               <div class="label-line"><span>Ruang Rawat</span><span>:</span><span>${escapeHtml(record.visit.service)}</span></div>
@@ -900,8 +901,8 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       },
       visit: {
         admissionDate: dateFormatter.format(record.visit.admissionDate),
-        dischargeDate: record.finalizedAt ? dateFormatter.format(record.finalizedAt) : record.visit.dischargeDate ? dateFormatter.format(record.visit.dischargeDate) : "-",
-        lengthOfStay: daysBetween(record.visit.admissionDate, record.visit.dischargeDate ?? record.finalizedAt),
+        dischargeDate: dischargeReferenceDate ? dateFormatter.format(dischargeReferenceDate) : "-",
+        lengthOfStay: daysBetween(record.visit.admissionDate, dischargeReferenceDate),
         room: record.visit.service,
         primaryDoctor: record.visit.doctor?.name ?? record.doctor?.name ?? "-",
         jointCare: record.visit.isJointCare,

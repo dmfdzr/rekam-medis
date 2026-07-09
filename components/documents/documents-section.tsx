@@ -26,6 +26,11 @@ const dischargeConditionOptions = [
 function VerifyForm({ recordId, canVerify }: { recordId: string; canVerify: boolean }) {
   const [state, formAction, pending] = React.useActionState(verifyMedicalRecordAction, {})
   const [open, setOpen] = React.useState(false)
+  const today = React.useMemo(() => {
+    const now = new Date()
+
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`
+  }, [])
   useRefreshOnSuccess(state)
 
   React.useEffect(() => {
@@ -53,6 +58,12 @@ function VerifyForm({ recordId, canVerify }: { recordId: string; canVerify: bool
         </DialogHeader>
         <form action={formAction} className="grid gap-4">
           <input type="hidden" name="recordId" value={recordId} />
+          <DatePickerField
+            name="verificationDate"
+            label="Tanggal verifikasi"
+            defaultValue={today}
+            error={state.errors?.verificationDate?.[0]}
+          />
           <div className="grid gap-2">
             <span className="text-sm font-medium">Kondisi pulang</span>
             <div className="grid gap-2 sm:grid-cols-2">
