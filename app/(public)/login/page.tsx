@@ -3,7 +3,7 @@ import Link from "next/link"
 import { redirect } from "next/navigation"
 import { ArrowLeft } from "lucide-react"
 
-import { LoginForm } from "@/app/login/login-form"
+import { LoginForm } from "@/app/(public)/login/login-form"
 import { ThemeToggle } from "@/components/theme-toggle"
 import { Button } from "@/components/ui/button"
 import { getCurrentUser } from "@/lib/auth/current-user"
