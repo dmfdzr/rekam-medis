@@ -44,7 +44,7 @@ export function DashboardSection({
           </div>
         </Panel>
 
-        <Panel title="Alur Layanan" description="Tahapan operasional yang digunakan antar role klinik.">
+        <Panel title="Alur Layanan" description="Tahapan operasional yang digunakan antar role rumah sakit.">
           <div className="grid gap-3">
             {workflowSteps.map((step) => {
               const Icon = step.icon

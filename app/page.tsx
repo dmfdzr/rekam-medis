@@ -62,7 +62,7 @@ export default async function LandingPage() {
           width={520}
           height={520}
           priority
-          className="pointer-events-none absolute -right-24 top-16 -z-10 size-[22rem] bg-transparent opacity-[0.04] sm:size-[28rem] lg:right-10 lg:top-10 lg:size-[32rem]"
+          className="pointer-events-none absolute -right-24 top-16 -z-10 size-88 bg-transparent opacity-[0.04] sm:size-112 lg:right-10 lg:top-10 lg:size-128"
         />
         <div className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
           <header className="flex items-center justify-between gap-4">
@@ -88,13 +88,13 @@ export default async function LandingPage() {
             <div className="max-w-2xl">
               <div className="inline-flex items-center gap-2 rounded-md border border-border bg-card px-3 py-2 text-xs font-medium text-muted-foreground">
                 <ShieldCheck className="size-4 text-primary" aria-hidden="true" />
-                Aplikasi internal untuk operasional klinik
+                Aplikasi internal untuk operasional rumah sakit
               </div>
               <h1 className="mt-6 text-4xl font-semibold tracking-normal text-balance sm:text-5xl lg:text-6xl">
                 Sistem Informasi Manajemen Rumah Sakit Esa Unggul
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Rekam Medis Elektronik membantu klinik mencatat resume medis dengan alur yang rapi, mulai dari kelola pasien, kunjungan rawat inap, asesmen, laboratorium, resep, CPPT, dokumen medis, laporan wilayah diagnosis, hingga audit aktivitas dalam satu aplikasi web.
+                Rekam Medis Elektronik membantu rumah sakit mencatat resume medis dengan alur yang rapi, mulai dari kelola pasien, kunjungan rawat inap, asesmen, laboratorium, resep, CPPT, dokumen medis, laporan wilayah diagnosis, hingga audit aktivitas dalam satu aplikasi web.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-11 w-full sm:w-fit">
@@ -113,7 +113,7 @@ export default async function LandingPage() {
               <div className="rounded-md border border-border bg-background p-4">
                 <div className="flex items-center justify-between gap-3 border-b border-border pb-4">
                   <div>
-                    <p className="text-sm font-semibold">Dashboard klinik</p>
+                    <p className="text-sm font-semibold">Dashboard SIMRS</p>
                     <p className="mt-1 text-xs text-muted-foreground">Ringkasan operasional dan dokumen medis</p>
                   </div>
                   <span className="rounded-md bg-primary/10 px-2 py-1 text-xs font-medium text-primary">Role based</span>
@@ -198,7 +198,7 @@ export default async function LandingPage() {
           </div>
 
           <div>
-            <h2 className="text-2xl font-semibold tracking-normal">Mulai dari akun yang diberikan administrator klinik.</h2>
+            <h2 className="text-2xl font-semibold tracking-normal">Mulai dari akun yang diberikan administrator rumah sakit.</h2>
             <p className="mt-4 text-sm leading-7 text-muted-foreground">
               Halaman login tetap terpisah agar akses aplikasi jelas. Setelah masuk, user langsung melihat dashboard dan menu sesuai role yang dimiliki.
             </p>

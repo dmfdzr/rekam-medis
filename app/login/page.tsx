@@ -34,7 +34,7 @@ export default async function LoginPage() {
             <Image src="/assets/ueu.png" alt="UEU Logo" width={64} height={64} className="h-14 w-auto bg-transparent object-contain" />
             <h2 className="mt-5 text-2xl font-semibold tracking-normal">Masuk ke Rekam Medis Elektronik</h2>
             <p className="mt-2 text-sm leading-6 text-muted-foreground">
-              Gunakan akun yang diberikan administrator klinik untuk mengakses aplikasi.
+              Gunakan akun yang diberikan administrator rumah sakit untuk mengakses aplikasi.
             </p>
           </div>
           <LoginForm />
