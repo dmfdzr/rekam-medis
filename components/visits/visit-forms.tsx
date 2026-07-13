@@ -7,7 +7,7 @@ import * as React from "react"
 import { Plus, Trash2 } from "lucide-react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { FieldError, FormMessage, DatePickerField, ComboboxField } from "@/components/shared/forms"
+import { FormMessage, DatePickerField, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -22,6 +22,7 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
 
   const [isJointCare, setIsJointCare] = React.useState(false)
   const [companionCount, setCompanionCount] = React.useState(1)
+  const today = React.useMemo(() => new Date(), [])
 
   const doctorItems = [
     { value: "", label: "Belum ditentukan" },
@@ -38,21 +39,18 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
           placeholder="Pilih pasien"
           error={state.errors?.patientId}
         />
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Registrasi pasien</span>
-          <select
-            name="patientType"
-            defaultValue="UMUM"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.patientType)}
-          >
-            <option value="">Pilih registrasi pasien</option>
-            <option value="BPJS">BPJS</option>
-            <option value="UMUM">Umum</option>
-            <option value="ASURANSI">Asuransi</option>
-          </select>
-          <FieldError message={state.errors?.patientType?.[0]} />
-        </label>
+        <ComboboxField
+          name="patientType"
+          label="Registrasi pasien"
+          items={[
+            { value: "BPJS", label: "BPJS" },
+            { value: "UMUM", label: "Umum" },
+            { value: "ASURANSI", label: "Asuransi" },
+          ]}
+          placeholder="Pilih registrasi pasien"
+          defaultValue="UMUM"
+          error={state.errors?.patientType}
+        />
 
         <ComboboxField
           name="doctorId"
@@ -129,7 +127,7 @@ export function CreateVisitForm({ visitOptions }: { visitOptions: VisitFormOptio
           placeholder="Pilih ruang rawat"
           error={state.errors?.service}
         />
-        <DatePickerField name="admissionDate" label="Tanggal masuk" error={state.errors?.admissionDate?.[0]} />
+        <DatePickerField name="admissionDate" label="Tanggal masuk" error={state.errors?.admissionDate?.[0]} maxDate={today} />
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>

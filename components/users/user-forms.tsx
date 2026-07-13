@@ -5,7 +5,7 @@ import { createUserAction, updateUserAction, resetUserPasswordAction, deactivate
 
 import * as React from "react"
 
-import { TextField, FieldError, FormMessage } from "@/components/shared/forms"
+import { TextField, FormMessage, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -26,22 +26,13 @@ export function CreateUserForm({ roleOptions }: { roleOptions: RoleOptionItem[] 
         <TextField name="email" label="Email" type="email" error={state.errors?.email?.[0]} autoComplete="email" />
         <TextField name="username" label="Username" error={state.errors?.username?.[0]} autoComplete="username" />
         <TextField name="password" label="Password awal" type="password" error={state.errors?.password?.[0]} autoComplete="new-password" showPasswordToggle />
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Role</span>
-          <select
-            name="roleId"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.roleId)}
-          >
-            <option value="">Pilih role</option>
-            {roleOptions.map((role) => (
-              <option key={role.id} value={role.id}>
-                {role.name}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.roleId?.[0]} />
-        </label>
+        <ComboboxField
+          name="roleId"
+          label="Role"
+          items={roleOptions.map((role) => ({ value: role.id, label: role.name }))}
+          placeholder="Pilih role"
+          error={state.errors?.roleId}
+        />
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>
@@ -61,56 +52,39 @@ export function UpdateUserForm({ userList, roleOptions }: { userList: UserListIt
   return (
     <form action={formAction} className="grid gap-4" noValidate>
       <div className="grid gap-3">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">User</span>
-          <select
-            name="userId"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.userId)}
-          >
-            <option value="">Pilih user</option>
-            {userList.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name} - {user.username} - {user.role}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.userId?.[0]} />
-        </label>
+        <ComboboxField
+          name="userId"
+          label="User"
+          items={userList.map((user) => ({ value: user.id, label: `${user.name} - ${user.username} - ${user.role}` }))}
+          placeholder="Pilih user"
+          error={state.errors?.userId}
+        />
         <div className="grid gap-3 sm:grid-cols-2">
           <TextField name="name" label="Nama baru" error={state.errors?.name?.[0]} autoComplete="name" />
           <TextField name="email" label="Email baru" type="email" error={state.errors?.email?.[0]} autoComplete="email" />
           <TextField name="username" label="Username baru" error={state.errors?.username?.[0]} autoComplete="username" />
-          <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Role baru</span>
-            <select
-              name="roleId"
-              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-              aria-invalid={Boolean(state.errors?.roleId)}
-            >
-              <option value="">Tidak diubah</option>
-              {roleOptions.map((role) => (
-                <option key={role.id} value={role.id}>
-                  {role.name}
-                </option>
-              ))}
-            </select>
-            <FieldError message={state.errors?.roleId?.[0]} />
-          </label>
-          <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Status baru</span>
-            <select
-              name="status"
-              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-              aria-invalid={Boolean(state.errors?.status)}
-            >
-              <option value="">Tidak diubah</option>
-              <option value="ACTIVE">Aktif</option>
-              <option value="INACTIVE">Nonaktif</option>
-              <option value="SUSPENDED">Ditangguhkan</option>
-            </select>
-            <FieldError message={state.errors?.status?.[0]} />
-          </label>
+          <ComboboxField
+            name="roleId"
+            label="Role baru"
+            items={[
+              { value: "", label: "Tidak diubah" },
+              ...roleOptions.map((role) => ({ value: role.id, label: role.name })),
+            ]}
+            placeholder="Tidak diubah"
+            error={state.errors?.roleId}
+          />
+          <ComboboxField
+            name="status"
+            label="Status baru"
+            items={[
+              { value: "", label: "Tidak diubah" },
+              { value: "ACTIVE", label: "Aktif" },
+              { value: "INACTIVE", label: "Nonaktif" },
+              { value: "SUSPENDED", label: "Ditangguhkan" },
+            ]}
+            placeholder="Tidak diubah"
+            error={state.errors?.status}
+          />
         </div>
       </div>
       <FormMessage state={state} />
@@ -132,22 +106,13 @@ export function ResetUserPasswordForm({ userList }: { userList: UserListItem[] }
   return (
     <form action={formAction} className="grid gap-4" noValidate>
       <div className="grid gap-3">
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">User</span>
-          <select
-            name="userId"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.userId)}
-          >
-            <option value="">Pilih user</option>
-            {resettableUsers.map((user) => (
-              <option key={user.id} value={user.id}>
-                {user.name} - {user.username} - {user.role}
-              </option>
-            ))}
-          </select>
-          <FieldError message={state.errors?.userId?.[0]} />
-        </label>
+        <ComboboxField
+          name="userId"
+          label="User"
+          items={resettableUsers.map((user) => ({ value: user.id, label: `${user.name} - ${user.username} - ${user.role}` }))}
+          placeholder="Pilih user"
+          error={state.errors?.userId}
+        />
         <TextField name="password" label="Password baru" type="password" error={state.errors?.password?.[0]} autoComplete="new-password" showPasswordToggle />
         <TextField name="confirmPassword" label="Konfirmasi password" type="password" error={state.errors?.confirmPassword?.[0]} autoComplete="new-password" showPasswordToggle />
       </div>
@@ -175,22 +140,13 @@ export function DeactivateUserForm({ userList }: { userList: UserListItem[] }) {
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">User</span>
-        <select
-          name="userId"
-          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-          aria-invalid={Boolean(state.errors?.userId)}
-        >
-          <option value="">Pilih user</option>
-          {activeUsers.map((user) => (
-            <option key={user.id} value={user.id}>
-              {user.name} - {user.username} - {user.role}
-            </option>
-          ))}
-        </select>
-        <FieldError message={state.errors?.userId?.[0]} />
-      </label>
+      <ComboboxField
+        name="userId"
+        label="User"
+        items={activeUsers.map((user) => ({ value: user.id, label: `${user.name} - ${user.username} - ${user.role}` }))}
+        placeholder="Pilih user"
+        error={state.errors?.userId}
+      />
       <DestructiveActionNotice message="User tidak dihapus permanen. Akun menjadi nonaktif dan sesi aktifnya dicabut agar akses berhenti." />
       <FormMessage state={state} />
       <ConfirmSubmitButton

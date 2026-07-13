@@ -5,6 +5,7 @@ import { Search } from "lucide-react"
 import { Dialog } from "radix-ui"
 import { Button } from "@/components/ui/button"
 import { ModalDialog } from "./layout"
+import { ComboboxField } from "@/components/shared/forms"
 
 export function FilterModal({
   open,
@@ -27,21 +28,17 @@ export function FilterModal({
 }) {
   return (
     <ModalDialog open={open} onOpenChange={onOpenChange} title={title} description={description}>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">{filterLabel}</span>
-        <select
-          value={filterValue}
-          onChange={(event) => onFilterChange(event.target.value)}
-          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-        >
-          <option value="all">Semua {filterLabel.toLowerCase()}</option>
-          {filterOptions.map((option) => (
-            <option key={option} value={option}>
-              {option}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ComboboxField
+        name="filterValue"
+        label={filterLabel}
+        items={[
+          { value: "all", label: `Semua ${filterLabel.toLowerCase()}` },
+          ...filterOptions.map((option) => ({ value: option, label: option })),
+        ]}
+        placeholder={`Semua ${filterLabel.toLowerCase()}`}
+        value={filterValue}
+        onValueChange={onFilterChange}
+      />
       <div className="flex justify-end gap-2 border-t border-border pt-4">
         <Button type="button" variant="outline" size="lg" onClick={() => onFilterChange("all")}>
           Reset
@@ -118,4 +115,3 @@ export function PaginationControls({
     </div>
   )
 }
-

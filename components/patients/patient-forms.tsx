@@ -186,6 +186,7 @@ function RegionAddressFields({
 
 export function CreatePatientForm() {
   const [state, formAction, pending] = React.useActionState(createPatientAction, initialClinicFormState)
+  const today = React.useMemo(() => new Date(), [])
   useRefreshOnSuccess(state)
 
   return (
@@ -193,23 +194,20 @@ export function CreatePatientForm() {
       <div className="grid gap-3">
         <TextField name="fullName" label="Nama lengkap" error={state.errors?.fullName?.[0]} autoComplete="name" />
         <TextField name="nik" label="NIK" error={state.errors?.nik?.[0]} inputMode="numeric" maxLength={16} pattern="\d{16}" numbersOnly />
-        <DatePickerField name="birthDate" label="Tanggal lahir" error={state.errors?.birthDate?.[0]} />
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Jenis kelamin</span>
-          <select
-            name="gender"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.gender)}
-          >
-            <option value="">Pilih jenis kelamin</option>
-            <option value="FEMALE">Perempuan</option>
-            <option value="MALE">Laki-laki</option>
-            <option value="UNDETERMINED">Tidak dapat ditentukan</option>
-            <option value="UNKNOWN">Tidak diketahui</option>
-            <option value="NOT_FILLED">Tidak mengisi</option>
-          </select>
-          <FieldError message={state.errors?.gender?.[0]} />
-        </label>
+        <DatePickerField name="birthDate" label="Tanggal lahir" error={state.errors?.birthDate?.[0]} maxDate={today} />
+        <ComboboxField
+          name="gender"
+          label="Jenis kelamin"
+          items={[
+            { value: "FEMALE", label: "Perempuan" },
+            { value: "MALE", label: "Laki-laki" },
+            { value: "UNDETERMINED", label: "Tidak dapat ditentukan" },
+            { value: "UNKNOWN", label: "Tidak diketahui" },
+            { value: "NOT_FILLED", label: "Tidak mengisi" },
+          ]}
+          placeholder="Pilih jenis kelamin"
+          error={state.errors?.gender}
+        />
         <TextField name="phone" label="Nomor telepon" error={state.errors?.phone?.[0]} inputMode="numeric" pattern="\d*" autoComplete="tel" numbersOnly />
         <TextField name="bloodType" label="Golongan darah" error={state.errors?.bloodType?.[0]} pattern="[A-Za-z]*" autoCapitalize="characters" lettersOnly />
         <RegionAddressFields required errors={state.errors} />
@@ -250,20 +248,18 @@ export function UpdatePatientForm({ patients }: { patients: PatientListItem[] })
         <RegionAddressFields required={false} errors={state.errors} />
         <TextAreaField name="address" label="Detail alamat" error={state.errors?.address?.[0]} />
         <TextAreaField name="allergies" label="Alergi" error={state.errors?.allergies?.[0]} />
-        <label className="grid gap-1.5">
-          <span className="text-sm font-medium">Status pasien</span>
-          <select
-            name="status"
-            className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            aria-invalid={Boolean(state.errors?.status)}
-          >
-            <option value="">Tidak diubah</option>
-            <option value="ACTIVE">Aktif</option>
-            <option value="INACTIVE">Nonaktif</option>
-            <option value="DECEASED">Meninggal</option>
-          </select>
-          <FieldError message={state.errors?.status?.[0]} />
-        </label>
+        <ComboboxField
+          name="status"
+          label="Status pasien"
+          items={[
+            { value: "", label: "Tidak diubah" },
+            { value: "ACTIVE", label: "Aktif" },
+            { value: "INACTIVE", label: "Nonaktif" },
+            { value: "DECEASED", label: "Meninggal" },
+          ]}
+          placeholder="Tidak diubah"
+          error={state.errors?.status}
+        />
       </div>
       <FormMessage state={state} />
       <Button type="submit" size="lg" className="w-full sm:w-fit" disabled={pending}>

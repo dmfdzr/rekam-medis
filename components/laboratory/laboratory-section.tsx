@@ -68,6 +68,7 @@ export function LaboratoryForm({ clinicalWorklist }: { clinicalWorklist: Clinica
   const [state, formAction, pending] = React.useActionState(upsertLaboratoryAction, initialClinicFormState)
   useRefreshOnSuccess(state)
   const [selectedVisitId, setSelectedVisitId] = React.useState(clinicalWorklist[0]?.id ?? "")
+  const today = React.useMemo(() => new Date(), [])
   const selectedVisit = clinicalWorklist.find((visit) => visit.id === selectedVisitId)
 
   if (clinicalWorklist.length === 0) {
@@ -87,7 +88,7 @@ export function LaboratoryForm({ clinicalWorklist }: { clinicalWorklist: Clinica
 
       <div key={selectedVisitId} className="grid gap-3 sm:grid-cols-2">
         <div className="sm:col-span-2">
-           <DatePickerField name="examinationDate" label="Tanggal pemeriksaan" defaultValue={selectedVisit?.laboratoryResult?.examinationDate ?? todayISO()} />
+           <DatePickerField name="examinationDate" label="Tanggal pemeriksaan" defaultValue={selectedVisit?.laboratoryResult?.examinationDate ?? todayISO()} maxDate={today} />
         </div>
         <TextField name="hemoglobin" label="Hemoglobin (g/dl)" type="number" defaultValue={selectedVisit?.laboratoryResult?.hemoglobin} inputMode="decimal" step="0.1" min={0} placeholder="14.0" />
         <TextField name="leukosit" label="Leukosit (micro/l)" type="number" defaultValue={selectedVisit?.laboratoryResult?.leukosit} inputMode="decimal" step="0.1" min={0} placeholder="10000" />

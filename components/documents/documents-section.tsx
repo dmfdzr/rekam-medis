@@ -13,7 +13,7 @@ import { ModalDialog, Panel } from "@/components/shared/layout"
 import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
 import { verifyMedicalRecordAction } from "@/app/actions/clinic"
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog"
-import { DatePickerField, TextAreaField, FieldError, FormMessage } from "@/components/shared/forms"
+import { ComboboxField, DatePickerField, TextAreaField, FieldError, FormMessage } from "@/components/shared/forms"
 
 const dischargeConditionOptions = [
   { value: "ALLOWED_HOME", label: "Diijinkan Pulang" },
@@ -26,6 +26,7 @@ const dischargeConditionOptions = [
 function VerifyForm({ recordId, canVerify }: { recordId: string; canVerify: boolean }) {
   const [state, formAction, pending] = React.useActionState(verifyMedicalRecordAction, {})
   const [open, setOpen] = React.useState(false)
+  const todayDate = React.useMemo(() => new Date(), [])
   const today = React.useMemo(() => {
     const now = new Date()
 
@@ -62,6 +63,7 @@ function VerifyForm({ recordId, canVerify }: { recordId: string; canVerify: bool
             name="verificationDate"
             label="Tanggal verifikasi"
             defaultValue={today}
+            maxDate={todayDate}
             error={state.errors?.verificationDate?.[0]}
           />
           <div className="grid gap-2">
@@ -119,6 +121,7 @@ export function DocumentsSection({
   const [verificationFilter, setVerificationFilter] = React.useState("all")
   const [startDate, setStartDate] = React.useState("")
   const [endDate, setEndDate] = React.useState("")
+  const today = React.useMemo(() => new Date(), [])
   
   const searchSelector = React.useCallback(
     (record: MedicalDocumentListItem) => [
@@ -169,21 +172,21 @@ export function DocumentsSection({
         description="Saring dokumen berdasarkan status verifikasi dan tanggal perubahan data."
       >
         <div className="grid gap-4">
-          <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Status verifikasi</span>
-            <select
-              value={verificationFilter}
-              onChange={(event) => setVerificationFilter(event.target.value)}
-              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            >
-              <option value="all">Semua dokumen</option>
-              <option value="verified">Terverifikasi</option>
-              <option value="unverified">Belum verifikasi</option>
-            </select>
-          </label>
+          <ComboboxField
+            name="verificationFilter"
+            label="Status verifikasi"
+            items={[
+              { value: "all", label: "Semua dokumen" },
+              { value: "verified", label: "Terverifikasi" },
+              { value: "unverified", label: "Belum verifikasi" },
+            ]}
+            placeholder="Semua dokumen"
+            value={verificationFilter}
+            onValueChange={setVerificationFilter}
+          />
           <div className="grid gap-3 sm:grid-cols-2">
-            <DatePickerField name="" label="Tanggal mulai" value={startDate} onValueChange={setStartDate} placeholder="Semua tanggal" />
-            <DatePickerField name="" label="Tanggal akhir" value={endDate} onValueChange={setEndDate} placeholder="Semua tanggal" />
+            <DatePickerField name="" label="Tanggal mulai" value={startDate} onValueChange={setStartDate} placeholder="Semua tanggal" maxDate={today} />
+            <DatePickerField name="" label="Tanggal akhir" value={endDate} onValueChange={setEndDate} placeholder="Semua tanggal" maxDate={today} />
           </div>
           <div className="flex justify-end gap-2 border-t border-border pt-4">
             <Button type="button" variant="outline" size="lg" onClick={resetFilters}>

@@ -377,6 +377,12 @@ function startOfToday() {
   return new Date(now.getFullYear(), now.getMonth(), now.getDate())
 }
 
+function startOfTomorrow() {
+  const today = startOfToday()
+
+  return new Date(today.getFullYear(), today.getMonth(), today.getDate() + 1)
+}
+
 function isExpiredDate(date: Date | null) {
   return Boolean(date && date < startOfToday())
 }
@@ -463,6 +469,14 @@ export async function createPatientAction(_state: ClinicFormState, formData: For
       ok: false,
       message: "Tanggal lahir tidak valid.",
       errors: { birthDate: ["Tanggal lahir tidak valid."] },
+    }
+  }
+
+  if (birthDate >= startOfTomorrow()) {
+    return {
+      ok: false,
+      message: "Tanggal lahir tidak boleh dari masa depan.",
+      errors: { birthDate: ["Tanggal lahir tidak boleh dari masa depan."] },
     }
   }
 

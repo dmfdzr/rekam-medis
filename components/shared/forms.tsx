@@ -15,7 +15,7 @@ import {
   CommandItem,
   CommandList,
 } from "@/components/ui/command"
-import { Check, ChevronsUpDown } from "lucide-react"
+import { Check, ChevronLeft, ChevronRight, ChevronsUpDown } from "lucide-react"
 import { ToastBridge } from "@/components/shared/toast"
 
 export function TextField({
@@ -191,6 +191,8 @@ export function DatePickerField({
   value,
   onValueChange,
   placeholder,
+  minDate,
+  maxDate,
 }: {
   name: string
   label: string
@@ -199,8 +201,12 @@ export function DatePickerField({
   value?: string
   onValueChange?: (value: string) => void
   placeholder?: string
+  minDate?: Date
+  maxDate?: Date
 }) {
   const [open, setOpen] = React.useState(false)
+  const [activeCalendarPicker, setActiveCalendarPicker] = React.useState<"month" | "year" | null>(null)
+  const [calendarPickerQuery, setCalendarPickerQuery] = React.useState("")
 
   function toISO(date: Date): string {
     return `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}-${String(date.getDate()).padStart(2, "0")}`
@@ -215,6 +221,20 @@ export function DatePickerField({
 
   const [uncontrolledSelected, setUncontrolledSelected] = React.useState<Date | undefined>(initialDate)
   const selected = value !== undefined ? initialDate : uncontrolledSelected
+  const calendarStartMonth = React.useMemo(() => minDate ?? new Date(1900, 0), [minDate])
+  const calendarEndMonth = React.useMemo(() => {
+    if (maxDate) {
+      return new Date(maxDate.getFullYear(), maxDate.getMonth())
+    }
+
+    const today = new Date()
+    return new Date(today.getFullYear() + 20, 11)
+  }, [maxDate])
+  const [displayedMonth, setDisplayedMonth] = React.useState(() => clampCalendarMonth(initialDate ?? new Date(), calendarStartMonth, calendarEndMonth))
+
+  React.useEffect(() => {
+    setDisplayedMonth(clampCalendarMonth(initialDate ?? displayedMonth, calendarStartMonth, calendarEndMonth))
+  }, [calendarEndMonth, calendarStartMonth, initialDate])
 
   function handleSelect(date: Date | undefined) {
     setUncontrolledSelected(date)
@@ -226,12 +246,43 @@ export function DatePickerField({
   const displayText = selected
     ? formatDate(selected, "d MMMM yyyy", { locale: id })
     : ""
-  const calendarStartMonth = React.useMemo(() => new Date(1900, 0), [])
-  const calendarEndMonth = React.useMemo(() => {
-    const today = new Date()
+  const disabledDates = React.useMemo(() => {
+    if (minDate && maxDate) return [{ before: minDate }, { after: maxDate }]
+    if (minDate) return { before: minDate }
+    if (maxDate) return { after: maxDate }
 
-    return new Date(today.getFullYear() + 20, 11)
-  }, [])
+    return undefined
+  }, [minDate, maxDate])
+  const canGoPrevious = compareMonth(addMonths(displayedMonth, -1), calendarStartMonth) >= 0
+  const canGoNext = compareMonth(addMonths(displayedMonth, 1), calendarEndMonth) <= 0
+  const yearOptions = React.useMemo(() => {
+    const startYear = calendarStartMonth.getFullYear()
+    const endYear = calendarEndMonth.getFullYear()
+
+    return Array.from({ length: endYear - startYear + 1 }, (_, index) => {
+      const year = startYear + index
+
+      return { value: String(year), label: String(year) }
+    })
+  }, [calendarEndMonth, calendarStartMonth])
+  const monthOptions = React.useMemo(() => {
+    const year = displayedMonth.getFullYear()
+
+    return Array.from({ length: 12 }, (_, month) => new Date(year, month, 1))
+      .filter((month) => compareMonth(month, calendarStartMonth) >= 0 && compareMonth(month, calendarEndMonth) <= 0)
+      .map((month) => ({
+        value: String(month.getMonth()),
+        label: formatDate(month, "MMMM", { locale: id }),
+      }))
+  }, [calendarEndMonth, calendarStartMonth, displayedMonth])
+
+  function setCalendarMonth(nextMonth: Date) {
+    setDisplayedMonth(clampCalendarMonth(nextMonth, calendarStartMonth, calendarEndMonth))
+  }
+
+  function moveCalendarMonth(offset: number) {
+    setCalendarMonth(addMonths(displayedMonth, offset))
+  }
 
   return (
     <div className="grid gap-1.5">
@@ -250,6 +301,56 @@ export function DatePickerField({
           </button>
         </PopoverTrigger>
         <PopoverContent className="w-auto p-0" align="start">
+          <div className="relative border-b border-border p-3">
+            <div className="flex items-center justify-between gap-2">
+              <Button type="button" variant="ghost" size="icon" disabled={!canGoPrevious} onClick={() => moveCalendarMonth(-1)} aria-label="Bulan sebelumnya">
+                <ChevronLeft className="size-4" aria-hidden="true" />
+              </Button>
+              <div className="grid min-w-0 flex-1 grid-cols-[minmax(0,1fr)_5rem] gap-2">
+                <CalendarPickerButton
+                  label="Bulan"
+                  open={activeCalendarPicker === "month"}
+                  value={formatDate(displayedMonth, "MMMM", { locale: id })}
+                  onOpen={() => {
+                    setActiveCalendarPicker(activeCalendarPicker === "month" ? null : "month")
+                    setCalendarPickerQuery("")
+                  }}
+                />
+                <CalendarPickerButton
+                  label="Tahun"
+                  open={activeCalendarPicker === "year"}
+                  value={String(displayedMonth.getFullYear())}
+                  onOpen={() => {
+                    setActiveCalendarPicker(activeCalendarPicker === "year" ? null : "year")
+                    setCalendarPickerQuery("")
+                  }}
+                />
+              </div>
+              <Button type="button" variant="ghost" size="icon" disabled={!canGoNext} onClick={() => moveCalendarMonth(1)} aria-label="Bulan berikutnya">
+                <ChevronRight className="size-4" aria-hidden="true" />
+              </Button>
+            </div>
+            {activeCalendarPicker ? (
+              <CalendarPickerPanel
+                query={calendarPickerQuery}
+                onQueryChange={setCalendarPickerQuery}
+                items={activeCalendarPicker === "month" ? monthOptions : yearOptions}
+                selectedValue={activeCalendarPicker === "month" ? String(displayedMonth.getMonth()) : String(displayedMonth.getFullYear())}
+                onSelect={(nextValue) => {
+                  if (activeCalendarPicker === "month") {
+                    setCalendarMonth(new Date(displayedMonth.getFullYear(), Number(nextValue), 1))
+                  } else {
+                    const nextYear = Number(nextValue)
+                    const nextMonth = clampCalendarMonth(new Date(nextYear, displayedMonth.getMonth(), 1), calendarStartMonth, calendarEndMonth)
+
+                    setCalendarMonth(nextMonth)
+                  }
+                  setActiveCalendarPicker(null)
+                  setCalendarPickerQuery("")
+                }}
+              />
+            ) : null}
+          </div>
           <Calendar
             mode="single"
             selected={selected}
@@ -257,16 +358,82 @@ export function DatePickerField({
               handleSelect(date)
               setOpen(false)
             }}
-            defaultMonth={initialDate}
-            captionLayout="dropdown"
+            month={displayedMonth}
+            onMonthChange={setCalendarMonth}
+            hideNavigation
+            classNames={{
+              month_caption: "sr-only",
+            }}
             startMonth={calendarStartMonth}
             endMonth={calendarEndMonth}
+            disabled={disabledDates}
             locale={id}
           />
         </PopoverContent>
       </Popover>
       {name ? <input type="hidden" name={name} value={isoValue} /> : null}
       <FieldError message={error} />
+    </div>
+  )
+}
+
+function addMonths(date: Date, offset: number) {
+  return new Date(date.getFullYear(), date.getMonth() + offset, 1)
+}
+
+function compareMonth(left: Date, right: Date) {
+  return left.getFullYear() * 12 + left.getMonth() - (right.getFullYear() * 12 + right.getMonth())
+}
+
+function clampCalendarMonth(date: Date, start: Date, end: Date) {
+  const month = new Date(date.getFullYear(), date.getMonth(), 1)
+
+  if (compareMonth(month, start) < 0) return new Date(start.getFullYear(), start.getMonth(), 1)
+  if (compareMonth(month, end) > 0) return new Date(end.getFullYear(), end.getMonth(), 1)
+
+  return month
+}
+
+function CalendarPickerButton({ label, open, value, onOpen }: { label: string; open: boolean; value: string; onOpen: () => void }) {
+  return (
+    <Button type="button" variant="outline" role="combobox" aria-label={label} aria-expanded={open} className="h-9 min-w-0 justify-between px-2 text-xs font-medium" onClick={onOpen}>
+      <span className="truncate">{value}</span>
+      <ChevronsUpDown className="ml-1 size-3.5 shrink-0 opacity-50" aria-hidden="true" />
+    </Button>
+  )
+}
+
+function CalendarPickerPanel({
+  query,
+  onQueryChange,
+  items,
+  selectedValue,
+  onSelect,
+}: {
+  query: string
+  onQueryChange: (value: string) => void
+  items: { value: string; label: string }[]
+  selectedValue: string
+  onSelect: (value: string) => void
+}) {
+  const filteredItems = items.filter((item) => item.label.toLowerCase().includes(query.toLowerCase()) || item.value.includes(query))
+
+  return (
+    <div className="absolute left-3 right-3 top-[3.75rem] z-20 overflow-hidden rounded-md border border-border bg-popover shadow-md">
+      <Command shouldFilter={false}>
+        <CommandInput placeholder="Cari..." value={query} onValueChange={onQueryChange} />
+        <CommandList>
+          <CommandEmpty>Tidak ada hasil ditemukan.</CommandEmpty>
+          <CommandGroup>
+            {filteredItems.map((item) => (
+              <CommandItem key={item.value} value={`${item.value} ${item.label}`} onSelect={() => onSelect(item.value)}>
+                <Check className={cn("mr-2 size-4 shrink-0", selectedValue === item.value ? "opacity-100" : "opacity-0")} />
+                <span>{item.label}</span>
+              </CommandItem>
+            ))}
+          </CommandGroup>
+        </CommandList>
+      </Command>
     </div>
   )
 }
@@ -355,7 +522,7 @@ export function ComboboxField({
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[min(40rem,calc(100vw-2rem))] p-0" align="start">
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command>
             <CommandInput 
               placeholder={`Cari ${label ? label.toLowerCase() : "pilihan"}...`} 

@@ -117,7 +117,7 @@ function ComboboxField({
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[min(40rem,calc(100vw-2rem))] p-0" align="start">
+        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput 
               placeholder={`Cari ${label.toLowerCase()}...`} 

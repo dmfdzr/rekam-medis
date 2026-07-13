@@ -6,7 +6,7 @@ import { addPrescriptionItemAction, processPrescriptionAction, cancelPrescriptio
 import * as React from "react"
 
 import { useRefreshOnSuccess } from "@/lib/hooks"
-import { TextField, TextAreaField, FieldError, FormMessage, ComboboxField } from "@/components/shared/forms"
+import { TextField, TextAreaField, FormMessage, ComboboxField } from "@/components/shared/forms"
 import { EmptyState, DestructiveActionNotice } from "@/components/shared/feedback"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
 import { Button } from "@/components/ui/button"
@@ -58,21 +58,17 @@ export function ProcessPrescriptionForm({ prescriptions }: { prescriptions: Pres
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Resep</span>
-        <select
-          name="prescriptionId"
-          value={selectedPrescriptionId}
-          onChange={(event) => setSelectedPrescriptionId(event.target.value)}
-          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-        >
-          {pendingPrescriptions.map((prescription) => (
-            <option key={prescription.id} value={prescription.id}>
-              {prescription.medicalRecordNumber} - {prescription.patient} - {prescription.items}
-            </option>
-          ))}
-        </select>
-      </label>
+      <ComboboxField
+        name="prescriptionId"
+        label="Resep"
+        items={pendingPrescriptions.map((prescription) => ({
+          value: prescription.id,
+          label: `${prescription.medicalRecordNumber} - ${prescription.patient} - ${prescription.items}`,
+        }))}
+        placeholder="Pilih resep"
+        value={selectedPrescriptionId}
+        onValueChange={setSelectedPrescriptionId}
+      />
       {selectedPrescription ? (
         <div className="grid gap-3 rounded-md border border-border bg-card p-4">
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -128,22 +124,16 @@ export function CancelPrescriptionForm({ prescriptions }: { prescriptions: Presc
 
   return (
     <form action={formAction} className="grid gap-4" noValidate>
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Resep</span>
-        <select
-          name="prescriptionId"
-          className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-          aria-invalid={Boolean(state.errors?.prescriptionId)}
-        >
-          <option value="">Pilih resep</option>
-          {cancellablePrescriptions.map((prescription) => (
-            <option key={prescription.id} value={prescription.id}>
-              {prescription.medicalRecordNumber} - {prescription.patient} - {prescription.items}
-            </option>
-          ))}
-        </select>
-        <FieldError message={state.errors?.prescriptionId?.[0]} />
-      </label>
+      <ComboboxField
+        name="prescriptionId"
+        label="Resep"
+        items={cancellablePrescriptions.map((prescription) => ({
+          value: prescription.id,
+          label: `${prescription.medicalRecordNumber} - ${prescription.patient} - ${prescription.items}`,
+        }))}
+        placeholder="Pilih resep"
+        error={state.errors?.prescriptionId}
+      />
       <DestructiveActionNotice message="Resep yang sudah diproses tidak bisa dibatalkan dari aksi ini. Resep pending akan ditandai dibatalkan." />
       <FormMessage state={state} />
       <ConfirmSubmitButton

@@ -9,7 +9,7 @@ import dynamic from "next/dynamic"
 import { Download } from "lucide-react"
 
 import { cn } from "@/lib/utils"
-import { TextField, DatePickerField } from "@/components/shared/forms"
+import { ComboboxField, DatePickerField } from "@/components/shared/forms"
 import { EmptyState, InlineErrorState, LoadingState } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { DownloadAction } from "@/components/shared/download-action"
@@ -162,6 +162,7 @@ export function ReportsSection({
   const [mapLevel, setMapLevel] = React.useState("district")
   const [isLoading, setIsLoading] = React.useState(false)
   const [error, setError] = React.useState("")
+  const today = React.useMemo(() => new Date(), [])
   const exportQuery = new URLSearchParams()
   const diagnosisMapQuery = new URLSearchParams(exportQuery)
 
@@ -353,41 +354,47 @@ export function ReportsSection({
       />
       <ModalDialog open={filtersOpen} onOpenChange={onFiltersOpenChange} title="Filter laporan" description="Batasi laporan berdasarkan rentang tanggal agar query tetap ringan.">
         <div className="grid gap-3 sm:grid-cols-2">
-          <DatePickerField name="startDate" label="Tanggal mulai" value={startDate} onValueChange={setStartDate} />
-          <DatePickerField name="endDate" label="Tanggal akhir" value={endDate} onValueChange={setEndDate} />
+          <DatePickerField name="startDate" label="Tanggal mulai" value={startDate} onValueChange={setStartDate} maxDate={today} />
+          <DatePickerField name="endDate" label="Tanggal akhir" value={endDate} onValueChange={setEndDate} maxDate={today} />
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
-          <TextField name="diagnosis" label="Diagnosis/penyakit" value={diagnosis} onValueChange={setDiagnosis} list="diagnosis-options" placeholder="Semua diagnosis" />
-          <datalist id="diagnosis-options">
-            {details.diagnosisOptions.map((item) => (
-              <option key={item.name} value={item.name}>
-                {item.count} kasus
-              </option>
-            ))}
-          </datalist>
-          <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Jenis diagnosis</span>
-            <select
-              value={diagnosisType}
-              onChange={(event) => setDiagnosisType(event.target.value)}
-              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            >
-              <option value="ALL">Semua</option>
-              <option value="PRIMARY">Utama</option>
-              <option value="SECONDARY">Sekunder</option>
-            </select>
-          </label>
-          <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Level wilayah</span>
-            <select
-              value={mapLevel}
-              onChange={(event) => setMapLevel(event.target.value)}
-              className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25"
-            >
-              <option value="district">Kecamatan</option>
-              <option value="city">Kabupaten/Kota</option>
-            </select>
-          </label>
+          <ComboboxField
+            name="diagnosis"
+            label="Diagnosis/penyakit"
+            items={[
+              { value: "", label: "Semua diagnosis" },
+              ...details.diagnosisOptions.map((item) => ({
+                value: item.name,
+                label: `${item.name} (${item.count} kasus)`,
+              })),
+            ]}
+            placeholder="Semua diagnosis"
+            value={diagnosis}
+            onValueChange={setDiagnosis}
+          />
+          <ComboboxField
+            name="diagnosisType"
+            label="Jenis diagnosis"
+            items={[
+              { value: "ALL", label: "Semua" },
+              { value: "PRIMARY", label: "Utama" },
+              { value: "SECONDARY", label: "Sekunder" },
+            ]}
+            placeholder="Pilih jenis diagnosis"
+            value={diagnosisType}
+            onValueChange={setDiagnosisType}
+          />
+          <ComboboxField
+            name="mapLevel"
+            label="Level wilayah"
+            items={[
+              { value: "district", label: "Kecamatan" },
+              { value: "city", label: "Kabupaten/Kota" },
+            ]}
+            placeholder="Pilih level wilayah"
+            value={mapLevel}
+            onValueChange={setMapLevel}
+          />
         </div>
         {isLoading ? <LoadingState title="Memuat laporan" detail="Filter tanggal sedang diterapkan ke ringkasan dan detail laporan." /> : null}
         {error || dateRangeError ? (

@@ -37,16 +37,19 @@ export function MedicalDocumentForm({ documentOptions }: { documentOptions: Docu
         ]}
         placeholder="Pilih kunjungan"
       />
-      <label className="grid gap-1.5">
-        <span className="text-sm font-medium">Tipe dokumen</span>
-        <select name="type" className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
-          <option value="LAB_RESULT">Hasil lab</option>
-          <option value="REFERRAL_LETTER">Surat rujukan</option>
-          <option value="CONTROL_LETTER">Surat kontrol</option>
-          <option value="EXAMINATION_PHOTO">Foto pemeriksaan</option>
-          <option value="OTHER">Lainnya</option>
-        </select>
-      </label>
+      <ComboboxField
+        name="type"
+        label="Tipe dokumen"
+        items={[
+          { value: "LAB_RESULT", label: "Hasil lab" },
+          { value: "REFERRAL_LETTER", label: "Surat rujukan" },
+          { value: "CONTROL_LETTER", label: "Surat kontrol" },
+          { value: "EXAMINATION_PHOTO", label: "Foto pemeriksaan" },
+          { value: "OTHER", label: "Lainnya" },
+        ]}
+        placeholder="Pilih tipe dokumen"
+        defaultValue="LAB_RESULT"
+      />
       <TextField
         name="documentName"
         label="Nama dokumen"

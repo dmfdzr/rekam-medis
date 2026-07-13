@@ -11,6 +11,7 @@ import { EmptyState, StatusBadge } from "@/components/shared/feedback"
 import { Panel, ModalDialog } from "@/components/shared/layout"
 import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
 import { PatientDetailItem } from "@/components/patients/patient-dialog"
+import { ComboboxField } from "@/components/shared/forms"
 
 function parseAuditPayload(value: string) {
   if (!value || value === "-") {
@@ -269,39 +270,39 @@ export function AuditSection({
       <PaginationControls page={controls.page} totalPages={controls.totalPages} onPageChange={controls.setPage} />
       <ModalDialog open={filtersOpen} onOpenChange={onFiltersOpenChange} title="Filter audit log" description="Batasi aktivitas berdasarkan risiko, entity, dan action.">
         <div className="grid gap-3">
-          <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Risiko</span>
-            <select value={riskFilter} onChange={(event) => setRiskFilter(event.target.value)} className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
-              <option value="all">Semua risiko</option>
-              {auditRisks.map((risk) => (
-                <option key={risk} value={risk}>
-                  {risk}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Entity</span>
-            <select value={entityFilter} onChange={(event) => setEntityFilter(event.target.value)} className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
-              <option value="all">Semua entity</option>
-              {auditEntities.map((entity) => (
-                <option key={entity} value={entity}>
-                  {entity}
-                </option>
-              ))}
-            </select>
-          </label>
-          <label className="grid gap-1.5">
-            <span className="text-sm font-medium">Action</span>
-            <select value={actionFilter} onChange={(event) => setActionFilter(event.target.value)} className="h-11 rounded-md border border-input bg-background px-3 text-sm outline-none transition focus:border-ring focus:ring-2 focus:ring-ring/25">
-              <option value="all">Semua action</option>
-              {auditActions.map((action) => (
-                <option key={action} value={action}>
-                  {action}
-                </option>
-              ))}
-            </select>
-          </label>
+          <ComboboxField
+            name="riskFilter"
+            label="Risiko"
+            items={[
+              { value: "all", label: "Semua risiko" },
+              ...auditRisks.map((risk) => ({ value: risk, label: risk })),
+            ]}
+            placeholder="Semua risiko"
+            value={riskFilter}
+            onValueChange={setRiskFilter}
+          />
+          <ComboboxField
+            name="entityFilter"
+            label="Entity"
+            items={[
+              { value: "all", label: "Semua entity" },
+              ...auditEntities.map((entity) => ({ value: entity, label: entity })),
+            ]}
+            placeholder="Semua entity"
+            value={entityFilter}
+            onValueChange={setEntityFilter}
+          />
+          <ComboboxField
+            name="actionFilter"
+            label="Action"
+            items={[
+              { value: "all", label: "Semua action" },
+              ...auditActions.map((action) => ({ value: action, label: action })),
+            ]}
+            placeholder="Semua action"
+            value={actionFilter}
+            onValueChange={setActionFilter}
+          />
         </div>
         <div className="flex justify-end gap-2 border-t border-border pt-4">
           <Button type="button" variant="outline" size="lg" onClick={resetFilters}>
