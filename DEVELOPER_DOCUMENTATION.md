@@ -16,7 +16,7 @@ Dashboard -> Pasien -> Kunjungan -> Asesmen -> Laboratorium -> Resep -> CPPT -> 
 Pembagian tanggung jawab:
 
 ```text
-app/                 Routing Next.js, server actions, API route, page shell.
+app/                 Routing Next.js, route group public/protected, server actions, API route, page shell.
 components/          Komponen UI per fitur dan reusable UI.
 lib/auth/            Login, session, permission, password, audit helper.
 lib/data/clinic.ts   Query server-side untuk semua data fitur utama.
@@ -31,10 +31,12 @@ tests/               Unit test dan Playwright e2e.
 
 | File | Fungsi |
 | --- | --- |
-| `app/page.tsx` | Landing page publik sebelum login. |
-| `app/login/page.tsx` | Halaman login yang fokus pada form autentikasi. |
-| `app/login/login-form.tsx` | Client form login, loading dialog, dan error toast. |
-| `app/app/page.tsx` | Server page utama setelah login. Mengambil data sesuai permission lalu mengirim ke `MedRecordApp`. |
+| `app/(public)/page.tsx` | Landing page publik sebelum login. URL tetap `/`. |
+| `app/(public)/login/page.tsx` | Halaman login yang fokus pada form autentikasi. URL tetap `/login`. |
+| `app/(public)/login/login-form.tsx` | Client form login, loading dialog, dan error toast. |
+| `app/(public)/loading.tsx` | Skeleton public untuk landing/login, tanpa sidebar dashboard. |
+| `app/(protected)/app/page.tsx` | Server page utama setelah login. URL tetap `/app`. Mengambil data sesuai permission lalu mengirim ke `MedRecordApp`. |
+| `app/(protected)/loading.tsx` | Skeleton dashboard untuk route protected. |
 | `app/medrecord-app.tsx` | Client shell dashboard: sidebar, header, filter dialog, composer dialog, dan render section aktif. |
 | `app/template.tsx` | Transisi antar halaman. |
 | `app/layout.tsx` | Root layout, theme provider, font, toast provider. |

@@ -20,6 +20,16 @@ Dokumen Resume Medis dibuat saat user klik lihat atau download, sehingga storage
 
 Data yang dibuat pada satu tahap tampil di fitur tahap tersebut, lalu tersedia sebagai pilihan untuk tahap berikutnya.
 
+## Struktur Route
+
+URL publik tidak berubah, tetapi route Next.js dipisah dengan route group agar loading state sesuai konteks:
+
+- `app/(public)/page.tsx` untuk landing page `/`.
+- `app/(public)/login/page.tsx` untuk login `/login`.
+- `app/(public)/loading.tsx` untuk skeleton landing/login.
+- `app/(protected)/app/page.tsx` untuk dashboard `/app`.
+- `app/(protected)/loading.tsx` untuk skeleton dashboard aplikasi.
+
 ## Fitur Utama
 
 - Landing page, login internal, logout dengan konfirmasi, session HTTP-only cookie, dan light/dark mode.
