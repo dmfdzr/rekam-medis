@@ -57,12 +57,12 @@ export default async function LandingPage() {
     <main className="min-h-dvh bg-background text-foreground">
       <section className="relative isolate overflow-hidden border-b border-border">
         <Image
-          src="/assets/ueu.png"
+          src="/assets/health.png"
           alt=""
-          width={520}
-          height={520}
+          width={760}
+          height={760}
           priority
-          className="pointer-events-none absolute -right-24 top-16 -z-10 size-88 bg-transparent opacity-[0.04] sm:size-112 lg:right-10 lg:top-10 lg:size-128"
+          className="pointer-events-none absolute left-1/2 top-1/2 -z-10 h-auto w-xl -translate-x-1/2 -translate-y-1/2 select-none object-contain opacity-[0.05] sm:w-3xl lg:w-5xl"
         />
         <div className="mx-auto flex min-h-dvh w-full max-w-7xl flex-col px-4 py-4 sm:px-6 lg:px-8">
           <header className="flex items-center justify-between gap-4">
