@@ -1,6 +1,6 @@
 # Developer Documentation
 
-Dokumen ini menjelaskan struktur teknis aplikasi Rekam Medis Elektronik, mapping fitur ke file/fungsi, alur logika, struktur database, relasi, dan ERD. Dokumen ini ditujukan untuk developer yang akan melanjutkan maintenance atau pengembangan fitur.
+Dokumen ini menjelaskan struktur teknis aplikasi Rekam Medis Elektronik untuk Sistem Informasi Manajemen Rumah Sakit Esa Unggul, mapping fitur ke file/fungsi, alur logika, struktur database, relasi, dan ERD. Dokumen ini ditujukan untuk developer yang akan melanjutkan maintenance atau pengembangan fitur.
 
 ## Ringkasan Arsitektur
 
@@ -71,7 +71,7 @@ Semua query utama untuk halaman dashboard terkonsentrasi di `lib/data/clinic.ts`
 
 | Function | Fitur | Logika utama |
 | --- | --- | --- |
-| `getDashboardSummary()` | Dashboard | Hitung pasien aktif, kunjungan hari ini, kunjungan aktif, dokumen medis, dan antrean layanan. |
+| `getDashboardSummary()` | Dashboard SIMRS | Hitung pasien aktif, kunjungan hari ini, kunjungan aktif, dokumen medis, proses verifikasi, dan antrean layanan. |
 | `getPatientList()` | Pasien | Ambil data pasien, ringkasan kunjungan terakhir, alamat terstruktur, dan usia. |
 | `getVisitList()` | Kunjungan | Ambil daftar kunjungan, pasien, DPJP, rawat bersama, status alur. |
 | `getVisitFormOptions()` | Form kunjungan | Ambil pasien aktif, dokter aktif, dan daftar ruang rawat. |
@@ -107,7 +107,7 @@ Mutasi data utama ada di `app/actions/clinic.ts`. Semua action memakai validasi 
 | `processPrescriptionAction()` | Resep | Tandai resep diproses oleh user aktif. |
 | `cancelPrescriptionAction()` | Resep | Batalkan resep. |
 | `saveMedicalRecordAction()` | CPPT | Simpan draft atau finalisasi CPPT. Finalisasi menjadikan visit `COMPLETED`. |
-| `verifyMedicalRecordAction()` | Dokumen Medis | Verifikasi resume medis, isi kondisi pulang dan instruksi pulang, simpan verifier dan waktu realtime. |
+| `verifyMedicalRecordAction()` | Dokumen Medis | Verifikasi resume medis, isi tanggal verifikasi pilihan user, kondisi pulang, instruksi pulang, dan verifier. |
 | `createMedicalDocumentAction()` | Dokumen Medis | Simpan metadata dokumen eksternal. File tidak disimpan untuk menghemat storage. |
 | `createUserAction()` | User | Buat user baru, hash password, relasi role. |
 | `updateUserAction()` | User | Update profil, email, username, role, dan status. |
@@ -130,7 +130,7 @@ Autentikasi:
 
 | Fitur | Komponen utama | Form/Dialog | Data/action |
 | --- | --- | --- | --- |
-| Dashboard | `components/dashboard/dashboard-section.tsx` | - | `getDashboardSummary()` |
+| Dashboard SIMRS | `components/dashboard/dashboard-section.tsx` | - | `getDashboardSummary()` |
 | Pasien | `components/patients/patients-section.tsx` | `patient-forms.tsx`, `patient-dialog.tsx` | `getPatientList()`, patient actions |
 | Kunjungan | `components/visits/visits-section.tsx`, `visits-table.tsx` | `visit-forms.tsx` | `getVisitList()`, visit actions |
 | Asesmen | `components/assessment/assessment-section.tsx` | `AssessmentForm` | `getClinicalWorklist()`, `saveAssessmentAction()` |
@@ -154,7 +154,7 @@ Status `VisitStatus` tidak sekadar label teknis, tetapi menjadi penanda tahap la
 | `VITAL_SIGN` | Proses Laboratorium | Input laboratorium |
 | `EXAMINATION` | Proses Resep | Pembuatan resep |
 | `PHARMACY` | Proses CPPT | Draft/finalisasi CPPT |
-| `COMPLETED` | Selesai | Dokumen medis/verifikasi |
+| `COMPLETED` | Proses Verifikasi / Selesai | Dokumen medis/verifikasi |
 | `CANCELLED` | Dibatalkan | Tidak lanjut proses |
 
 Urutan data:
@@ -176,6 +176,8 @@ Catatan implementasi:
 - Dropdown fitur berikutnya mengambil data dari tahap sebelumnya.
 - Contoh: pasien baru tampil di Data Pasien, tetapi juga muncul sebagai opsi saat membuat Kunjungan.
 - CPPT draft tidak masuk Dokumen Medis. Dokumen Medis hanya menampilkan CPPT final dengan visit `COMPLETED`.
+- Visit `COMPLETED` ditampilkan sebagai `Proses Verifikasi` jika CPPT sudah final tetapi resume belum diverifikasi, lalu berubah menjadi `Selesai` setelah verifikasi.
+- Lama dirawat dihitung setelah verifikasi memakai tanggal kunjungan dan tanggal verifikasi secara inklusif. Contoh: 9 Juli sampai 10 Juli dihitung 2 hari.
 
 ## Dokumen Medis dan PDF Resume
 
@@ -205,8 +207,9 @@ Nomor romawi dihitung dari urutan rekam medis final yang sudah masuk fitur Dokum
 
 Verifikasi:
 
-- Kondisi pulang dan instruksi pulang diisi saat verifikasi.
+- Tanggal verifikasi, kondisi pulang, dan instruksi pulang diisi saat verifikasi.
 - Nama pemberi verifikasi dan teks `Telah diverifikasi pada ...` hanya muncul setelah verifikasi.
+- Teks verifikasi menampilkan tanggal yang dipilih user, bukan jam realtime server.
 - Garis tanda tangan tetap tampil meskipun belum diverifikasi.
 
 ## Laporan dan Map Diagnosis
@@ -290,7 +293,7 @@ address  = Detail alamat, termasuk kelurahan/desa, jalan, RT/RW
 | `Diagnosis` | `diagnoses` | ICD-10 utama/sekunder per CPPT. |
 | `Treatment` | `treatments` | ICD-9-CM tindakan medis per CPPT. |
 | `Prescription` | `prescriptions` | Header resep per CPPT. |
-| `PrescriptionItem` | `prescription_items` | Item obat manual. |
+| `PrescriptionItem` | `prescription_items` | Item obat manual: nama obat, dosis, aturan pakai, dan catatan. Tidak ada field kuantitas. |
 | `MedicalDocument` | `medical_documents` | Metadata dokumen eksternal. Tidak menyimpan file fisik. |
 
 ## Relasi Database
@@ -451,7 +454,7 @@ erDiagram
     string medicineName
     string dosage
     string usageRule
-    int quantity
+    string note
   }
 
   Region {

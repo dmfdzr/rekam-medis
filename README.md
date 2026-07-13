@@ -1,10 +1,10 @@
 # Rekam Medis Elektronik
 
-Aplikasi rekam medis elektronik berbasis web untuk operasional fasilitas kesehatan kecil sampai menengah. Aplikasi memakai Next.js App Router, TypeScript/TSX, Tailwind CSS, shadcn/ui, Prisma, dan Supabase PostgreSQL.
+Aplikasi rekam medis elektronik berbasis web untuk operasional rumah sakit. Aplikasi memakai Next.js App Router, TypeScript/TSX, Tailwind CSS, shadcn/ui, Prisma, dan Supabase PostgreSQL.
 
 ## Ringkasan
 
-Rekam Medis Elektronik membantu fasilitas kesehatan mencatat alur pasien secara berurutan dari pendaftaran sampai resume medis terverifikasi. Aplikasi ini standalone: tidak memakai Supabase Auth, Auth.js, BPJS, SATUSEHAT, SIMRS, payment gateway, atau storage upload dokumen eksternal.
+Rekam Medis Elektronik membantu rumah sakit mencatat alur pasien secara berurutan dari pendaftaran sampai resume medis terverifikasi. Aplikasi ini berjalan sebagai Sistem Informasi Manajemen Rumah Sakit Esa Unggul dengan autentikasi internal, tanpa Supabase Auth, Auth.js, BPJS, SATUSEHAT, payment gateway, atau storage upload dokumen eksternal.
 
 Dokumen Resume Medis dibuat saat user klik lihat atau download, sehingga storage tetap ringan.
 
@@ -24,16 +24,16 @@ Data yang dibuat pada satu tahap tampil di fitur tahap tersebut, lalu tersedia s
 
 - Landing page, login internal, logout dengan konfirmasi, session HTTP-only cookie, dan light/dark mode.
 - Role-based access untuk `Master`, `Admin`, dan `Dokter`.
-- Dashboard operasional untuk pasien aktif, kunjungan, dokumen medis, dan proses verifikasi.
+- Dashboard SIMRS untuk pasien aktif, kunjungan, dokumen medis, dan proses verifikasi.
 - Manajemen pasien dengan NIK 16 digit, nomor RM, kontak, alergi, golongan darah, dan alamat terstruktur.
 - Kunjungan pasien dengan ruang rawat, DPJP utama, rawat bersama, tipe registrasi, dan status alur otomatis.
 - Dokter hanya melihat dan memproses data kunjungan ketika menjadi DPJP utama atau DPJP pendamping.
 - Asesmen klinis dengan tanda vital, diagnosa masuk, riwayat penyakit, ICD-10, dan tindakan ICD-9-CM.
 - Laboratorium dengan input numerik dan daftar hasil yang searchable serta paginated.
-- Resep manual dengan nama obat, dosis, aturan pakai, jumlah, catatan, proses, dan pembatalan.
+- Resep manual dengan nama obat, dosis, aturan pakai, catatan, proses, dan pembatalan.
 - CPPT dengan draft/finalisasi, pencarian, pagination, dan detail riwayat.
 - Dokumen Resume Medis A4 yang dapat dilihat dan diunduh sebagai PDF.
-- Verifikasi dokumen medis dengan kondisi pulang, instruksi pulang, nama verifier, dan waktu verifikasi.
+- Verifikasi dokumen medis dengan tanggal verifikasi pilihan user, kondisi pulang, instruksi pulang, dan nama verifier.
 - Laporan diagnosis/tindakan, export CSV/XLSX, dan peta persebaran diagnosis berbasis Leaflet + OpenStreetMap.
 - Audit log aktivitas penting dengan detail risiko, aksi, entity, IP, dan user agent.
 - Manajemen user oleh Master.
@@ -138,7 +138,7 @@ Untuk production/deployment, jalankan migration:
 npx prisma migrate deploy
 ```
 
-Catatan: verifikasi dokumen medis membutuhkan kolom `dischargeCondition` dan `dischargeInstruction` pada tabel `medical_records`.
+Catatan: verifikasi dokumen medis membutuhkan kolom `verifiedAt`, `verifiedById`, `dischargeCondition`, dan `dischargeInstruction` pada tabel `medical_records`.
 
 ## Script
 
@@ -185,7 +185,7 @@ Script ini membersihkan data klinis, mempertahankan user/pasien, lalu mengisi da
 - Nomor romawi dihitung dari urutan CPPT final yang masuk fitur Dokumen Medis, termasuk yang belum diverifikasi.
 - Logo aplikasi dan dokumen memakai `public/assets/ueu.png`.
 - Verifikasi dokumen wajib mengisi kondisi pulang dan instruksi pulang.
-- PDF Resume Medis menampilkan nama verifier dan waktu verifikasi setelah dokumen diverifikasi.
+- PDF Resume Medis menampilkan nama verifier dan tanggal verifikasi setelah dokumen diverifikasi. Lama dirawat dihitung inklusif dari tanggal kunjungan sampai tanggal verifikasi, sehingga 9 Juli sampai 10 Juli dihitung 2 hari.
 
 ## Dokumentasi Developer
 
