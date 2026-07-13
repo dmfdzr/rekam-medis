@@ -17,7 +17,7 @@ const fontMono = Geist_Mono({
 
 export const metadata: Metadata = {
   title: "Rekam Medis Elektronik",
-  description: "Aplikasi rekam medis elektronik standalone untuk operasional klinik.",
+  description: "Aplikasi rekam medis elektronik untuk operasional klinik.",
   icons: {
     icon: "/assets/ueu.png",
     shortcut: "/assets/ueu.png",

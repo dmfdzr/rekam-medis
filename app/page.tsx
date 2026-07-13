@@ -91,10 +91,10 @@ export default async function LandingPage() {
                 Aplikasi internal untuk operasional klinik
               </div>
               <h1 className="mt-6 text-4xl font-semibold tracking-normal text-balance sm:text-5xl lg:text-6xl">
-                Rekam Medis Elektronik membantu klinik mencatat resume medis dengan alur yang rapi.
+                Sistem Informasi Manajemen Rumah Sakit Esa Unggul
               </h1>
               <p className="mt-5 max-w-xl text-base leading-7 text-muted-foreground sm:text-lg">
-                Kelola pasien, kunjungan rawat inap, asesmen, laboratorium, resep, CPPT, dokumen medis, laporan wilayah diagnosis, dan audit aktivitas dalam satu aplikasi web standalone.
+                Rekam Medis Elektronik membantu klinik mencatat resume medis dengan alur yang rapi, mulai dari kelola pasien, kunjungan rawat inap, asesmen, laboratorium, resep, CPPT, dokumen medis, laporan wilayah diagnosis, hingga audit aktivitas dalam satu aplikasi web.
               </p>
               <div className="mt-8 flex flex-col gap-3 sm:flex-row">
                 <Button asChild size="lg" className="h-11 w-full sm:w-fit">
@@ -160,7 +160,7 @@ export default async function LandingPage() {
             <p className="text-sm font-semibold text-primary">Sekilas tentang aplikasi</p>
             <h2 className="mt-3 text-2xl font-semibold tracking-normal sm:text-3xl">Dibuat untuk pekerjaan harian fasilitas kesehatan kecil hingga menengah.</h2>
             <p className="mt-4 text-sm leading-7 text-muted-foreground">
-              Rekam Medis Elektronik berdiri sebagai aplikasi internal tanpa integrasi BPJS, SATUSEHAT, SIMRS, payment gateway, atau layanan autentikasi eksternal. Fokusnya adalah pencatatan klinis berurutan, kontrol akses dokter sesuai kunjungan, dokumen resume medis PDF, dan laporan persebaran diagnosis berbasis wilayah pasien.
+              Rekam Medis Elektronik digunakan sebagai aplikasi internal tanpa integrasi BPJS, SATUSEHAT, payment gateway, atau layanan autentikasi eksternal. Fokusnya adalah pencatatan klinis berurutan, kontrol akses dokter sesuai kunjungan, dokumen resume medis PDF, dan laporan persebaran diagnosis berbasis wilayah pasien.
             </p>
           </div>
           <div className="grid gap-3 sm:grid-cols-2">
