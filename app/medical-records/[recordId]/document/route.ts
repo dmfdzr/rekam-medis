@@ -534,14 +534,16 @@ function buildResumeMedicalPdf(data: ResumePdfData) {
   fullRow("Instruksi Pulang", data.discharge.instruction, 34)
 
   const signatureName = data.isVerified ? `(${data.signatureDoctor})` : ""
-  const signatureWidth = Math.max(88, (signatureName || " ".repeat(18)).length * 4.8)
+  const signatureText = data.isVerified ? `Telah diverifikasi pada ${data.verifiedAt}` : ""
+  const signatureWidth = Math.max(138, signatureName.length * 4.8, signatureText.length * 3.9)
   const signatureX = x4 - 22 - signatureWidth
+  const signatureLineY = Math.max(40, y - 42)
   if (data.isVerified) {
-    text(signatureX - 88, 54, `Telah diverifikasi pada ${data.verifiedAt}`, 8)
+    text(signatureX + Math.max(0, (signatureWidth - signatureText.length * 3.9) / 2), signatureLineY + 10, signatureText, 8)
   }
-  line(signatureX, 50, signatureX + signatureWidth, 50)
+  line(signatureX, signatureLineY, signatureX + signatureWidth, signatureLineY)
   if (data.isVerified) {
-    text(signatureX + Math.max(0, (signatureWidth - signatureName.length * 4.6) / 2), 32, signatureName, 9, "F2")
+    text(signatureX + Math.max(0, (signatureWidth - signatureName.length * 4.6) / 2), signatureLineY - 18, signatureName, 9, "F2")
   }
 
   const content = ["q", "0.8 w", ...commands, "Q"].join("\n")
@@ -724,16 +726,16 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
       .fill-lg { min-height: 72px; }
       .physical { display: grid; grid-template-columns: 42px 42px 42px 42px 1fr; gap: 20px; }
       .codes { width: 35%; }
-      .signature { position: absolute; right: 22mm; bottom: 18mm; text-align: center; font-size: 12px; }
-      .signature-box { display: inline-block; min-width: 44mm; }
-      .verified-line { margin-bottom: 8px; font-size: 11px; white-space: nowrap; }
-      .signature-line { border-top: 1px solid #111827; margin-bottom: 14px; }
+      .signature { display: flex; justify-content: flex-end; margin-top: 22mm; padding-right: 10mm; text-align: center; font-size: 12px; clear: both; }
+      .signature-box { display: inline-block; min-width: 54mm; max-width: 78mm; }
+      .verified-line { margin-bottom: 4px; font-size: 11px; line-height: 1.4; white-space: nowrap; }
+      .signature-line { border-top: 1px solid #111827; margin-bottom: 10px; }
       .signature-name { min-height: 16px; font-weight: 700; }
       @media print {
         @page { size: A4; margin: 0; }
         body { background: white; padding: 0; }
         main, .page { width: 210mm; }
-        .page { height: 297mm; min-height: 297mm; padding: 10mm 12mm; overflow: hidden; }
+        .page { min-height: 297mm; padding: 10mm 12mm; overflow: visible; }
         .doc-code { margin-top: 0; }
       }
       @media (max-width: 700px) {
