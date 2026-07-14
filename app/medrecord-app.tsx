@@ -83,7 +83,7 @@ const sectionMeta: Record<SectionKey, { title: string; description: string; acti
   assessment: {
     title: "Asesmen Klinis",
     description: "Dokter yang ditugaskan mengisi tanda vital, diagnosa masuk, riwayat penyakit, ICD-10, dan tindakan ICD-9-CM.",
-    action: "Simpan asesmen",
+    action: "Kelola asesmen",
   },
   records: {
     title: "CPPT",

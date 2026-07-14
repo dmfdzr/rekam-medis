@@ -9,7 +9,7 @@ import { icdDiagnoses, icdProcedures } from "@/lib/icd-data"
 import { useListControls, useRefreshOnSuccess } from "@/lib/hooks"
 import { TextField, TextAreaField, FormMessage, ComboboxField as SharedComboboxField } from "@/components/shared/forms"
 import { EmptyState, PermissionNotice } from "@/components/shared/feedback"
-import { Panel, ModalDialog } from "@/components/shared/layout"
+import { ChoiceFormSwitch, type ChoiceFormOption, Panel, ModalDialog } from "@/components/shared/layout"
 import { ListToolbar, PaginationControls } from "@/components/shared/list-controls"
 import { Button } from "@/components/ui/button"
 import { ConfirmSubmitButton } from "@/components/shared/buttons"
@@ -117,7 +117,7 @@ function ComboboxField({
             <ChevronsUpDown className="ml-2 size-4 shrink-0 opacity-50" />
           </Button>
         </PopoverTrigger>
-        <PopoverContent className="w-[var(--radix-popover-trigger-width)] p-0" align="start">
+        <PopoverContent className="w-(--radix-popover-trigger-width) p-0" align="start">
           <Command shouldFilter={false}>
             <CommandInput 
               placeholder={`Cari ${label.toLowerCase()}...`} 
@@ -252,7 +252,17 @@ function DynamicList({
   )
 }
 
-export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: ClinicalWorklistItem[] }) {
+export function AssessmentForm({
+  clinicalWorklist,
+  emptyTitle = "Belum ada kunjungan siap asesmen",
+  emptyDetail = "Kunjungan baru dari pendaftaran akan muncul di sini.",
+  submitLabel = "Simpan Asesmen",
+}: {
+  clinicalWorklist: ClinicalWorklistItem[]
+  emptyTitle?: string
+  emptyDetail?: string
+  submitLabel?: string
+}) {
   const [state, formAction, pending] = React.useActionState(saveAssessmentAction, initialClinicFormState)
   useRefreshOnSuccess(state)
   const [selectedVisitId, setSelectedVisitId] = React.useState(clinicalWorklist[0]?.id ?? "")
@@ -265,7 +275,7 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
   const procedures = selectedVisit?.medicalRecord?.treatments.map((treatment) => ({ code: treatment.code, name: treatment.name })) ?? []
 
   if (clinicalWorklist.length === 0) {
-    return <EmptyState title="Belum ada kunjungan siap asesmen" detail="Kunjungan baru dari pendaftaran akan muncul di sini." />
+    return <EmptyState title={emptyTitle} detail={emptyDetail} />
   }
 
   return (
@@ -357,7 +367,7 @@ export function AssessmentForm({ clinicalWorklist }: { clinicalWorklist: Clinica
           pendingLabel="Menyimpan..."
           disabled={isSelectedRecordFinal}
         >
-          Simpan Asesmen
+          {submitLabel}
         </ConfirmSubmitButton>
       </div>
     </form>
@@ -444,7 +454,7 @@ function DetailItem({ label, value }: { label: string; value: string | number })
   return (
     <div className="rounded-md border border-border bg-background p-3">
       <p className="text-xs text-muted-foreground">{label}</p>
-      <p className="mt-1 break-words text-sm leading-6">{value}</p>
+      <p className="mt-1 wrap-break-word text-sm leading-6">{value}</p>
     </div>
   )
 }
@@ -550,14 +560,55 @@ export function AssessmentSection({
   onComposerOpenChange: (open: boolean) => void
 }) {
   const canInput = role === "master" || role === "doctor"
+  const updatableAssessments = assessmentList.filter(
+    (visit) => visit.workflowStatus === "VITAL_SIGN" && visit.medicalRecord?.status !== "Final",
+  )
+  const assessmentActions: ChoiceFormOption[] = canInput
+    ? [
+        {
+          id: "create-assessment",
+          title: "Tambah asesmen",
+          description: "Isi asesmen awal untuk kunjungan yang baru masuk dari pendaftaran.",
+          content: (
+            <AssessmentForm
+              clinicalWorklist={assessmentOptions}
+              emptyTitle="Belum ada kunjungan siap asesmen"
+              emptyDetail="Kunjungan baru dari pendaftaran akan muncul di sini."
+              submitLabel="Simpan asesmen"
+            />
+          ),
+        },
+        {
+          id: "update-assessment",
+          title: "Update asesmen",
+          description: "Perbarui asesmen yang sudah tersimpan selama belum masuk tahap laboratorium.",
+          content: (
+            <AssessmentForm
+              clinicalWorklist={updatableAssessments}
+              emptyTitle="Tidak ada asesmen yang bisa diupdate"
+              emptyDetail="Asesmen hanya bisa diperbarui sebelum hasil laboratorium disimpan."
+              submitLabel="Update asesmen"
+            />
+          ),
+        },
+      ]
+    : []
 
   return (
     <div className="grid gap-5">
       <Panel title="Data asesmen tersimpan" description="Daftar asesmen yang sudah dibuat dari kunjungan pasien.">
         <AssessmentList assessmentList={assessmentList} />
       </Panel>
-      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Asesmen Klinis" description="Pengisian diagnosa masuk, riwayat penyakit, diagnosa ICD-10, dan tindakan ICD-9-CM.">
-        {canInput ? <AssessmentForm clinicalWorklist={assessmentOptions} /> : <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi asesmen." />}
+      <ModalDialog open={composerOpen} onOpenChange={onComposerOpenChange} title="Kelola asesmen" description="Pilih tambah asesmen baru atau update asesmen yang belum masuk tahap laboratorium.">
+        {canInput ? (
+          <ChoiceFormSwitch
+            key={composerOpen ? "assessment-open" : "assessment-closed"}
+            options={assessmentActions}
+            emptyMessage="Role ini tidak memiliki akses untuk mengisi asesmen."
+          />
+        ) : (
+          <PermissionNotice message="Role ini tidak memiliki akses untuk mengisi asesmen." />
+        )}
       </ModalDialog>
     </div>
   )
