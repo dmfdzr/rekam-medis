@@ -2,6 +2,7 @@ import "server-only"
 
 import type { Prisma } from "@prisma/client"
 
+import { formatLengthOfStay } from "@/lib/dates"
 import { prisma } from "@/lib/prisma"
 
 type DataViewer = {
@@ -372,10 +373,6 @@ export async function getVisitList() {
   })
 
   return visits.map((visit) => {
-    const lengthOfStayDays = visit.medicalRecord?.verifiedAt
-      ? Math.ceil((visit.medicalRecord.verifiedAt.getTime() - visit.admissionDate.getTime()) / (1000 * 60 * 60 * 24))
-      : null
-
     return {
       id: visit.id,
       patient: visit.patient.fullName,
@@ -386,7 +383,7 @@ export async function getVisitList() {
       time: timeFormatter.format(visit.visitDate),
       admissionDate: dateFormatter.format(visit.admissionDate),
       dischargeDate: visit.medicalRecord?.verifiedAt ? dateFormatter.format(visit.medicalRecord.verifiedAt) : "-",
-      lengthOfStay: lengthOfStayDays !== null ? `${Math.max(1, lengthOfStayDays + 1)} hari` : "Masih dirawat",
+      lengthOfStay: visit.medicalRecord?.verifiedAt ? formatLengthOfStay(visit.admissionDate, visit.medicalRecord.verifiedAt) : "Masih dirawat",
       patientType: patientTypeLabels[visit.patientType],
       isJointCare: visit.isJointCare,
       companionDoctors: visit.companionDoctors.map((c) => c.doctor.name),

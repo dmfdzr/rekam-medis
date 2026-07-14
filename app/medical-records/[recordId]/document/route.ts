@@ -6,6 +6,7 @@ import { deflateSync, inflateSync } from "node:zlib"
 import { writeAuditLog } from "@/lib/auth/audit-log"
 import { getCurrentUser } from "@/lib/auth/current-user"
 import { canAccess } from "@/lib/auth/permissions"
+import { formatLengthOfStay } from "@/lib/dates"
 import { prisma } from "@/lib/prisma"
 
 export const dynamic = "force-dynamic"
@@ -296,14 +297,7 @@ async function getResumeDocumentCode(record: { id: string; status: string; final
 }
 
 function daysBetween(start: Date, end: Date | null) {
-  if (!end) {
-    return "-"
-  }
-
-  const dayMs = 1000 * 60 * 60 * 24
-  const diff = Math.ceil((end.getTime() - start.getTime()) / dayMs)
-
-  return `${Math.max(1, diff + 1)} hari`
+  return formatLengthOfStay(start, end)
 }
 
 function checkbox(checked: boolean, label: string) {
@@ -695,12 +689,13 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
     vital?.respiration ? `Respirasi ${vital.respiration} /menit` : null,
     vital?.oxygenSaturation ? `Saturasi oksigen ${vital.oxygenSaturation}%` : null,
   ].filter(Boolean).join("; ")
+  const previewFileName = fileName(`${patient.medicalRecordNumber}-${patient.fullName}`)
   const html = `<!doctype html>
 <html lang="id">
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>${escapeHtml(fileName(`resume-medis-${patient.medicalRecordNumber}-${patient.fullName}`))}</title>
+    <title>${escapeHtml(previewFileName)}</title>
     <style>
       :root { color-scheme: light; font-family: Arial, sans-serif; color: #111827; background: #f8fafc; }
       * { box-sizing: border-box; }
@@ -956,7 +951,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
 
   return new Response(html, {
     headers: {
-      "Content-Disposition": `inline; filename="${downloadFileName}.html"`,
+      "Content-Disposition": `inline; filename="${previewFileName}.html"`,
       "Content-Type": "text/html; charset=utf-8",
       "X-Content-Type-Options": "nosniff",
     },
