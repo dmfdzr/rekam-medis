@@ -211,7 +211,12 @@ function escapeHtml(value: string | number | null | undefined) {
 }
 
 function fileName(value: string) {
-  return value.replace(/[^a-zA-Z0-9._-]/g, "-").replace(/-+/g, "-").slice(0, 120)
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]/g, "-")
+    .replace(/-+/g, "-")
+    .replace(/^-|-$/g, "")
+    .slice(0, 120)
 }
 
 function toRomanNumeral(value: number) {
@@ -695,7 +700,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Resume Medis ${escapeHtml(patient.medicalRecordNumber)} - MedNote</title>
+    <title>${escapeHtml(fileName(`resume-medis-${patient.medicalRecordNumber}-${patient.fullName}`))}</title>
     <style>
       :root { color-scheme: light; font-family: Arial, sans-serif; color: #111827; background: #f8fafc; }
       * { box-sizing: border-box; }
@@ -890,7 +895,7 @@ export async function GET(request: Request, context: { params: Promise<{ recordI
   })
 
   const isDownload = new URL(request.url).searchParams.get("download") === "1"
-  const downloadFileName = fileName(`resume-medis-${patient.medicalRecordNumber}-${record.id}`)
+  const downloadFileName = fileName(`resume-medis-${patient.medicalRecordNumber}-${patient.fullName}`)
 
   if (isDownload) {
     const pdf = buildResumeMedicalPdf({
